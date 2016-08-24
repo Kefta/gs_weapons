@@ -145,7 +145,7 @@ function SWEP:GetSpread( bSecondary --[[= self:SpecialActive()]] )
 	
 	-- We're jumping; takes accuracy priority
 	if ( not pPlayer:OnGround() ) then
-		if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_zoomActiveTime) ) then
+		if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_flZoomActiveTime) ) then
 			local flSpecial = self.Secondary.Spread.Air
 			
 			if ( flSpecial ~= -1 ) then
@@ -157,7 +157,7 @@ function SWEP:GetSpread( bSecondary --[[= self:SpecialActive()]] )
 	end
 	
 	if ( pPlayer:_GetAbsVelocity():Length2DSqr() > (pPlayer:GetWalkSpeed() * self.Accuracy.Speed) ^ 2 ) then
-		if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_zoomActiveTime) ) then
+		if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_flZoomActiveTime) ) then
 			local flSpecial = self.Secondary.Spread.Move
 			
 			if ( flSpecial ~= -1 ) then

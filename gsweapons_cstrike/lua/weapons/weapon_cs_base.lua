@@ -30,19 +30,20 @@ function SWEP:CanPrimaryAttack()
 	
 	local pPlayer = self:GetOwner()
 	
-	-- Make sure player is at least valid for the methods below
 	if ( pPlayer == NULL ) then
 		return false
 	end
 	
-	-- CS:S gives priority to water over empty clip
+	-- Give priority to water check over clip
 	if ( not self.Primary.FireUnderwater and pPlayer:WaterLevel() == 3 ) then
 		self:HandleFireUnderwater( false )
 		
 		return false
 	end
 	
-	if ( self:Clip1() == 0 ) then
+	local iClip = self:Clip1()
+	
+	if ( iClip == 0 or iClip == -1 and self:GetDefaultClip1() ~= -1 and pPlayer:GetAmmoCount( self:GetPrimaryAmmoName() ) == 0 ) then
 		self:HandleFireOnEmpty( false )
 		
 		return false
@@ -80,7 +81,9 @@ function SWEP:CanSecondaryAttack()
 		return false
 	end
 	
-	if ( self:Clip2() == 0 ) then
+	local iClip = self:Clip2()
+	
+	if ( iClip == 0 or iClip == -1 and self:GetDefaultClip2() ~= -1 and pPlayer:GetAmmoCount( self:GetSecondaryAmmoName() ) == 0 ) then
 		self:HandleFireOnEmpty( true )
 		
 		return false

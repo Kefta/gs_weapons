@@ -174,15 +174,15 @@ function SWEP:Initialize()
 	DevMsg( 2, sClass .. " (weapon_gs_base) Initialize" )
 	
 	self.m_bInitialized = true
-	self.m_bPlayedEmptySound = false
 	self.m_bDeployed = false
 	self.m_bDeployedNoAmmo = false
 	self.m_bHolstered = false
 	self.m_bInHolsterAnim = false
 	self.m_bHolsterAnimDone = false
+	self.m_bPlayedEmptySound = false
 	self.m_flNextEmptySoundTime = 0
 	self.m_flDecreaseShotsFired = 0
-	self.m_zoomActiveTime = 0
+	self.m_flZoomActiveTime = 0
 	self.m_sWorldModel = self.WorldModel
 	self.m_tEvents = {}
 	self.m_tEventHoles = {}
@@ -687,7 +687,9 @@ function SWEP:CanPrimaryAttack()
 	end
 	
 	-- By default, clip has priority over water
-	if ( self:Clip1() == 0 or self:GetDefaultClip1() ~= -1 and pPlayer:GetAmmoCount( self:GetPrimaryAmmoName() ) == 0 ) then
+	local iClip = self:Clip1()
+	
+	if ( iClip == 0 or iClip == -1 and self:GetDefaultClip1() ~= -1 and pPlayer:GetAmmoCount( self:GetPrimaryAmmoName() ) == 0 ) then
 		self:HandleFireOnEmpty( false )
 		
 		return false
@@ -733,7 +735,9 @@ function SWEP:CanSecondaryAttack()
 		return false
 	end
 	
-	if ( self:Clip2() == 0 or self:GetDefaultClip2() ~= -1 and pPlayer:GetAmmoCount( self:GetSecondaryAmmoName() ) == 0 ) then
+	local iClip = self:Clip2()
+	
+	if ( iClip == 0 or iClip == -1 and self:GetDefaultClip2() ~= -1 and pPlayer:GetAmmoCount( self:GetSecondaryAmmoName() ) == 0 ) then
 		self:HandleFireOnEmpty( true )
 		
 		return false
@@ -776,51 +780,62 @@ function SWEP:SecondaryAttack()
 end
 
 function SWEP:ShootBullets( tbl, bSecondary, iClipDeduction )
-	local pPlayer = self:GetOwner()
-	local iClip = self:Clip1()
-	self:SetClip1( iClip - (iClipDeduction or 1) )
+	if ( not iClipDeduction ) then
+		iClipDeduction = 1
+	end
 	
+	local iClip = self:Clip1()
+	
+	-- Check just in-case the weapon's CanPrimary/SecondaryAttack doesn't
+	-- Do NOT let the clip overflow
+	if ( iClipDeduction > iClip ) then
+		return
+	end
+	
+	local pPlayer = self:GetOwner()
 	self.FireFunction( pPlayer, tbl )
 	
-	if ( self:BurstEnabled() ) then
-		if ( iClip ~= 1 ) then
-			local tBurst = self.Burst
-			local iBurstCount = tBurst.Count
-			local iCurCount = 1
-			local flLastTime = tBurst.Times[1]
+	if ( iClip >= iClipDeduction * 2 and self:BurstEnabled() ) then
+		iClip = iClip - iClipDeduction
+		local tBurst = self.Burst
+		local tTimes = tBurst.Times
+		local flLastTime = tTimes[1]
+		local iCount = tBurst.Count
+		local iCurCount = 1
+		
+		self:SetClip1( iClip )
+		self:SetNextPrimaryFire(-1)
+		self:SetNextSecondaryFire(-1)
+		self:SetNextReload(-1)
+		
+		self:AddEvent( "Burst", flLastTime, function()
+			iClip = iClip - iClipDeduction
+			self:SetClip1( iClip )
+			tbl.ShootAngles = self:GetShootAngles()
+			tbl.Src = self:GetShootSrc()
 			
-			self:SetNextPrimaryFire(-1)
-			self:SetNextSecondaryFire(-1)
-			self:SetNextReload(-1)
+			self.FireFunction( pPlayer, tbl )
+			self:PlayActivity( "burst" )
+			self:PlaySound( bSecondary and "secondary" or "primary" )
+			self:DoMuzzleFlash()
 			
-			self:AddEvent( "Burst", flLastTime, function()
-				local iClip = self:Clip1() - 1
-				self:SetClip1( iClip )
-				tbl.ShootAngles = self:GetShootAngles()
-				tbl.Src = self:GetShootSrc()
+			pPlayer:SetAnimation( PLAYER_ATTACK1 )
+			
+			if ( iCurCount == iCount or iClip < iClipDeduction ) then
+				local flNewTime = CurTime() + self:GetCooldown( true )
+				self:SetNextPrimaryFire( flNewTime )
+				self:SetNextSecondaryFire( flNewTime )
+				self:SetNextReload( flNewTime )
+				self:SetReduceShots( true )
 				
-				self.FireFunction( pPlayer, tbl )
-				self:PlayActivity( "burst" )
-				self:PlaySound( bSecondary and "secondary" or "primary" )
-				iCurCount = iCurCount + 1
-				
-				pPlayer:SetAnimation( PLAYER_ATTACK1 )
-				
-				if ( iCurCount > iBurstCount or iClip == 0 ) then
-					local flNewTime = CurTime() + self:GetCooldown( true )
-					self:SetNextPrimaryFire( flNewTime )
-					self:SetNextSecondaryFire( flNewTime )
-					self:SetNextReload( flNewTime )
-					self:SetReduceShots( true )
-					
-					return true
-				end
-				
-				flLastTime = tBurst.Times[iCurCount] or flLastTime
-				
-				return flLastTime
-			end )
-		end
+				return true
+			end
+			
+			iCurCount = iCurCount + 1
+			flLastTime = tTimes[iCurCount] or flLastTime
+			
+			return flLastTime
+		end )
 	else
 		local flCooldown = self:GetCooldown()
 		local flNextTime = CurTime() + flCooldown
@@ -831,7 +846,7 @@ function SWEP:ShootBullets( tbl, bSecondary, iClipDeduction )
 			self:SetSpecialLevel(0) -- Disable scope overlay
 			
 			if ( iLevel ~= 0 ) then
-				self.m_zoomActiveTime = flNextTime -- For CS:S spread
+				self.m_flZoomActiveTime = flNextTime -- For CS:S spread
 				pPlayer:SetFOV( 0, tZoom.Times.Fire )
 				
 				if ( tZoom.HideViewModel ) then
@@ -868,6 +883,7 @@ function SWEP:ShootBullets( tbl, bSecondary, iClipDeduction )
 			end
 		end
 		
+		self:SetClip1( iClip - iClipDeduction )
 		self:SetNextPrimaryFire( flNextTime )
 		self:SetNextSecondaryFire( flNextTime )
 		self:SetNextReload( flNextTime )
@@ -876,7 +892,7 @@ function SWEP:ShootBullets( tbl, bSecondary, iClipDeduction )
 	
 	self:PlayActivity( bSecondary and "secondary" or "primary" )
 	self:PlaySound( bSecondary and "secondary" or "primary" )
-	self:DoMuzzleFlash( bSecondary )
+	self:DoMuzzleFlash()
 	self:Punch( bSecondary )
 	
 	pPlayer:SetAnimation( PLAYER_ATTACK1 )
@@ -951,24 +967,30 @@ function SWEP:AdvanceZoom()
 	end
 	
 	local flCurTime = CurTime()
-	self.m_zoomActiveTime = flCurTime + flTime
+	self.m_flZoomActiveTime = flCurTime + flTime
 	self:SetNextSecondaryFire( flCurTime + tZoom.Cooldown )
 end
 
 -- Using this instead of Player:MuzzleFlash() allows all viewmodels to use muzzle flash
 function SWEP:DoMuzzleFlash( iIndex )
-	-- https://github.com/Facepunch/garrysmod-issues/issues/2552
-	if ( SERVER and not self:Silenced() ) then
-		self:SetSaveValue( "m_nMuzzleFlashParity", bit.band( self:GetInternalVariable( "m_nMuzzleFlashParity" ) + 1, 3 ))
-		
-		local pPlayer = self:GetOwner()
-		pPlayer:SetSaveValue( "m_nMuzzleFlashParity", bit.band( pPlayer:GetInternalVariable( "m_nMuzzleFlashParity" ) + 1, 3 ))
-		
-		local pViewModel = pPlayer:GetViewModel( iIndex )
-		
-		-- Always check if the viewmodel is valid
-		if ( pViewModel ~= NULL ) then
-			pViewModel:SetSaveValue( "m_nMuzzleFlashParity", bit.band( pViewModel:GetInternalVariable( "m_nMuzzleFlashParity" ) + 1, 3 ))
+	if ( not self:Silenced() ) then
+		if ( iIndex ) then
+			-- https://github.com/Facepunch/garrysmod-issues/issues/2552
+			if ( SERVER ) then
+				self:SetSaveValue( "m_nMuzzleFlashParity", bit.band( self:GetInternalVariable( "m_nMuzzleFlashParity" ) + 1, 3 ))
+				
+				local pPlayer = self:GetOwner()
+				pPlayer:SetSaveValue( "m_nMuzzleFlashParity", bit.band( pPlayer:GetInternalVariable( "m_nMuzzleFlashParity" ) + 1, 3 ))
+				
+				local pViewModel = pPlayer:GetViewModel( iIndex )
+				
+				-- Always check if the viewmodel is valid
+				if ( pViewModel ~= NULL ) then
+					pViewModel:SetSaveValue( "m_nMuzzleFlashParity", bit.band( pViewModel:GetInternalVariable( "m_nMuzzleFlashParity" ) + 1, 3 ))
+				end
+			end
+		else
+			self:GetOwner():MuzzleFlash()
 		end
 	end
 end
@@ -1353,7 +1375,7 @@ function SWEP:FlipsViewModel( iIndex )
 end
 
 function SWEP:GetCooldown( bSecondary --[[= self:SpecialActive()]] )
-	if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_zoomActiveTime) ) then
+	if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_flZoomActiveTime) ) then
 		local flSpecial = self.Secondary.Cooldown
 		
 		if ( flSpecial ~= -1 ) then
@@ -1365,7 +1387,7 @@ function SWEP:GetCooldown( bSecondary --[[= self:SpecialActive()]] )
 end
 
 function SWEP:GetDamage( bSecondary --[[= self:SpecialActive()]] )
-	if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_zoomActiveTime) ) then
+	if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_flZoomActiveTime) ) then
 		local flSpecial = self.Secondary.Damage
 		
 		if ( flSpecial ~= -1 ) then
@@ -1462,7 +1484,7 @@ end
 end]]
 
 function SWEP:GetRange( bSecondary --[[= self:SpecialActive()]] )
-	if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_zoomActiveTime) ) then
+	if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_flZoomActiveTime) ) then
 		local flSpecial = self.Secondary.Range
 		
 		if ( flSpecial ~= -1 ) then
@@ -1482,7 +1504,7 @@ function SWEP:SetReduceShots( bReduce )
 end
 
 function SWEP:GetRunSpeed( bSecondary --[[= self:SpecialActive()]] )
-	if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_zoomActiveTime) ) then
+	if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_flZoomActiveTime) ) then
 		local flSpecial = self.Secondary.RunSpeed
 		
 		if ( flSpecial ~= -1 ) then
@@ -1542,7 +1564,7 @@ function SWEP:SetViewModel( sModel, iIndex )
 end
 
 function SWEP:GetWalkSpeed( bSecondary --[[= self:SpecialActive()]] )
-	if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_zoomActiveTime) ) then
+	if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_flZoomActiveTime) ) then
 		local flSpecial = self.Secondary.WalkSpeed
 		
 		if ( flSpecial ~= -1 ) then

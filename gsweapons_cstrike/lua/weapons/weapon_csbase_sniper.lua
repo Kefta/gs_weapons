@@ -72,7 +72,7 @@ end
 
 --- CSBase_Gun
 function SWEP:GetSpread( bSecondary --[[= self:SpecialActive()]] )
-	bSecondary = bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_zoomActiveTime)
+	bSecondary = bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_flZoomActiveTime)
 	local flAdditive = bSecondary and self.Secondary.Spread.Additive or self.Primary.Spread.Additive
 	local pPlayer = self:GetOwner()
 	

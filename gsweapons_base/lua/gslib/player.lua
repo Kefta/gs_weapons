@@ -94,7 +94,7 @@ local CommandNumber = _R.CUserCmd.CommandNumber
 -- Only supports players
 PLAYER.m_iPredictionRandomSeed = -1
 
-hook.Add( "StartCommand", "GSBase-Update global shared seed", function( _, cmd )
+hook.Add( "StartCommand", "GSBase-Prediction seed", function( _, cmd )
 	PLAYER.m_iPredictionRandomSeed = PseudoRandom( CommandNumber( cmd )) % 0x80000000
 end )
 

@@ -89,7 +89,7 @@ end
 
 --- CSBase_Gun
 function SWEP:GetSpread( bSecondary --[[= self:SpecialActive()]] )
-	if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_zoomActiveTime) ) then
+	if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_flZoomActiveTime) ) then
 		local flSpecial = self.Secondary.Spread.Base
 		
 		if ( flSpecial ~= -1 ) then
