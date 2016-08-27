@@ -1,7 +1,7 @@
 DEFINE_BASECLASS( "basehl1combatweapon" )
 
 --- GSBase
-SWEP.PrintName = "#HL1_MP5"
+SWEP.PrintName = "#HL_MP5"
 SWEP.Spawnable = true
 SWEP.Slot = 2
 

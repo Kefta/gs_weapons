@@ -102,6 +102,13 @@ function PLAYER:GetPredictionSeed()
 	return self.m_iPredictionRandomSeed
 end
 
+FIRE_BULLETS_FIRST_SHOT_ACCURATE = 0x1 // Pop the first shot with perfect accuracy
+FIRE_BULLETS_DONT_HIT_UNDERWATER = 0x2 // If the shot hits its target underwater, don't damage it
+FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS = 0x4 // If the shot hits water surface, still call DoImpactEffect
+-- The engine alerts NPCs by pushing a sound onto a static sound manager
+-- This cannot be accessed from the Lua state
+--FIRE_BULLETS_TEMPORARY_DANGER_SOUND = 0x8 // Danger sounds added from this impact can be stomped immediately if another is queued
+
 local ai_shot_bias_min = GetConVar( "ai_shot_bias_min" )
 local ai_shot_bias_max = GetConVar( "ai_shot_bias_max" )
 local ai_debug_shoot_positions = GetConVar( "ai_debug_shoot_positions" )
@@ -647,8 +654,8 @@ function PLAYER:FireCSBullets( bullets )
 	local iAmmoMinSplash = game.GetAmmoMinSplash( sAmmoType )
 	local iAmmoMaxSplash = game.GetAmmoMaxSplash( sAmmoType )
 	local iAmmoTracerType = game.GetAmmoTracerType( sAmmoType )
-	local flPenetrationDistance = game.GetAmmoPenetrationDistance( sAmmoType )
-	local flPenetrationPower = game.GetAmmoPenetrationPower( sAmmoType )
+	local flPenetrationDistance = game.GetAmmoKey( sAmmoType, "penetrationdistance", 0 )
+	local flPenetrationPower = game.GetAmmoKey( sAmmoType, "penetrationpower", 0 )
 	
 	-- Loop values
 	local bDebugShoot = ai_debug_shoot_positions:GetBool()

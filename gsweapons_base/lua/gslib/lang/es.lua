@@ -56,9 +56,9 @@ CStrike_C4 = "Explosivo C4"
 CStrike_Knife = "Cuchillo"
 
 --- Half-Life 1
-HL1_357 = "357 Pistola"
-HL1_MP5 = "9mm AR"
-HL1_Shotgun = "Escopeta"
+HL_357 = "357 Pistola"
+HL_MP5 = "9mm AR"
+HL_Shotgun = "Escopeta"
 
 -- Send to lib
 return tLang

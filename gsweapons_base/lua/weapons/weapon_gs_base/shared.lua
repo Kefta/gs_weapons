@@ -600,33 +600,30 @@ function SWEP:Think()
 		self:ItemFrame()
 	end
 	
-	if ( SERVER or not game.SinglePlayer() ) then
-		-- Don't idle on dryfire
-		if ( self:Clip1() ~= 0 or self:LookupActivity( "dryfire" ) == ACT_INVALID ) then 
-			local flCurTime = CurTime()
+	if ( self:Clip1() ~= 0 or self:LookupActivity( "dryfire" ) == ACT_INVALID ) then 
+		local flCurTime = CurTime()
+		
+		if ( self.ShouldIdle ) then
+			local flNextIdle = self:GetNextIdle()
 			
-			if ( self.ShouldIdle ) then
-				local flNextIdle = self:GetNextIdle()
-				
-				if ( flNextIdle ~= -1 and flNextIdle <= flCurTime ) then
-					self:PlayIdle()
-				end
+			if ( flNextIdle ~= -1 and flNextIdle <= flCurTime ) then
+				self:PlayIdle()
 			end
+		end
+		
+		if ( self.ShouldIdle1 ) then
+			local flNextIdle = self:GetNextIdle1()
 			
-			if ( self.ShouldIdle1 ) then
-				local flNextIdle = self:GetNextIdle1()
-				
-				if ( flNextIdle ~= -1 and flNextIdle <= flCurTime ) then
-					self:PlayIdle(1)
-				end
+			if ( flNextIdle ~= -1 and flNextIdle <= flCurTime ) then
+				self:PlayIdle(1)
 			end
+		end
+		
+		if ( self.ShouldIdle2 ) then
+			local flNextIdle = self:GetNextIdle2()
 			
-			if ( self.ShouldIdle2 ) then
-				local flNextIdle = self:GetNextIdle2()
-				
-				if ( flNextIdle ~= -1 and flNextIdle <= flCurTime ) then
-					self:PlayIdle(2)
-				end
+			if ( flNextIdle ~= -1 and flNextIdle <= flCurTime ) then
+				self:PlayIdle(2)
 			end
 		end
 	end

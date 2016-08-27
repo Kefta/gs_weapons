@@ -108,7 +108,7 @@ AddDetonateType( "Explode_CStrike", function( pGrenade )
 	pGrenade:Remove()
 end )
 
-AddDetonateType( "Explode_HL1", function( pGrenade )
+AddDetonateType( "Explode_HL", function( pGrenade )
 	local info = ExplosionEffects( pGrenade )
 	
 	if ( SERVER ) then

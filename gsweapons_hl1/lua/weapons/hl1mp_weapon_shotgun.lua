@@ -1,7 +1,7 @@
 DEFINE_BASECLASS( "basehl1combatweapon" )
 
 --- GSBase
-SWEP.PrintName = "#HL1_Shotgun"
+SWEP.PrintName = "#HL_Shotgun"
 SWEP.Spawnable = true
 SWEP.Slot = 3
 
@@ -26,7 +26,7 @@ SWEP.Sounds = {
 }
 
 SWEP.Primary = {
-	Ammo = "Buckshot_HL1",
+	Ammo = "Buckshot_HL",
 	ClipSize = 8,
 	DefaultClip = 20,
 	Cooldown = 0.75,

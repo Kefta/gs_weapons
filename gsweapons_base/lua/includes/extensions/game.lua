@@ -34,29 +34,25 @@ AMMO_INTERPRET_PLRDAMAGE_AS_DAMAGE_TO_PLAYER = 0x2
 	})
 ]]
 
-local AmmoTypes = {}
-local AmmoNames = {}
+local tAmmoTypes = {}
+local tAmmoNames = {}
 local bCalled = false
-local iMissingName = 1
 
 function game.AddAmmoType( tAmmo )
 	if ( bCalled ) then
 		ErrorNoHalt( string.format( "BuildAmmoTypes already called! Ammo type %q will not be registered", tAmmo.name or "No Name" ))
+	elseif ( not tAmmo.name ) then
+		ErrorNoHalt( "Ammo attempted to be registered with no name!" )
+	elseif ( tAmmoNames[tAmmo.name] ) then
+		MsgN( string.format( "Ammo %q registered twice; giving priority to later registration", tAmmo.name ))
+		tAmmo.num = tAmmoNames[tAmmo.name].num or #tAmmoTypes + 1
+		tAmmoTypes[tAmmo.num] = tAmmo
+		tAmmoNames[tAmmo.name] = tAmmo
 	else
-		if ( not tAmmo.name ) then
-			tAmmo.name = "MissingName"
-			tAmmo.name = tAmmo.name .. iMissingName
-			iMissingName = iMissingName + 1
-		elseif ( AmmoNames[tAmmo.name] ) then
-			tAmmo.num = AmmoNames[tAmmo.name].num or #AmmoTypes + 1
-			AmmoTypes[tAmmo.num] = tAmmo
-			AmmoNames[tAmmo.name] = tAmmo
-		else
-			local i = #AmmoTypes + 1
-			tAmmo.num = i
-			AmmoTypes[i] = tAmmo
-			AmmoNames[tAmmo.name] = tAmmo
-		end
+		local i = #tAmmoTypes + 1
+		tAmmo.num = i
+		tAmmoTypes[i] = tAmmo
+		tAmmoNames[tAmmo.name] = tAmmo
 	end
 end
 
@@ -66,58 +62,54 @@ function game.BuildAmmoTypes()
 	-- Sort the table by name here to assure that the ammo types
 	-- are inserted in the same order on both server and client
 	bCalled = true
-	itable.MergeSort( AmmoTypes, false, "name" )
+	table.MergeSort( tAmmoTypes, false, "name" )
 	
-	return AmmoTypes
+	return tAmmoTypes
 end
 
-function game.GetAmmoDamageType( sKey )
-	return AmmoNames[sKey] and (AmmoNames[sKey].dmgtype or DMG_BULLET) or 0
+function game.GetAmmoDamageType( sAmmo )
+	return tAmmoNames[sAmmo] and (tAmmoNames[sAmmo].dmgtype or DMG_BULLET) or 0
 end
 
-function game.GetAmmoFlags( sKey )
-	return AmmoNames[sKey] and AmmoNames[sKey].flags or 0
+function game.GetAmmoFlags( sAmmo )
+	return tAmmoNames[sAmmo] and tAmmoNames[sAmmo].flags or 0
 end
 
-function game.GetAmmoForce( sKey )
-	return AmmoNames[sKey] and (AmmoNames[sKey].force or 1000) or 0
+function game.GetAmmoForce( sAmmo )
+	return tAmmoNames[sAmmo] and (tAmmoNames[sAmmo].force or 1000) or 0
 end
 
-function game.GetAmmoMaxCarry( sKey )
-	return AmmoNames[sKey] and (AmmoNames[sKey].maxcarry or 9999) or 0
+function game.GetAmmoMaxCarry( sAmmo )
+	return tAmmoNames[sAmmo] and (tAmmoNames[sAmmo].maxcarry or 9999) or 0
 end
 
-function game.GetAmmoMaxSplash( sKey )
-	return AmmoNames[sKey] and AmmoNames[sKey].maxsplash or 0
+function game.GetAmmoMaxSplash( sAmmo )
+	return tAmmoNames[sAmmo] and tAmmoNames[sAmmo].maxsplash or 0
 end
 
-function game.GetAmmoMinSplash( sKey )
-	return AmmoNames[sKey] and AmmoNames[sKey].minsplash or 0
+function game.GetAmmoMinSplash( sAmmo )
+	return tAmmoNames[sAmmo] and tAmmoNames[sAmmo].minsplash or 0
 end
 
-function game.GetAmmoNPCDamage( sKey )
-	return AmmoNames[sKey] and (AmmoNames[sKey].npcdmg or 10) or 0
+function game.GetAmmoNPCDamage( sAmmo )
+	return tAmmoNames[sAmmo] and (tAmmoNames[sAmmo].npcdmg or 10) or 0
 end
 
--- Penetration fields are for CStrike
-function game.GetAmmoPenetrationDistance( sKey )
-	return AmmoNames[sKey] and AmmoNames[sKey].penetrationdistance or 0
+function game.GetAmmoPlayerDamage( sAmmo )
+	return tAmmoNames[sAmmo] and (tAmmoNames[sAmmo].plydmg or 10) or 0
 end
 
-function game.GetAmmoPenetrationPower( sKey )
-	return AmmoNames[sKey] and AmmoNames[sKey].penetrationpower or 0
+function game.GetAmmoTracerType( sAmmo )
+	return tAmmoNames[sAmmo] and tAmmoNames[sAmmo].tracer or TRACER_NONE
 end
 
-function game.GetAmmoPlayerDamage( sKey )
-	return AmmoNames[sKey] and (AmmoNames[sKey].plydmg or 10) or 0
-end
-
-function game.GetAmmoTracerType( sKey )
-	return AmmoNames[sKey] and AmmoNames[sKey].tracer or TRACER_NONE
+-- For custom ammo keys!
+function game.GetAmmoKey( sAmmo, sKey, Default --[[= 0]] )
+	return tAmmoNames[sAmmo] and tAmmoNames[sAmmo][sKey] or Default or 0
 end
 
 local function AddDefaultAmmoType( sName, iDamageType, iTracer, iPlayerDamage, iNPCDamage, iMaxCarry, flForce, iFlags, iMinSplash, iMaxSplash )
-	AmmoNames[sName] = {
+	tAmmoNames[sName] = {
 		dmgtype = iDamageType,
 		tracer = iTracer,
 		plydmg = iPlayerDamage,
@@ -168,7 +160,7 @@ AddDefaultAmmoType("AirboatGun",DMG_AIRBOAT,TRACER_LINE,0,0,0,BulletImpulse(10, 
 // an ammotype as the amount of damage that should be done to a NPC
 // by that type of ammo. Thankfully, the bug only affected Ammo Types 
 // that DO NOT use ConVars to specify their parameters. As you can see,
-// all of the important ammotypes use ConVars, so the effect of the bug
+// all of the important tAmmoTypes use ConVars, so the effect of the bug
 // was limited. The Strider Minigun was affected, though.
 //
 // According to my perforce Archeology, we intended to ship the Strider
@@ -266,7 +258,7 @@ game.AddAmmoType({
 })
 
 game.AddAmmoType({
-	name = "Buckshot_HL1",
+	name = "Buckshot_HL",
 	dmgtype = bit.bor(DMG_BULLET, DMG_BUCKSHOT),
 	tracer = TRACER_LINE,
 	plydmg = 0,
@@ -377,19 +369,6 @@ game.AddAmmoType({
 	npcdmg = 0,
 	maxcarry = 0,
 	force = BulletImpulse(300, 1200, 3),
-	flags = 0,
-	minsplash = 4,
-	maxsplash = 8
-})
-
-game.AddAmmoType({
-	name = "Gravity",
-	dmgtype = DMG_CRUSH,
-	tracer = TRACER_NONE,
-	plydmg = 0,
-	npcdmg = 0,
-	maxcarry = 8,
-	force = 0,
 	flags = 0,
 	minsplash = 4,
 	maxsplash = 8
