@@ -138,7 +138,12 @@ hook.Add( "Think", "GSBase-Player DTVars", function()
 	local pLocalPlayer = LocalPlayer()
 	
 	if ( pLocalPlayer.DTVar ) then
-		pLocalPlayer:SetupWeaponDataTables()
+		if ( pLocalPlayer.SetupWeaponDataTables ) then
+			pLocalPlayer:SetupWeaponDataTables()
+		else
+			ErrorNoHalt( "Player DTVars could not be initialized! This is probably due to an earlier error that halted loading. Please fix/contact code_gs before using GSWeapons" )
+		end
+		
 		hook.Remove( "Think", "GSBase-Player DTVars" )
 	end
 end )

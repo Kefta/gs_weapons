@@ -143,7 +143,7 @@ if ( SERVER ) then
 				filter = pPlayer
 			}).HitPos )
 		pGrenade:_SetAbsVelocity( vForward * (flVel > 750 and 750 or flVel) + pPlayer:_GetAbsVelocity() )
-		--pGrenade:ApplyLocalAngularVelocityImpulse( Vector( random.RandomInt(-1200, 1200), 0, 600 ))
+		pGrenade:ApplyLocalAngularVelocityImpulse( Vector( random.RandomInt(-1200, 1200), 0, 600 ))
 		pGrenade:Spawn()
 		pGrenade:SetOwner( pPlayer )
 		pGrenade:StartDetonation( self.DetonationTime )

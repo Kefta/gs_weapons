@@ -1,5 +1,4 @@
--- TODO: Lowering, ironsights, physical bullets, multiple view models expansion, scopes
--- FIXME: Go through all predicted contexts and add IsFirstTimePredicted/fourth arg to Effect
+-- TODO: Lowering, ironsights, multiple view models expansion
 -- http://wiki.garrysmod.com/page/Structures/SWEP
 
 --- Base; this is the superclass
@@ -142,13 +141,27 @@ SWEP.Zoom = {
 	},
 	Levels = 1, -- Number of zoom levels
 	Cooldown = 0.3, -- Cooldown between zooming
-	UnzoomOnFire = false, -- Unzoom when the weapon is fired; rezooms after Primary/Secondary cooldown
+	UnzoomOnFire = false, -- Unzoom when the weapon is fired; rezooms after Primary/Secondary cooldown if the clip is not 0
 	HideViewModel = false, -- Hide view model when zoomed
 	DrawOverlay = CLIENT and false or nil -- (Clientside) Draw scope overlay when zoomed
 }
 
+SWEP.IronSights = {
+	Pos = vector_origin, -- Position of the viewmodel in ironsights
+	Ang = angle_zero, -- Angle of the viewmodel in ironsights
+	ZoomTime = 1, -- Time it takes to move viewmodel in
+	UnzoomTime = 1, -- Time it takes to move viewmodel out
+	Hold = false -- Require secondary fire key to be held to use ironsights as opposed to just toggling the state
+}
+
 SWEP.FireFunction = _R.Player.LuaFireBullets -- Fire function to use with ShootBullets. Args are ( pPlayer, tFireBulletsInfo )
-SWEP.SpecialType = 0 -- Sets what the secondary fire should do. Use SPECIAL enums
+SWEP.PhysicalBullets = false -- Instead of using traces to simulate bullet firing, shoot a physical entity
+SWEP.PhysicalBulletSpeed = 5000 -- Speed of bullet entity when fired
+SWEP.SpecialType = 0 -- Sets what the secondary fire should do. Uses SPECIAL enums:
+-- SPECIAL_SILENCE: Attaches silencer. Changes all sounds and animations to use the s_param version if available
+-- SPECIAL_BURST: Toggles between single-shot and burst fire modes
+-- SPECIAL_ZOOM: Zooms in the weapon by setting the player's FOV. Can have multiple levels
+-- SPECIAL_IRONSIGHTS: "Zooms" in the weapon by moving the viewmodel
 
 SWEP.AutoReloadOnEmpty = true -- Automatically reload if the clip is empty and the mouse is not being held
 SWEP.AutoSwitchOnEmpty = false -- Automatically switch away if the weapon has no ammo, the mouse is not being held, and AutoSwitchFrom is true
@@ -189,7 +202,8 @@ function SWEP:Initialize()
 	self.m_tSpecialTypes = {
 		[SPECIAL_SILENCE] = self.Silence,
 		[SPECIAL_BURST] = self.ToggleBurst,
-		[SPECIAL_ZOOM] = self.AdvanceZoom
+		[SPECIAL_ZOOM] = self.AdvanceZoom,
+		[SPECIAL_IRONSIGHTS] = self.ToggleIronsights
 	}
 	
 	self:SetHoldType( self.HoldType )
@@ -323,6 +337,8 @@ function SWEP:Deploy()
 	return false
 end
 
+local bSinglePlayer = game.SinglePlayer()
+
 function SWEP:SharedDeploy( bDelayed )
 	-- Clientside does not initialize sometimes
 	if ( not self.m_bInitialized ) then
@@ -356,7 +372,7 @@ function SWEP:SharedDeploy( bDelayed )
 		pPlayer:SetFOV(0, 0)
 		pPlayer:SetShotsFired(0)
 		
-		if ( SERVER or not game.SinglePlayer() ) then
+		if ( SERVER or not bSinglePlayer ) then
 			-- Wait for all viewmodels to deploy
 			local flSequenceDuration = self:PlayActivity( "deploy" ) and self:SequenceLength() or 0
 			
@@ -404,7 +420,7 @@ function SWEP:Holster( pSwitchingTo )
 				self:DoHolsterAnim( pSwitchingTo )
 				
 				-- Run this clientside to reset the viewmodels and set the variables for a full holster
-				if ( game.SinglePlayer() ) then
+				if ( bSinglePlayer ) then
 					net.Start( "GS-BaseWeapon holster animation" )
 						net.WriteEntity( self )
 						net.WriteEntity( pSwitchingTo )
@@ -414,7 +430,7 @@ function SWEP:Holster( pSwitchingTo )
 				self:SharedHolster( pSwitchingTo )
 				
 				-- Clientside does not run Holster in single-player
-				if ( game.SinglePlayer() ) then
+				if ( bSinglePlayer ) then
 					net.Start( "GS-BaseWeapon holster" )
 						net.WriteEntity( self )
 						net.WriteEntity( pSwitchingTo )
@@ -450,7 +466,7 @@ function SWEP:DoHolsterAnim( pSwitchingTo )
 	end
 	
 	-- The client state is purged too early in single-player for the event to run on time
-	if ( SERVER or not game.SinglePlayer() ) then
+	if ( SERVER or not bSinglePlayer ) then
 		self:PlaySound( "holster" )
 		
 		-- Wait for all viewmodels to holster
@@ -600,7 +616,7 @@ function SWEP:Think()
 		self:ItemFrame()
 	end
 	
-	if ( self:Clip1() ~= 0 or self:LookupActivity( "dryfire" ) == ACT_INVALID ) then 
+	if ( (SERVER or not bSinglePlayer) and (self:Clip1() ~= 0 or self:LookupActivity( "dryfire" ) == ACT_INVALID) ) then 
 		local flCurTime = CurTime()
 		
 		if ( self.ShouldIdle ) then
@@ -639,7 +655,7 @@ function SWEP:MouseLifted()
 	
 	if ( self:Clip1() == 0 ) then
 		-- Reload is still called serverside only in single-player
-		if ( self.AutoReloadOnEmpty and (SERVER or not game.SinglePlayer()) ) then
+		if ( self.AutoReloadOnEmpty and (SERVER or not bSinglePlayer) ) then
 			self:Reload()
 		-- Just ran out of ammo and the mouse has been lifted, so switch away
 		elseif ( self.AutoSwitchOnEmpty and not self.m_bDeployedNoAmmo and not self:HasAnyAmmo() ) then
@@ -790,7 +806,18 @@ function SWEP:ShootBullets( tbl, bSecondary, iClipDeduction )
 	end
 	
 	local pPlayer = self:GetOwner()
-	self.FireFunction( pPlayer, tbl )
+	
+	if ( self.PhysicalBullets ) then
+		if ( SERVER ) then
+			local bullet = ents.Create( "gs_bullet" )
+			bullet:_SetAbsVelocity( (tbl.Dir and tbl.Dir:GetNormal() or pPlayer:GetAimVector()) * self.PhysicalBulletSpeed )
+			bullet:SetOwner( pPlayer )
+			bullet:SetupBullet( tbl )
+			bullet:Spawn()
+		end
+	else
+		self.FireFunction( pPlayer, tbl )
+	end
 	
 	if ( iClip >= iClipDeduction * 2 and self:BurstEnabled() ) then
 		iClip = iClip - iClipDeduction
@@ -808,10 +835,21 @@ function SWEP:ShootBullets( tbl, bSecondary, iClipDeduction )
 		self:AddEvent( "Burst", flLastTime, function()
 			iClip = iClip - iClipDeduction
 			self:SetClip1( iClip )
-			tbl.ShootAngles = self:GetShootAngles()
+			tbl.ShootAngles = self:GetShootAngles() -- For FireCSBullets
 			tbl.Src = self:GetShootSrc()
 			
-			self.FireFunction( pPlayer, tbl )
+			if ( self.PhysicalBullets ) then
+				if ( SERVER ) then
+					local bullet = ents.Create( "gs_bullet" )
+					bullet:_SetAbsVelocity( (tbl.Dir and tbl.Dir:GetNormal() or pPlayer:GetAimVector()) * 3000 )
+					bullet:SetOwner( pPlayer )
+					bullet:SetupBullet( tbl )
+					bullet:Spawn()
+				end
+			else
+				self.FireFunction( pPlayer, tbl )
+			end
+			
 			self:PlayActivity( "burst" )
 			self:PlaySound( bSecondary and "secondary" or "primary" )
 			self:DoMuzzleFlash()
@@ -834,6 +872,7 @@ function SWEP:ShootBullets( tbl, bSecondary, iClipDeduction )
 			return flLastTime
 		end )
 	else
+		iClip = iClip - iClipDeduction
 		local flCooldown = self:GetCooldown()
 		local flNextTime = CurTime() + flCooldown
 		local tZoom = self.Zoom
@@ -858,29 +897,32 @@ function SWEP:ShootBullets( tbl, bSecondary, iClipDeduction )
 					end
 				end
 				
-				self:AddEvent( "Rezoom", flCooldown, function()
-					self:SetSpecialLevel( iLevel )
-					pPlayer:SetFOV( tZoom.FOV[iLevel], tZoom.Times.Rezoom )
-					
-					if ( tZoom.HideViewModel ) then
-						local pPlayer = self:GetOwner()
-						pPlayer:GetViewModel():SetVisible( false )
-							
-						if ( self.ViewModel1 ~= "" ) then
-							pPlayer:GetViewModel(1):SetVisible( false )
+				-- Don't rezoom if the clip is empty
+				if ( iClip ~= 0 ) then
+					self:AddEvent( "Rezoom", flCooldown, function()
+						self:SetSpecialLevel( iLevel )
+						pPlayer:SetFOV( tZoom.FOV[iLevel], tZoom.Times.Rezoom )
+						
+						if ( tZoom.HideViewModel ) then
+							local pPlayer = self:GetOwner()
+							pPlayer:GetViewModel():SetVisible( false )
+								
+							if ( self.ViewModel1 ~= "" ) then
+								pPlayer:GetViewModel(1):SetVisible( false )
+							end
+								
+							if ( self.ViewModel2 ~= "" ) then
+								pPlayer:GetViewModel(2):SetVisible( false )
+							end
 						end
-							
-						if ( self.ViewModel2 ~= "" ) then
-							pPlayer:GetViewModel(2):SetVisible( false )
-						end
-					end
-					
-					return true
-				end )
+						
+						return true
+					end )
+				end
 			end
 		end
 		
-		self:SetClip1( iClip - iClipDeduction )
+		self:SetClip1( iClip )
 		self:SetNextPrimaryFire( flNextTime )
 		self:SetNextSecondaryFire( flNextTime )
 		self:SetNextReload( flNextTime )
@@ -918,7 +960,7 @@ function SWEP:ToggleBurst()
 	
 	local bInBurst = self:BurstEnabled()
 	self:SetSpecialLevel( bInBurst and 0 or 1 )
-	self:GetOwner():PrintMessage( HUD_PRINTCENTER, bInBurst and "#GSBase_FromBurstFire" or "#GSBase_ToBurstFire" )
+	self:GetOwner():PrintMessage( HUD_PRINTCENTER, bInBurst and "#GSWeaponBase_FromBurstFire" or "#GSWeaponBase_ToBurstFire" )
 end
 
 function SWEP:AdvanceZoom()
@@ -966,6 +1008,10 @@ function SWEP:AdvanceZoom()
 	local flCurTime = CurTime()
 	self.m_flZoomActiveTime = flCurTime + flTime
 	self:SetNextSecondaryFire( flCurTime + tZoom.Cooldown )
+end
+
+function SWEP:ToggleIronsights()
+	-- TODO
 end
 
 -- Using this instead of Player:MuzzleFlash() allows all viewmodels to use muzzle flash
@@ -1371,7 +1417,7 @@ function SWEP:FlipsViewModel( iIndex )
 	return iIndex == 1 and self.ViewModelFlip1 or iIndex == 2 and self.ViewModelFlip2 or self.ViewModelFlip
 end
 
-function SWEP:GetCooldown( bSecondary --[[= self:SpecialActive()]] )
+function SWEP:GetCooldown( bSecondary --[[= self:SpecialActive() or CurTime() < self.m_flZoomActiveTime]] )
 	if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_flZoomActiveTime) ) then
 		local flSpecial = self.Secondary.Cooldown
 		
@@ -1383,7 +1429,7 @@ function SWEP:GetCooldown( bSecondary --[[= self:SpecialActive()]] )
 	return self.Primary.Cooldown
 end
 
-function SWEP:GetDamage( bSecondary --[[= self:SpecialActive()]] )
+function SWEP:GetDamage( bSecondary --[[= self:SpecialActive() or CurTime() < self.m_flZoomActiveTime]] )
 	if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_flZoomActiveTime) ) then
 		local flSpecial = self.Secondary.Damage
 		
@@ -1480,7 +1526,7 @@ end
 	return self.PrintName
 end]]
 
-function SWEP:GetRange( bSecondary --[[= self:SpecialActive()]] )
+function SWEP:GetRange( bSecondary --[[= self:SpecialActive() or CurTime() < self.m_flZoomActiveTime]] )
 	if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_flZoomActiveTime) ) then
 		local flSpecial = self.Secondary.Range
 		
@@ -1500,7 +1546,7 @@ function SWEP:SetReduceShots( bReduce )
 	self.dt.ReduceShots = bReduce
 end
 
-function SWEP:GetRunSpeed( bSecondary --[[= self:SpecialActive()]] )
+function SWEP:GetRunSpeed( bSecondary --[[= self:SpecialActive() or CurTime() < self.m_flZoomActiveTime]] )
 	if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_flZoomActiveTime) ) then
 		local flSpecial = self.Secondary.RunSpeed
 		
@@ -1560,7 +1606,7 @@ function SWEP:SetViewModel( sModel, iIndex )
 	vm:SetWeaponModel( sModel or self:GetViewModel( iIndex ), sModel and sModel ~= "" and self or nil )
 end
 
-function SWEP:GetWalkSpeed( bSecondary --[[= self:SpecialActive()]] )
+function SWEP:GetWalkSpeed( bSecondary --[[= self:SpecialActive() or CurTime() < self.m_flZoomActiveTime]] )
 	if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_flZoomActiveTime) ) then
 		local flSpecial = self.Secondary.WalkSpeed
 		
@@ -1582,6 +1628,10 @@ end]]
 
 function SWEP:GetZoomLevel()
 	return self.SpecialType == SPECIAL_ZOOM and self.dt.SpecialLevel or 0
+end
+
+function SWEP:IronSightsEnabled()
+	return self.SpecialType == SPECIAL_IRONSIGHTS and self.dt.SpecialLevel or 0
 end
 
 function SWEP:LookupActivity( sName )

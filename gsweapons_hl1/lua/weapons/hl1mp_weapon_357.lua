@@ -53,7 +53,7 @@ SWEP.Spread = VECTOR_CONE_1DEGREES
 
 --- GSBase
 function SWEP:PlayIdle()
-	random.SetSeed( self:GetOwner():GetPredictionSeed() % 0x100 )
+	random.SetSeed( hash.PseudoRandom( self:GetOwner():GetCurrentCommand():CommandNumber() ) % 0x100 )
 	
 	return self:PlayActivity( random.RandomFloat(0, 1) > 0.9 and "idle2" or "idle" )
 end

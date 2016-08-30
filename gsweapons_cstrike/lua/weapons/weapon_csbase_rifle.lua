@@ -140,7 +140,7 @@ function SWEP:Punch()
 end
 
 --- CSBase_Gun
-function SWEP:GetSpread( bSecondary --[[= self:SpecialActive()]] )
+function SWEP:GetSpread( bSecondary --[[= self:SpecialActive() or CurTime() < self.m_flZoomActiveTime]] )
 	local pPlayer = self:GetOwner()
 	
 	-- We're jumping; takes accuracy priority

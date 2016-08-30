@@ -88,7 +88,7 @@ function SWEP:GetShootAngles()
 end
 
 --- CSBase_Gun
-function SWEP:GetSpread( bSecondary --[[= self:SpecialActive()]] )
+function SWEP:GetSpread( bSecondary --[[= self:SpecialActive() or CurTime() < self.m_flZoomActiveTime]] )
 	if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_flZoomActiveTime) ) then
 		local flSpecial = self.Secondary.Spread.Base
 		

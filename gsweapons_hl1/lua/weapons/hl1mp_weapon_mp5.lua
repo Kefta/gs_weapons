@@ -47,12 +47,18 @@ SWEP.PunchBounds = {
 }
 
 --- GSBase
+function SWEP:Precache()
+	BaseClass.Precache( self )
+	
+	util.PrecacheModel( "models/grenade.mdl" )
+end
+
 function SWEP:PlayIdle()
 	local bRet = self:PlayActivity( "idle" )
 	
 	if ( bRet ) then
 		-- We need to re-seed since Think runs clientside in single-player
-		random.SetSeed( self:GetOwner():GetPredictionSeed() % 0x100 )
+		random.SetSeed( hash.PseudoRandom( self:GetOwner():GetCurrentCommand():CommandNumber() ) % 0x100 )
 		self:SetNextIdle( CurTime() + random.RandomFloat(3, 5) )
 	end
 	
