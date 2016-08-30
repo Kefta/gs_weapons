@@ -140,6 +140,10 @@ function SWEP:PrimaryAttack( bStab )
 			end
 		end
 		
+		if ( bHitBack ) then
+			flDamage = flDamage * self.BackMultiplier
+		end
+		
 		local info = DamageInfo()
 			info:SetAttacker( pPlayer )
 			info:SetInflictor( self )
@@ -148,12 +152,14 @@ function SWEP:PrimaryAttack( bStab )
 			info:SetDamagePosition( tr.HitPos )
 			info:SetReportedPosition( vSrc )
 			
-			if ( bHitBack ) then
+			--[[if ( bHitBack ) then
+				-- FIXME: This doesn't work?
 				info:SetDamageBonus( flDamage * self.BackMultiplier - flDamage ) -- Fix; not working?
 				flDamage = flDamage * self.BackMultiplier
-			end
+			end]]
 			
 			// Calculate an impulse large enough to push a 75kg man 4 in/sec per point of damage
+			-- FIXME: This is exactly how the CS:S knife calculates force, but the 1/Damage doesn't make much sense
 			info:SetDamageForce( vForward * info:GetBaseDamage() * self.Force * (1 / (flDamage < 1 and 1 or flDamage)) * phys_pushscale:GetFloat() )
 		pEntity:DispatchTraceAttack( info, tr, vForward )
 		

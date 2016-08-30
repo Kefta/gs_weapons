@@ -6,6 +6,11 @@ SWEP.Spawnable = false
 
 SWEP.ViewModelFlip = true
 
+SWEP.Primary = {
+	BobScale = 0.8,
+	SwayScale = 0.5
+}
+
 SWEP.FireFunction = _R.Player.FireCSBullets
 SWEP.UnderwaterCooldown = 0.15
 

@@ -103,7 +103,9 @@ SWEP.Primary = {
 	WalkSpeed = 1, -- Walk speed multiplier to use when the weapon is deployed
 	RunSpeed = 1, -- Run speed multiplier to use when the weapon is deployed
 	FireUnderwater = true, -- Allows firing underwater
-	InterruptReload = false -- Allows interrupting a reload to shoot
+	InterruptReload = false, -- Allows interrupting a reload to shoot
+	BobScale = CLIENT and 1 or nil, -- Magnitude of the weapon bob
+	SwayScale = CLIENT and 1 or nil -- Sway deviation
 }
 
 SWEP.Secondary = {
@@ -117,7 +119,9 @@ SWEP.Secondary = {
 	WalkSpeed = -1,
 	RunSpeed = -1,
 	FireUnderwater = true,
-	InterruptReload = false
+	InterruptReload = false,
+	BobScale = CLIENT and -1 or nil,
+	SwayScale = CLIENT and -1 or nil
 }
 
 SWEP.Burst = {
@@ -143,7 +147,8 @@ SWEP.Zoom = {
 	Cooldown = 0.3, -- Cooldown between zooming
 	UnzoomOnFire = false, -- Unzoom when the weapon is fired; rezooms after Primary/Secondary cooldown if the clip is not 0
 	HideViewModel = false, -- Hide view model when zoomed
-	DrawOverlay = CLIENT and false or nil -- (Clientside) Draw scope overlay when zoomed
+	DrawOverlay = CLIENT and false or nil, -- (Clientside) Draw scope overlay when zoomed
+	ScopeStyle = "scope_cstrike" -- (Clientside) Style defined in crosshair.lua to use if DrawOverlay is set to true
 }
 
 SWEP.IronSights = {
@@ -151,10 +156,11 @@ SWEP.IronSights = {
 	Ang = angle_zero, -- Angle of the viewmodel in ironsights
 	ZoomTime = 1, -- Time it takes to move viewmodel in
 	UnzoomTime = 1, -- Time it takes to move viewmodel out
-	Hold = false -- Require secondary fire key to be held to use ironsights as opposed to just toggling the state
+	Hold = false, -- Require secondary fire key to be held to use ironsights as opposed to just toggling the state
+	DrawCrosshair = false -- Draw crosshair when ironsights is active
 }
 
-SWEP.FireFunction = _R.Player.LuaFireBullets -- Fire function to use with ShootBullets. Args are ( pPlayer, tFireBulletsInfo )
+SWEP.FireFunction = _R.Player.LuaFireBullets -- Fire function to use with ShootBullets when PhysicalBullets is false. Args are ( pPlayer, tFireBulletsInfo )
 SWEP.PhysicalBullets = false -- Instead of using traces to simulate bullet firing, shoot a physical entity
 SWEP.PhysicalBulletSpeed = 5000 -- Speed of bullet entity when fired
 SWEP.SpecialType = 0 -- Sets what the secondary fire should do. Uses SPECIAL enums:
@@ -209,6 +215,8 @@ function SWEP:Initialize()
 	self:SetHoldType( self.HoldType )
 	
 	if ( CLIENT ) then
+		self.BobScale = self.Primary.BobScale
+		self.SwayScale = self.Primary.SwaScale
 		-- For CS:S crosshair
 		self.m_iAmmoLastCheck = 0
 		self.m_flCrosshairDistance = 0
@@ -396,7 +404,7 @@ function SWEP:SharedDeploy( bDelayed )
 end
 
 --- Holster/Remove
-function SWEP:CanHolster( pSwitchingTo )
+function SWEP:CanHolster()
 	return true
 end
 
@@ -421,7 +429,7 @@ function SWEP:Holster( pSwitchingTo )
 				
 				-- Run this clientside to reset the viewmodels and set the variables for a full holster
 				if ( bSinglePlayer ) then
-					net.Start( "GS-BaseWeapon holster animation" )
+					net.Start( "GSWeaponBase - Holster Animation" )
 						net.WriteEntity( self )
 						net.WriteEntity( pSwitchingTo )
 					net.Send( pPlayer )
@@ -431,7 +439,7 @@ function SWEP:Holster( pSwitchingTo )
 				
 				-- Clientside does not run Holster in single-player
 				if ( bSinglePlayer ) then
-					net.Start( "GS-BaseWeapon holster" )
+					net.Start( "GSWeaponBase - Holster" )
 						net.WriteEntity( self )
 						net.WriteEntity( pSwitchingTo )
 					net.Send( pPlayer )
@@ -614,6 +622,14 @@ function SWEP:Think()
 	
 	if ( flNextThink ~= -1 and flNextThink <= flCurTime ) then
 		self:ItemFrame()
+	end
+	
+	-- The default bobbing algorithm calls upon the set variables BobScale and SwayScale
+	-- So instead of using a conditional accessor, these have to be set as soon as SpecialActive changes
+	if ( CLIENT ) then
+		local bSecondary = self:SpecialActive()
+		self.BobScale = bSecondary and self.Secondary.BobScale ~= -1 and self.Secondary.BobScale or self.Primary.BobScale
+		self.SwayScale = bSecondary and self.Secondary.SwayScale ~= -1 and self.Secondary.SwayScale or self.Primary.SwayScale
 	end
 	
 	if ( (SERVER or not bSinglePlayer) and (self:Clip1() ~= 0 or self:LookupActivity( "dryfire" ) == ACT_INVALID) ) then 

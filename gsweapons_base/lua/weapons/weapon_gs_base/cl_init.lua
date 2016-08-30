@@ -1,3 +1,4 @@
+-- TODO: Convert styles to send into a weapons function
 include( "shared.lua" )
 
 --- Selection/Menu
@@ -13,10 +14,8 @@ SWEP.SelectionColor = Color( 255, 210, 0, 255 ) -- Color of the font for weapon 
 
 --- Weapon demeanour
 SWEP.BobStyle = "default" -- Style defined in bob.lua
-SWEP.BobScale = 1 -- Scale and sway for default bobbing only
-SWEP.SwayScale = 1
+SWEP.BobSpeed = 320/250 -- Speed at which the bob is clamped at. Only affects cstrike and hl bob styles 
 
-SWEP.ScopeStyle = "scope_cstrike"
 SWEP.CrosshairStyle = "default" -- Style defined in crosshair.lua
 SWEP.DrawCrosshair = true -- Call DoDrawCrosshair or not
 SWEP.AccurateCrosshair = false -- (Buggy) Moves crosshair with actual shooting position
@@ -55,11 +54,11 @@ SWEP.EventStyle = { -- Set to "" to disable an event
 
 --- Holster
 if ( game.SinglePlayer() ) then
-	net.Receive( "GS-BaseWeapon holster animation", function()
+	net.Receive( "GSWeaponBase - Holster Animation", function()
 		net.ReadEntity():DoHolsterAnim( net.ReadEntity() )
 	end )
 	
-	net.Receive( "GS-BaseWeapon holster", function()
+	net.Receive( "GSWeaponBase - Holster", function()
 		net.ReadEntity():SharedHolster( net.ReadEntity() )
 	end )
 end
@@ -75,7 +74,7 @@ end
 local fGetCrosshair = include( "crosshair.lua" )
 
 function SWEP:DoDrawCrosshair( x, y )
-	return fGetCrosshair( self.Zoom.DrawOverlay and self:GetZoomLevel() ~= 0 and self.ScopeStyle or self.CrosshairStyle )( self, x, y )
+	return fGetCrosshair( self.Zoom.DrawOverlay and self:GetZoomLevel() ~= 0 and self.Zoom.ScopeStyle or self.CrosshairStyle )( self, x, y )
 end
 
 local fGetAnimEvent = include( "event.lua" )
