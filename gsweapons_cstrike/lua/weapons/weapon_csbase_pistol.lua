@@ -56,8 +56,8 @@ function SWEP:Initialize()
 	self.m_flLastFire = CurTime()
 end
 
-function SWEP:SharedDeploy()
-	BaseClass.SharedDeploy( self )
+function SWEP:SharedDeploy( bDelayed )
+	BaseClass.SharedDeploy( self, bDelayed )
 	
 	self.m_flAccuracy = self.Accuracy.Base
 end

@@ -13,7 +13,7 @@ SWEP.SelectionFont = "HL2Selection" -- Font defined by surface.CreateFont to use
 SWEP.SelectionColor = Color( 255, 210, 0, 255 ) -- Color of the font for weapon selection icons
 
 --- Weapon demeanour
-SWEP.BobStyle = "default" -- Style defined in bob.lua
+SWEP.BobStyle = "default" -- Style defined in bob.lua. Set to "" to disable bobbing
 SWEP.BobSpeed = 320/250 -- Speed at which the bob is clamped at. Only affects cstrike and hl bob styles 
 
 SWEP.CrosshairStyle = "default" -- Style defined in crosshair.lua
@@ -67,8 +67,8 @@ end
 -- Bobbing affects all view models; individual view models can call CalcViewModelView
 local fGetBobbingMethod = include( "bob.lua" )
 
-function SWEP:GetViewModelPosition( vPos, ang )
-	return fGetBobbingMethod( self.BobStyle )( self, vPos, ang )
+function SWEP:CalcViewModelView( vm, vPos, ang, vNewPos, aNew )
+	return fGetBobbingMethod( self.BobStyle )( self, vm, vPos, ang, vNewPos, aNew )
 end
 
 local fGetCrosshair = include( "crosshair.lua" )
@@ -80,11 +80,11 @@ end
 local fGetAnimEvent = include( "event.lua" )
 
 function SWEP:FireAnimationEvent( vPos, ang, iEvent, sOptions )
-	if ( not self.EventStyle[iEvent] ) then
+	if ( self.EventStyle[iEvent] ) then
+		return fGetAnimEvent( iEvent, self.EventStyle[iEvent] )( self, vPos, ang, iEvent, sOptions )
+	else
 		DevMsg( 2, string.format( "%s (weapon_gs_base) Missing event %u: %s", self:GetClass(), iEvent, sOptions ))
 	end
-	
-	return fGetAnimEvent( iEvent, self.EventStyle[iEvent] )( self, vPos, ang, iEvent, sOptions )
 end
 
 function SWEP:DrawWeaponSelection( x, y, flWide, flTall )

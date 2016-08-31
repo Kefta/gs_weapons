@@ -217,6 +217,7 @@ function SWEP:Initialize()
 	if ( CLIENT ) then
 		self.BobScale = self.Primary.BobScale
 		self.SwayScale = self.Primary.SwaScale
+		
 		-- For CS:S crosshair
 		self.m_iAmmoLastCheck = 0
 		self.m_flCrosshairDistance = 0
@@ -353,8 +354,7 @@ function SWEP:SharedDeploy( bDelayed )
 		self:Initialize()
 	end
 	
-	local sClass = self:GetClass()
-	DevMsg( 2, sClass .. " (weapon_gs_base) Deployed " .. (bDelayed and "late" or "on time") )
+	DevMsg( 2, string.format( "%s (weapon_gs_base) Deployed %s", self:GetClass(), bDelayed and "late" or "on time" ))
 	
 	self.m_flNextEmptySoundTime = 0
 	self.m_bPlayedEmptySound = false
@@ -540,9 +540,15 @@ function SWEP:SharedHolster( pSwitchingTo )
 		self:SetViewModel( nil, 2 )
 	end
 	
-	self.m_bDeployed = false
-	self.m_bDeployedNoAmmo = false
 	self.m_bHolstered = true
+	
+	-- Don't let Think re-deploy after Holster
+	timer.Simple( 0, function()
+		if ( self ~= NULL ) then
+			self.m_bDeployed = false
+			self.m_bDeployedNoAmmo = false
+		end
+	end )
 	
 	local pPlayer = self:GetOwner()
 	
@@ -554,19 +560,19 @@ end
 function SWEP:OnRemove()
 	local pPlayer = self:GetOwner()
 	
-	if ( pPlayer ~= NULL ) then
+	if ( pPlayer == NULL ) then
+		DevMsg( 2, self:GetClass() .. " (weapon_gs_base) Remove invalid" )
+	else
 		pPlayer:SetFOV(0, 0) // reset the default FOV
 		pPlayer:SetShotsFired(0)
 		
 		if ( pPlayer:Health() > 0 and pPlayer:Alive() and self:IsActiveWeapon() ) then
 			-- The weapon was removed while it was active and the player was alive, so find a new one
 			pPlayer.m_pNewWeapon = pPlayer:GetNextBestWeapon( self.HighWeightPriority, true )
-			DevMsg( 2, self:GetClass() .. " (weapon_gs_base) Remove to " .. tostring( pPlayer.m_pNewWeapon ))
+			DevMsg( 2, string.format( "%s (weapon_gs_base) Remove to %s", self:GetClass(), tostring( pPlayer.m_pNewWeapon )))
 		else
 			DevMsg( 2, self:GetClass() .. " (weapon_gs_base) Remove invalid" )
 		end
-	else
-		DevMsg( 2, self:GetClass() .. " (weapon_gs_base) Remove invalid" )
 	end
 end
 

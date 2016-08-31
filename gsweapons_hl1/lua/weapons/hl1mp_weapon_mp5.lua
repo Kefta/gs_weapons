@@ -58,7 +58,7 @@ function SWEP:PlayIdle()
 	
 	if ( bRet ) then
 		-- We need to re-seed since Think runs clientside in single-player
-		random.SetSeed( hash.PseudoRandom( self:GetOwner():GetCurrentCommand():CommandNumber() ) % 0x100 )
+		random.SetSeed( math.MD5Random( self:GetOwner():GetCurrentCommand():CommandNumber() ) % 0x100 )
 		self:SetNextIdle( CurTime() + random.RandomFloat(3, 5) )
 	end
 	

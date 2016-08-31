@@ -1,4 +1,8 @@
-local function PassThrough( _, vec, ang )
+local function Disable( _, _, vec, ang )
+	return vec, ang
+end
+
+local function PassThrough( _, _, _, _, vec, ang )
 	return vec, ang
 end
 
@@ -17,15 +21,16 @@ local flBobTime = 0
 local flLastBob = 0
 local flLastSpeed = 0
 
-local function OldSourceBob( pWeapon, vOrigin, ang )
+local ran = false
+
+local function OldSourceBob( pWeapon, _, vOrigin, ang )
 	local pPlayer = pWeapon:GetOwner()
 	
 	//NOTENOTE: For now, let this cycle continue when in the air, because it snaps badly without it
-	
 	local flBobCycle = pWeapon.BobScale
 	local flBobUp = pWeapon.SwayScale
 	
-	if ( FrameTime() ~= 0 and flBobCycle > 0 and flBobUp > 0 and flBobUp < 1 ) then
+	if ( flBobCycle and flBobUp and flBobCycle > 0 and flBobUp > 0 and flBobUp < 1 and FrameTime() ~= 0 ) then
 		// Find the speed of the player
 		local flCurTime = CurTime()
 		local flBobSpeed = pWeapon.BobSpeed * pPlayer:GetWalkSpeed()
@@ -101,5 +106,5 @@ AddBobbingMethod( "hl", OldSourceBob )
 
 return function( sName )
 	-- Fallback on engine bob
-	return tBobbingMethods[sName] or PassThrough
+	return sName == "" and Disable or tBobbingMethods[sName] or PassThrough
 end
