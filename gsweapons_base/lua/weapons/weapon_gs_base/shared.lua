@@ -901,9 +901,9 @@ function SWEP:ShootBullets( tbl, bSecondary, iClipDeduction )
 		
 		if ( tZoom.UnzoomOnFire ) then
 			local iLevel = self:GetZoomLevel()
-			self:SetSpecialLevel(0) -- Disable scope overlay
 			
 			if ( iLevel ~= 0 ) then
+				self:SetSpecialLevel(0) -- Disable scope overlay
 				self.m_flZoomActiveTime = flNextTime -- For CS:S spread
 				pPlayer:SetFOV( 0, tZoom.Times.Fire )
 				
@@ -1439,8 +1439,8 @@ function SWEP:FlipsViewModel( iIndex )
 	return iIndex == 1 and self.ViewModelFlip1 or iIndex == 2 and self.ViewModelFlip2 or self.ViewModelFlip
 end
 
-function SWEP:GetCooldown( bSecondary --[[= self:SpecialActive() or CurTime() < self.m_flZoomActiveTime]] )
-	if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_flZoomActiveTime) ) then
+function SWEP:GetCooldown( bSecondary --[[= self:SpecialActive()]] )
+	if ( bSecondary or bSecondary == nil and self:SpecialActive() ) then
 		local flSpecial = self.Secondary.Cooldown
 		
 		if ( flSpecial ~= -1 ) then
@@ -1451,8 +1451,8 @@ function SWEP:GetCooldown( bSecondary --[[= self:SpecialActive() or CurTime() < 
 	return self.Primary.Cooldown
 end
 
-function SWEP:GetDamage( bSecondary --[[= self:SpecialActive() or CurTime() < self.m_flZoomActiveTime]] )
-	if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_flZoomActiveTime) ) then
+function SWEP:GetDamage( bSecondary --[[= self:SpecialActive()]] )
+	if ( bSecondary or bSecondary == nil and self:SpecialActive() ) then
 		local flSpecial = self.Secondary.Damage
 		
 		if ( flSpecial ~= -1 ) then
@@ -1548,8 +1548,8 @@ end
 	return self.PrintName
 end]]
 
-function SWEP:GetRange( bSecondary --[[= self:SpecialActive() or CurTime() < self.m_flZoomActiveTime]] )
-	if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_flZoomActiveTime) ) then
+function SWEP:GetRange( bSecondary --[[= self:SpecialActive()]] )
+	if ( bSecondary or bSecondary == nil and self:SpecialActive() ) then
 		local flSpecial = self.Secondary.Range
 		
 		if ( flSpecial ~= -1 ) then
@@ -1568,8 +1568,8 @@ function SWEP:SetReduceShots( bReduce )
 	self.dt.ReduceShots = bReduce
 end
 
-function SWEP:GetRunSpeed( bSecondary --[[= self:SpecialActive() or CurTime() < self.m_flZoomActiveTime]] )
-	if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_flZoomActiveTime) ) then
+function SWEP:GetRunSpeed( bSecondary --[[= self:SpecialActive()]] )
+	if ( bSecondary or bSecondary == nil and self:SpecialActive() ) then
 		local flSpecial = self.Secondary.RunSpeed
 		
 		if ( flSpecial ~= -1 ) then
@@ -1628,8 +1628,8 @@ function SWEP:SetViewModel( sModel, iIndex )
 	vm:SetWeaponModel( sModel or self:GetViewModel( iIndex ), sModel and sModel ~= "" and self or nil )
 end
 
-function SWEP:GetWalkSpeed( bSecondary --[[= self:SpecialActive() or CurTime() < self.m_flZoomActiveTime]] )
-	if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_flZoomActiveTime) ) then
+function SWEP:GetWalkSpeed( bSecondary --[[= self:SpecialActive()]] )
+	if ( bSecondary or bSecondary == nil and self:SpecialActive() ) then
 		local flSpecial = self.Secondary.WalkSpeed
 		
 		if ( flSpecial ~= -1 ) then
@@ -1673,7 +1673,8 @@ function SWEP:Silenced()
 end
 
 function SWEP:SpecialActive()
-	return self.dt.SpecialLevel ~= 0
+	-- Instead of setting the FOV in an event, 
+	return self.dt.SpecialLevel ~= 0 or self.m_flZoomActiveTime > CurTime()
 end
 
 function SWEP:UsesHands()

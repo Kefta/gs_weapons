@@ -111,8 +111,8 @@ SWEP.Kick = {
 
 --- CSBase_Gun
 -- Famas is the only weapon that adds extra spread if the secondary is off. No idea why
-function SWEP:GetSpread( bSecondary --[[= self:SpecialActive() or CurTime() < self.m_flZoomActiveTime]] )
-	if ( bSecondary or bSecondary == nil and (self:SpecialActive() or CurTime() < self.m_flZoomActiveTime) ) then
+function SWEP:GetSpread( bSecondary --[[= self:SpecialActive()]] )
+	if ( bSecondary or bSecondary == nil and self:SpecialActive() ) then
 		local flSpecial = self.Secondary.Spread.Additive
 		
 		if ( flSpecial ~= -1 ) then

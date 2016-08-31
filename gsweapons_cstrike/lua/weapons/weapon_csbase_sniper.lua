@@ -71,9 +71,9 @@ function SWEP:Punch()
 end
 
 --- CSBase_Gun
-function SWEP:GetSpread( bSecondary --[[= self:SpecialActive() or CurTime() < self.m_flZoomActiveTime]] )
+function SWEP:GetSpread( bSecondary --[[= self:SpecialActive()]] )
 	if ( bSecondary == nil ) then
-		bSecondary = self:SpecialActive() or CurTime() < self.m_flZoomActiveTime
+		bSecondary = self:SpecialActive()
 	end
 	
 	local flAdditive = bSecondary and self.Secondary.Spread.Additive or self.Primary.Spread.Additive
