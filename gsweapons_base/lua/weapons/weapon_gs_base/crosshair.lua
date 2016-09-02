@@ -25,7 +25,7 @@ local cl_crosshairscale = CreateConVar( "cl_crosshairscale", "0", { FCVAR_CLIENT
 local cl_crosshairalpha = CreateConVar( "cl_crosshairalpha", "200", { FCVAR_CLIENTDLL, FCVAR_ARCHIVE })
 local cl_crosshairusealpha = CreateConVar( "cl_crosshairusealpha", "0", { FCVAR_CLIENTDLL, FCVAR_ARCHIVE })
 
-AddCrosshair( "cstrike", function( pWeapon, x, y )
+AddCrosshair( "css", function( pWeapon, x, y )
 	local pPlayer = pWeapon:GetOwner()
 	local iDistance = pWeapon.CSSCrosshair.Min
 	
@@ -130,7 +130,7 @@ local matLens = Material( "overlays/scope_lens" )
 local matScope = Material( "gmod/scope" )
 local matScopeRef = Material( "gmod/scope-refract" )
 
-AddCrosshair( "scope_cstrike", function()
+AddCrosshair( "scope_css", function()
 	local iWidth = ScrW()
 	local iHeight = ScrH()
 	local flHalfWidth = iWidth / 2

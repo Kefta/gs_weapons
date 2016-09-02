@@ -101,7 +101,7 @@ local function OldSourceBob( pWeapon, _, vOrigin, ang )
 	return vOrigin, ang
 end
 
-AddBobbingMethod( "cstrike", OldSourceBob )
+AddBobbingMethod( "css", OldSourceBob )
 AddBobbingMethod( "hl", OldSourceBob )
 
 return function( sName )

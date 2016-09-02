@@ -1,4 +1,4 @@
--- TODO: Lowering, ironsights, multiple view models expansion
+-- TODO: Lowering, IronSights, multiple view models expansion
 -- http://wiki.garrysmod.com/page/Structures/SWEP
 
 --- Base; this is the superclass
@@ -34,6 +34,7 @@ SWEP.SilencerModel = "" -- World model to use when the weapon is silenced
 SWEP.HoldType = "pistol" -- How the player should hold the weapon in third-person http://wiki.garrysmod.com/page/Hold_Types
 SWEP.m_WeaponDeploySpeed = 1 -- Speed of deployment. Can be negative
 SWEP.HolsterAnimation = false -- Play an animation when the weapon is being holstered. Only works if the weapon has a holster animation
+SWEP.TracerFreq = 1 -- How often the tracer effect should show
 
 SWEP.Weight = 0 -- Weight in automatic weapon selection
 -- There are two weapon switching algorithms:
@@ -43,16 +44,17 @@ SWEP.HighWeightPriority = false
 
 SWEP.Activities = { -- Default activity events
 	primary = ACT_VM_PRIMARYATTACK,
-	--dryfire = ACT_VM_DRYFIRE, -- Used when the last bullet in the clip is fired. Implement activity to use
+	--dryfire = ACT_VM_DRYFIRE, -- Used when the last bullet in the clip is fired. Implement activity to use; otherwise defaults to "primary"
 	secondary = ACT_VM_SECONDARYATTACK,
 	reload = ACT_VM_RELOAD,
+	--reload_empty = ACT_VM_RELOAD_EMPTY, -- Used when the weapon is reloaded with an empty clip. Implement activity to use; otherwise defaults to "reload"
 	deploy = ACT_VM_DRAW,
 	holster = ACT_VM_HOLSTER,
 	idle = ACT_VM_IDLE,
 	burst = ACT_VM_PRIMARYATTACK,
 	-- For silencers
 	s_primary = ACT_VM_PRIMARYATTACK_SILENCED,
-	--s_dryfire = ACT_VM_DRYFIRE_SILENCED, -- Implement activity to use
+	--s_dryfire = ACT_VM_DRYFIRE_SILENCED, -- Silenced dryfire. Implement activity to use; defaults to "s_primary"
 	s_secondary = ACT_VM_DETACH_SILENCER,
 	s_reload = ACT_VM_RELOAD_SILENCED,
 	s_deploy = ACT_VM_DRAW_SILENCED,
@@ -97,6 +99,7 @@ SWEP.Primary = {
 	ClipSize = -1, -- Max amount of ammo in clip
 	DefaultClip = -1, -- Amount of ammo weapon spawns with
 	Automatic = true, -- Continously runs PrimaryAttack with the mouse held down
+	Bullets = 1, -- How many bullets are shot by FireBullets
 	Damage = 42, -- Bullet/melee damage // Douglas Adams 1952 - 2001
 	Range = MAX_TRACE_LENGTH, -- Bullet/melee distance
 	Cooldown = 0.15, -- Time between firing
@@ -104,6 +107,7 @@ SWEP.Primary = {
 	RunSpeed = 1, -- Run speed multiplier to use when the weapon is deployed
 	FireUnderwater = true, -- Allows firing underwater
 	InterruptReload = false, -- Allows interrupting a reload to shoot
+	-- These are seperated by primary/secondary so ironsights can lower it
 	BobScale = CLIENT and 1 or nil, -- Magnitude of the weapon bob
 	SwayScale = CLIENT and 1 or nil -- Sway deviation
 }
@@ -113,7 +117,8 @@ SWEP.Secondary = {
 	ClipSize = -1,
 	DefaultClip = -1,
 	Automatic = true,
-	Damage = -1, -- -1 = off. Change to alter damage when the special fire is enabled
+	Bullets = -1, -- -1 = off. Change for this variable to be returned by the accessor when bSecondary (IsSpecialActive by default) is true
+	Damage = -1,
 	Range = -1,
 	Cooldown = -1,
 	WalkSpeed = -1,
@@ -147,17 +152,19 @@ SWEP.Zoom = {
 	Cooldown = 0.3, -- Cooldown between zooming
 	UnzoomOnFire = false, -- Unzoom when the weapon is fired; rezooms after Primary/Secondary cooldown if the clip is not 0
 	HideViewModel = false, -- Hide view model when zoomed
+	FireDuringZoom = true, -- Allow fire during zoom/unzoom
 	DrawOverlay = CLIENT and false or nil, -- (Clientside) Draw scope overlay when zoomed
-	ScopeStyle = "scope_cstrike" -- (Clientside) Style defined in crosshair.lua to use if DrawOverlay is set to true
+	ScopeStyle = CLIENT and "scope_css" or nil -- (Clientside) Style defined in crosshair.lua to use if DrawOverlay is set to true
 }
 
 SWEP.IronSights = {
-	Pos = vector_origin, -- Position of the viewmodel in ironsights
-	Ang = angle_zero, -- Angle of the viewmodel in ironsights
+	Pos = vector_origin, -- Position of the viewmodel in IronSights
+	Ang = angle_zero, -- Angle of the viewmodel in IronSights
 	ZoomTime = 1, -- Time it takes to move viewmodel in
 	UnzoomTime = 1, -- Time it takes to move viewmodel out
-	Hold = false, -- Require secondary fire key to be held to use ironsights as opposed to just toggling the state
-	DrawCrosshair = false -- Draw crosshair when ironsights is active
+	Hold = false, -- Require secondary fire key to be held to use IronSights as opposed to just toggling the state
+	DrawCrosshair = false, -- Draw crosshair when IronSights is active
+	FireInZoom = false -- Allow fire during zoom/unzoom
 }
 
 SWEP.FireFunction = _R.Player.LuaFireBullets -- Fire function to use with ShootBullets when PhysicalBullets is false. Args are ( pPlayer, tFireBulletsInfo )
@@ -209,7 +216,7 @@ function SWEP:Initialize()
 		[SPECIAL_SILENCE] = self.Silence,
 		[SPECIAL_BURST] = self.ToggleBurst,
 		[SPECIAL_ZOOM] = self.AdvanceZoom,
-		[SPECIAL_IRONSIGHTS] = self.ToggleIronsights
+		[SPECIAL_IRONSIGHTS] = self.ToggleIronSights
 	}
 	
 	self:SetHoldType( self.HoldType )
@@ -814,7 +821,7 @@ function SWEP:SecondaryAttack()
 	return false
 end
 
-function SWEP:ShootBullets( tbl, bSecondary, iClipDeduction )
+function SWEP:ShootBullets( tbl --[[{}]], bSecondary --[[= false]], iClipDeduction --[[= 1]] )
 	if ( not iClipDeduction ) then
 		iClipDeduction = 1
 	end
@@ -862,11 +869,11 @@ function SWEP:ShootBullets( tbl, bSecondary, iClipDeduction )
 			
 			if ( self.PhysicalBullets ) then
 				if ( SERVER ) then
-					local bullet = ents.Create( "gs_bullet" )
-					bullet:_SetAbsVelocity( (tbl.Dir and tbl.Dir:GetNormal() or pPlayer:GetAimVector()) * 3000 )
-					bullet:SetOwner( pPlayer )
-					bullet:SetupBullet( tbl )
-					bullet:Spawn()
+					local pBullet = ents.Create( "gs_bullet" )
+					pBullet:_SetAbsVelocity( (tbl.Dir and tbl.Dir:GetNormal() or pPlayer:GetAimVector()) * 3000 )
+					pBullet:SetOwner( pPlayer )
+					pBullet:SetupBullet( tbl )
+					pBullet:Spawn()
 				end
 			else
 				self.FireFunction( pPlayer, tbl )
@@ -895,8 +902,10 @@ function SWEP:ShootBullets( tbl, bSecondary, iClipDeduction )
 		end )
 	else
 		iClip = iClip - iClipDeduction
-		local flCooldown = self:GetCooldown()
-		local flNextTime = CurTime() + flCooldown
+		self:SetClip1( iClip )
+		self:SetReduceShots( true )
+		
+		local flCooldown = self:GetCooldown( bSecondary )
 		local tZoom = self.Zoom
 		
 		if ( tZoom.UnzoomOnFire ) then
@@ -904,7 +913,6 @@ function SWEP:ShootBullets( tbl, bSecondary, iClipDeduction )
 			
 			if ( iLevel ~= 0 ) then
 				self:SetSpecialLevel(0) -- Disable scope overlay
-				self.m_flZoomActiveTime = flNextTime -- For CS:S spread
 				pPlayer:SetFOV( 0, tZoom.Times.Fire )
 				
 				if ( tZoom.HideViewModel ) then
@@ -922,8 +930,15 @@ function SWEP:ShootBullets( tbl, bSecondary, iClipDeduction )
 				-- Don't rezoom if the clip is empty
 				if ( iClip ~= 0 ) then
 					self:AddEvent( "Rezoom", flCooldown, function()
+						local flRezoom = tZoom.Times.Rezoom
+						self.m_flZoomActiveTime = flRezoom
 						self:SetSpecialLevel( iLevel )
-						pPlayer:SetFOV( tZoom.FOV[iLevel], tZoom.Times.Rezoom )
+						self:SetNextSecondaryFire( flRezoom )
+						pPlayer:SetFOV( tZoom.FOV[iLevel], flRezoom )
+						
+						if ( not tZoom.FireDuringZoom ) then
+							self:SetNextPrimaryFire( flRezoom )
+						end
 						
 						if ( tZoom.HideViewModel ) then
 							local pPlayer = self:GetOwner()
@@ -944,11 +959,10 @@ function SWEP:ShootBullets( tbl, bSecondary, iClipDeduction )
 			end
 		end
 		
-		self:SetClip1( iClip )
+		local flNextTime = CurTime() + flCooldown
 		self:SetNextPrimaryFire( flNextTime )
 		self:SetNextSecondaryFire( flNextTime )
 		self:SetNextReload( flNextTime )
-		self:SetReduceShots( true )
 	end
 	
 	self:PlayActivity( bSecondary and "secondary" or "primary" )
@@ -1009,7 +1023,7 @@ function SWEP:AdvanceZoom()
 			end
 		end
 	else
-		ErrorNoHalt( string.format( "%s (weapon_gs_base) Zoom level %u not defined! Zooming out..", self:GetClass(), iLevel ))
+		ErrorNoHalt( string.format( "%s (weapon_gs_base) Zoom level or time %u not defined! Zooming out..", self:GetClass(), iLevel ))
 		self:SetSpecialLevel(0)
 		self:GetOwner():SetFOV(0, 0)
 		
@@ -1027,13 +1041,20 @@ function SWEP:AdvanceZoom()
 		end
 	end
 	
-	local flCurTime = CurTime()
-	self.m_flZoomActiveTime = flCurTime + flTime
-	self:SetNextSecondaryFire( flCurTime + tZoom.Cooldown )
+	local flNextTime = CurTime()
+	self:SetNextSecondaryFire( flNextTime + tZoom.Cooldown )
+	
+	flNextTime = flNextTime + flTime
+	self.m_flZoomActiveTime = flNextTime
+	
+	if ( not tZoom.FireDuringZoom ) then
+		self:SetNextPrimaryFire( flNextTime )
+	end
 end
 
-function SWEP:ToggleIronsights()
-	-- TODO
+function SWEP:ToggleIronSights()
+	self:SetSpecialLevel( self:IronSightsEnabled() and 0 or 1 )
+	--self.m_flZoomActiveTime = CurTime() + 
 end
 
 -- Using this instead of Player:MuzzleFlash() allows all viewmodels to use muzzle flash
@@ -1330,17 +1351,30 @@ function SWEP:DoImpactEffect( tr, iDamageType )
 	return false
 end
 
+-- FIXME: Play from weapon or owner?
 function SWEP:PlaySound( sSound )
-	local sSound = self:LookupSound( self:Silenced() and "s_" .. sSound or sSound )
+	sSound = self:LookupSound( self:Silenced() and "s_" .. sSound or sSound )
+	
+	-- Auto-refresh fix
+	if ( istable( sSound )) then
+		self:Precache()
+		sSound = self:LookupSound( self:Silenced() and "s_" .. sSound or sSound )
+	end
 	
 	if ( sSound ~= "" ) then
-		self:EmitSound( sSound )
+		self:GetOwner():EmitSound( sSound )
 	end
 end
 
 function SWEP:PlayActivity( sActivity, iIndex, flRate --[[= 1]] )
-	if ( sActivity == "primary" and self:Clip1() == 0 and self:LookupActivity( "dryfire" ) ~= ACT_INVALID ) then
-		sActivity = "dryfire"
+	if ( sActivity == "primary" ) then
+		if ( self:LookupActivity( "dryfire" ) ~= ACT_INVALID and self:Clip1() == 0 ) then
+			sActivity = "dryfire"
+		end
+	elseif ( sActivity == "reload" ) then
+		if ( self:LookupActivity( "reload_empty" ) ~= ACT_INVALID and self:Clip1() == 0 ) then
+			sActivity = "reload_empty"
+		end
 	end
 	
 	local bRet = self:SetIdealActivity( self:LookupActivity( self:Silenced() and "s_" .. sActivity or sActivity ), iIndex, flRate )
@@ -1380,6 +1414,18 @@ end]]
 
 function SWEP:BurstEnabled()
 	return self.SpecialType == SPECIAL_BURST and self.dt.SpecialLevel ~= 0
+end
+
+function SWEP:GetBulletCount( bSecondary --[[= self:SpecialActive()]] )
+	if ( bSecondary or bSecondary == nil and self:SpecialActive() ) then
+		local flSpecial = self.Secondary.Bullets
+		
+		if ( flSpecial ~= -1 ) then
+			return flSpecial
+		end
+	end
+	
+	return self.Primary.Bullets
 end
 
 function SWEP:GetCurrentHoldType()
@@ -1672,9 +1718,10 @@ function SWEP:Silenced()
 	return self.SpecialType == SPECIAL_SILENCE and self.dt.SpecialLevel ~= 0
 end
 
+-- The player is considered to be in-zoom to variable modifiers if they are fully zoomed
+-- This prevents quick-scoping for the spread/damage/cooldown benfits
 function SWEP:SpecialActive()
-	-- Instead of setting the FOV in an event, 
-	return self.dt.SpecialLevel ~= 0 or self.m_flZoomActiveTime > CurTime()
+	return self.dt.SpecialLevel ~= 0 and self.m_flZoomActiveTime <= CurTime()
 end
 
 function SWEP:UsesHands()

@@ -492,7 +492,7 @@ game.AddAmmoType({
 })
 
 game.AddAmmoType({
-	name = "9mmRound_CStrike",
+	name = "9mmRound_CSS",
 	dmgtype = DMG_BULLET,
 	tracer = TRACER_LINE,
 	plydmg = 0,
@@ -507,7 +507,7 @@ game.AddAmmoType({
 })
 
 game.AddAmmoType({
-	name = "Buckshot_CStrike",
+	name = "Buckshot_CSS",
 	dmgtype = DMG_BULLET,
 	tracer = TRACER_LINE,
 	plydmg = 0,

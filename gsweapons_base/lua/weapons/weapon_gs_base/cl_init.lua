@@ -30,21 +30,21 @@ SWEP.MuzzleFlashScale = 1 -- Only for CS:S muzzle flash
 
 SWEP.EventStyle = { -- Set to "" to disable an event
 	-- CS:S bullet ejection
-	[20] = "cstrike",
+	[20] = "css",
 	
 	-- HL2 muzzle flashes
 	[21] = "default", -- First-person
 	[22] = "default", -- Third-person
 	
 	-- CS:S muzzle flash
-	[5001] = "cstrike", -- First-person, Attachment 0
-	[5003] = "cstrike", -- Third-person, Attachment 0
-	[5011] = "cstrike", -- First-person, Attachment 1
-	[5013] = "cstrike", -- Third-person, Attachment 1
-	[5021] = "cstrike", -- First-person, Attachment 2
-	[5023] = "cstrike", -- Third-person, Attachment 2
-	[5031] = "cstrike", -- First-person, Attachment 3
-	[5033] = "cstrike", -- Third-person, Attachment 3
+	[5001] = "css", -- First-person, Attachment 0
+	[5003] = "css", -- Third-person, Attachment 0
+	[5011] = "css", -- First-person, Attachment 1
+	[5013] = "css", -- Third-person, Attachment 1
+	[5021] = "css", -- First-person, Attachment 2
+	[5023] = "css", -- Third-person, Attachment 2
+	[5031] = "css", -- First-person, Attachment 3
+	[5033] = "css", -- Third-person, Attachment 3
 	
 	-- HL2 bullet ejection
 	[6001] = "default"

@@ -28,7 +28,7 @@ end
 
 -------------------------------Custom Events-------------------------------
 
-AddAnimEvent( {5001, 5011, 5021, 5031}, "cstrike", function( pWeapon, _, _, iEvent )
+AddAnimEvent( {5001, 5011, 5021, 5031}, "css", function( pWeapon, _, _, iEvent )
 	if ( not pWeapon:Silenced() ) then
 		local pPlayer = pWeapon:GetOwner()
 		
@@ -52,7 +52,7 @@ AddAnimEvent( {5001, 5011, 5021, 5031}, "cstrike", function( pWeapon, _, _, iEve
 	return true
 end )
 
-AddAnimEvent( {5001, 5011, 5021, 5031}, "cstrike_x", function( pWeapon, _, _, iEvent )
+AddAnimEvent( {5001, 5011, 5021, 5031}, "css_x", function( pWeapon, _, _, iEvent )
 	if ( not pWeapon:Silenced() ) then
 		local pPlayer = pWeapon:GetOwner()
 		
@@ -76,7 +76,7 @@ AddAnimEvent( {5001, 5011, 5021, 5031}, "cstrike_x", function( pWeapon, _, _, iE
 	return true
 end )
 
-AddAnimEvent( {5003, 5013, 5023, 5033}, "cstrike", function( pWeapon, _, _, iEvent )
+AddAnimEvent( {5003, 5013, 5023, 5033}, "css", function( pWeapon, _, _, iEvent )
 	if ( not pWeapon:Silenced() ) then
 		local pPlayer = pWeapon:GetOwner()
 		
@@ -102,7 +102,7 @@ local cl_ejectbrass = GetConVar( "cl_ejectbrass" )
 local sSep = " "
 local cRep = string.char( 173 )
 
-AddAnimEvent( 20, "cstrike", function( pWeapon, _, _, _, sOptions )
+AddAnimEvent( 20, "css", function( pWeapon, _, _, _, sOptions )
 	if ( not cl_ejectbrass:GetBool() ) then
 		return true
 	end

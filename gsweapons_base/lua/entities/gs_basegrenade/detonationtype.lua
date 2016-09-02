@@ -97,7 +97,7 @@ AddDetonateType( "Explode", function( pGrenade )
 	pGrenade:Remove()
 end )
 
-AddDetonateType( "Explode_CStrike", function( pGrenade )
+AddDetonateType( "explode_css", function( pGrenade )
 	if ( SERVER ) then
 		local info = ExplosionEffects( pGrenade )
 		util.CSRadiusDamage( info, info:GetDamagePosition(), pGrenade.DamageRadius, pGrenade )
