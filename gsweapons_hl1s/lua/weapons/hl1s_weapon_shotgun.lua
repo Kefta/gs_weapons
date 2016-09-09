@@ -53,11 +53,15 @@ if ( CLIENT ) then
 end
 
 --- GSBase
-function SWEP:PlayIdle( iIndex )
-	random.SetSeed( math.MD5Random( self:GetOwner():GetCurrentCommand():CommandNumber() ) % 0x100 )
-	local flRand = random.RandomFloat(0, 1)
+function SWEP:PlayActivity( sActivity, iIndex, flRate )
+	if ( sActivity == "idle" ) then	
+		random.SetSeed( math.MD5Random( self:GetOwner():GetCurrentCommand():CommandNumber() ) % 0x100 )
+		local flRand = random.RandomFloat(0, 1)
+		
+		return BaseClass.PlayActivity( flRand > 0.95 and "idle3" or flRand > 0.8 and sActivity or "idle2", iIndex, flRate )
+	end
 	
-	return self:PlayActivity( flRand > 0.95 and "idle3" or flRand > 0.8 and "idle" or "idle2", iIndex )
+	return BaseClass.PlayActivity( self, sActivity, iIndex, flRate )
 end
 
 function SWEP:CanSecondaryAttack()

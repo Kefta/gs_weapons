@@ -51,18 +51,6 @@ function SWEP:Precache()
 	util.PrecacheModel( "models/grenade.mdl" )
 end
 
-function SWEP:PlayIdle( iIndex )
-	local bRet = self:PlayActivity( "idle", iIndex )
-	
-	if ( bRet ) then
-		-- We need to re-seed since Think runs clientside in single-player
-		random.SetSeed( math.MD5Random( self:GetOwner():GetCurrentCommand():CommandNumber() ) % 0x100 )
-		self:SetNextIdle( CurTime() + random.RandomFloat(3, 5) )
-	end
-	
-	return bRet
-end
-
 function SWEP:PrimaryAttack()
 	if ( BaseClass.PrimaryAttack( self )) then
 		self:SetNextSecondaryFire(0) -- Don't penalise secondary attack
@@ -78,14 +66,14 @@ end
 
 function SWEP:SecondaryAttack()
 	if ( self:CanSecondaryAttack() ) then
-		self:PlayActivity( "secondary" )
-		self:PlaySound( "secondary" )
 		self:DoMuzzleFlash()
 		self:Punch( true )
 		
 		local pPlayer = self:GetOwner()
 		pPlayer:SetAnimation( PLAYER_ATTACK1 )
 		pPlayer:RemoveAmmo( 1, self:GetSecondaryAmmoName() )
+		self:PlaySound( "secondary" )
+		self:PlayActivity( "secondary" )
 		
 		local flNextTime = CurTime()
 		self:SetNextIdle( flNextTime + 5 )
@@ -109,6 +97,22 @@ function SWEP:SecondaryAttack()
 			pGrenade:SetMoveType( MOVETYPE_FLYGRAVITY )
 		end
 	end
+end
+
+function SWEP:PlayActivity( sActivity, iIndex, flRate )
+	if ( sActivity == "idle" ) then
+		local bRet = BaseClass.PlayActivity( self, sActivity, iIndex, flRate )
+		
+		if ( bRet ) then
+			-- We need to re-seed since Think runs clientside in single-player
+			random.SetSeed( math.MD5Random( self:GetOwner():GetCurrentCommand():CommandNumber() ) % 0x100 )
+			self:SetNextIdle( CurTime() + random.RandomFloat(3, 5) )
+		end
+		
+		return bRet
+	end
+	
+	return BaseClass.PlayActivity( self, sActivity, iIndex, flRate )
 end
 
 --- HLBase

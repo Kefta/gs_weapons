@@ -60,5 +60,5 @@ SWEP.Accuracy = {
 
 --- GSBase
 function SWEP:PlayActivity( sActivity, iIndex, flRate )
-	BaseClass.PlayActivity( self, sActivity == "primary" and self:BurstEnabled() and self:Clip1() > 1 and "secondary" or sActivity, iIndex, flRate )
+	return BaseClass.PlayActivity( self, sActivity == "primary" and self:BurstEnabled() and self:Clip1() > 1 and "secondary" or sActivity, iIndex, flRate )
 end

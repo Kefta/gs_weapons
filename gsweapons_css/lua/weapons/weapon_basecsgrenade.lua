@@ -53,10 +53,10 @@ end
 function SWEP:MouseLifted()
 	if ( self:GetShouldThrow() ) then
 		self:SetShouldThrow( false )
-		self:PlayActivity( "throw" )
 		
 		local pPlayer = self:GetOwner()
 		pPlayer:SetAnimation( PLAYER_ATTACK1 )
+		self:PlayActivity( "throw" )
 		
 		self:AddEvent( "Throw", self.ThrowDelay, function()
 			if ( SERVER ) then
@@ -85,7 +85,6 @@ function SWEP:MouseLifted()
 				self:SetNextPrimaryFire( flNewTime )
 				self:SetNextSecondaryFire( flNewTime )
 				self:SetNextReload( flNewTime )
-				self:SetNextIdle( flNewTime )
 			end
 			
 			return true
@@ -98,8 +97,8 @@ function SWEP:PrimaryAttack()
 		return false
 	end
 	
-	self:PlayActivity( "pull" )
 	self:SetShouldThrow( true )
+	self:PlayActivity( "pull" )
 	
 	self:SetNextPrimaryFire(-1)
 	self:SetNextSecondaryFire(-1)

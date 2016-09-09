@@ -62,6 +62,9 @@ function SWEP:MouseLifted()
 		
 		self:AddEvent( "Throw", self.ThrowDelay, function()
 			local flVel = self:Throw()
+			pPlayer:SetAnimation( PLAYER_ATTACK1 )
+			pPlayer:RemoveAmmo( 1, self:GetPrimaryAmmoName() )
+			self:PlaySound( "primary" )
 			
 			if ( flVel < 500 ) then
 				self:PlayActivity( "throw" )
@@ -70,10 +73,6 @@ function SWEP:MouseLifted()
 			else
 				self:PlayActivity( "throw3" )
 			end
-			
-			self:PlaySound( "primary" )
-			pPlayer:SetAnimation( PLAYER_ATTACK1 )
-			pPlayer:RemoveAmmo( 1, self:GetPrimaryAmmoName() )
 			
 			return true
 		end )
@@ -102,24 +101,13 @@ function SWEP:MouseLifted()
 	end
 end
 
-function SWEP:PlayIdle( iIndex )
-	random.SetSeed( math.MD5Random( self:GetOwner():GetCurrentCommand():CommandNumber() ) % 0x100 )
-	
-	if ( random.RandomFloat(0, 1) > 0.75 ) then
-		self:PlayActivity( "idle2" )
-	else
-		self:PlayActivity( "idle" )
-		self:SetNextIdle( CurTime() + random.RandomFloat(10, 15)) // how long till we do this again.
-	end
-end
-
 function SWEP:PrimaryAttack()
 	if ( not self:CanPrimaryAttack() ) then
 		return false
 	end
 	
-	self:PlayActivity( "pull" )
 	self:SetShouldThrow( true )
+	self:PlayActivity( "pull" )
 	
 	self:SetNextPrimaryFire(-1)
 	self:SetNextSecondaryFire(-1)
@@ -127,6 +115,26 @@ function SWEP:PrimaryAttack()
 	self:SetNextIdle(-1)
 	
 	return true
+end
+
+function SWEP:PlayActivity( sActivity, iIndex, flRate )
+	if ( sActivity == "idle" ) then
+		random.SetSeed( math.MD5Random( self:GetOwner():GetCurrentCommand():CommandNumber() ) % 0x100 )
+		
+		if ( random.RandomFloat(0, 1) > 0.75 ) then
+			return BaseClass.PlayActivity( self, "idle2", iIndex, flRate )
+		else
+			local bRet = BaseClass.PlayActivity( self, sActivity, iIndex, flRate )
+			
+			if ( bRet ) then
+				self:SetNextIdle( CurTime() + random.RandomFloat(10, 15) ) // how long till we do this again.
+			end
+			
+			return bRet
+		end
+	end
+	
+	return BaseClass.PlayActivity( self, sActivity, iIndex, flRate )
 end
 
 local flThrowUp = 8/9

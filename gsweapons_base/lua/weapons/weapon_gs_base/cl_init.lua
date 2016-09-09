@@ -74,7 +74,7 @@ end
 local fGetCrosshair = include( "crosshair.lua" )
 
 function SWEP:DoDrawCrosshair( x, y )
-	return fGetCrosshair( self.Zoom.DrawOverlay and self:GetZoomLevel() ~= 0 and self.Zoom.ScopeStyle or self.CrosshairStyle )( self, x, y )
+	return fGetCrosshair( self.Zoom.DrawOverlay and self:GetZoomLevel() ~= 0 and not self:GetOwner():ShouldDrawLocalPlayer() and self.Zoom.ScopeStyle or self.CrosshairStyle )( self, x, y )
 end
 
 local fGetAnimEvent = include( "event.lua" )

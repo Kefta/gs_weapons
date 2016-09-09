@@ -52,19 +52,19 @@ SWEP.Accuracy = {
 }
 
 --- GSBase
-function SWEP:PlayIdle( iIndex )
-	return self:PlayActivity( self:Clip1() == 1 and "secondary_idle" or "idle", iIndex )
-end
-
 -- Right and left pistols
-function SWEP:PlayActivity( sActivity )
+function SWEP:PlayActivity( sActivity, iIndex, flRate )
+	if ( sActivity == "idle" ) then
+		return BaseClass.PlayActivity( self, self:Clip1() == 1 and "secondary_idle" or sActivity, iIndex, flRate )
+	end
+	
 	if ( sActivity == "primary" ) then
 		local iClip = self:Clip1()
 		
-		return BaseClass.PlayActivity( self, iClip == 1 and "secondary_dryfire" or iClip == 0 and "dryfire" or iClip % 2 == 0 and "secondary" or sActivity )
+		return BaseClass.PlayActivity( self, iClip == 1 and "secondary_dryfire" or iClip == 0 and "dryfire" or iClip % 2 == 0 and "secondary" or sActivity, iIndex, flRate )
 	end
 	
-	return BaseClass.PlayActivity( self, sActivity )
+	return BaseClass.PlayActivity( self, sActivity, iIndex, flRate )
 end
 
 function SWEP:GetMuzzleAttachment( iEvent --[[= 5001]] )

@@ -115,11 +115,6 @@ function SWEP:PrimaryAttack( bStab )
 	local bDidHit = tr.Fraction < 1 and pEntity ~= NULL
 	self:PlayActivity( bDidHit and "hit" or "miss" )
 	
-	local flPrimDelay = self:GetCooldown( bStab, bDidHit )
-	local flCurTime = CurTime()
-	self:SetNextPrimaryFire( flCurTime + flPrimDelay )
-	self:SetNextSecondaryFire( flCurTime + (bStab and flPrimDelay or self:GetCooldown( false, true )))
-	
 	if ( bDidHit ) then
 		local flDamage = self:GetDamage( bStab )
 		local bHitBack = false
@@ -200,6 +195,11 @@ function SWEP:PrimaryAttack( bStab )
 	end
 	
 	pPlayer:LagCompensation( false )
+	
+	local flPrimDelay = self:GetCooldown( bStab, bDidHit )
+	local flCurTime = CurTime()
+	self:SetNextPrimaryFire( flCurTime + flPrimDelay )
+	self:SetNextSecondaryFire( flCurTime + (bStab and flPrimDelay or self:GetCooldown( false, true )))
 	
 	return true
 end

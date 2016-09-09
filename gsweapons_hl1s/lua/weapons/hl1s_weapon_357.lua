@@ -47,15 +47,19 @@ if ( CLIENT ) then
 	SWEP.Category = "Half-Life: Source"
 end
 
-function SWEP:PlayIdle( iIndex )
-	random.SetSeed( math.MD5Random( self:GetOwner():GetCurrentCommand():CommandNumber() ) % 0x100 )
-	
-	return self:PlayActivity( random.RandomFloat(0, 1) > 0.9 and "idle2" or "idle", iIndex )
-end
-
 local sv_cheats = GetConVar( "sv_cheats" )
 local bMultiPlayer = not game.SinglePlayer()
 
 function SWEP:CanSecondaryAttack()
 	return (bMultiPlayer or sv_cheats:GetBool()) and BaseClass.CanSecondaryAttack( self )
+end
+
+function SWEP:PlayActivity( sActivity, iIndex, flRate )
+	if ( sActivity == "idle" ) then
+		random.SetSeed( math.MD5Random( self:GetOwner():GetCurrentCommand():CommandNumber() ) % 0x100 )
+	
+		return BaseClass.PlayActivity( self, random.RandomFloat(0, 1) > 0.9 and "idle2" or sActivity, iIndex, flRate )
+	end
+	
+	return BaseClass.PlayActivity( self, sActivity, iIndex, flRate )
 end
