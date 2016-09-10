@@ -1103,6 +1103,10 @@ function SWEP:HandleFireOnEmpty( bSecondary )
 		if ( not self.m_bPlayedEmptySound ) then
 			self.m_bPlayedEmptySound = true
 			self:PlaySound( "empty" )
+			
+			-- Every weapon in this category uses this specific time
+			-- Adding a variable just feels a bit superfluous
+			self:SetNextPrimaryFire(0.15)
 		end
 	else
 		local flNextTime = CurTime()

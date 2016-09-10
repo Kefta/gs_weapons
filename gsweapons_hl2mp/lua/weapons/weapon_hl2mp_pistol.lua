@@ -37,6 +37,8 @@ SWEP.Secondary.Spread = VECTOR_CONE_6DEGREES
 
 if ( CLIENT ) then
 	SWEP.Category = "Half-Life 2 MP"
+	SWEP.KillIcon = 'd'
+	SWEP.SelectionIcon = 'd'
 end
 
 --- Pistol
@@ -81,7 +83,7 @@ function SWEP:ShootBullets( tbl, bSecondary, iClipDeduction )
 	local flCurTime = CurTime()
 	
 	if ( flCurTime - self.dt.LastAttackTime > self:GetCooldown() ) then
-		self:GetOwner():SetShotsFired(1)
+		self:GetOwner():SetShotsFired(1) -- FIX
 	end
 	
 	self.dt.LastAttackTime = flCurTime

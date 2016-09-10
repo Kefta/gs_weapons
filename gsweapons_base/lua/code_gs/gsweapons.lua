@@ -1237,6 +1237,10 @@ function PLAYER:KickBack( tKickTable )
 	self:SetViewPunchAngles( ang )
 end
 
+local function BulletImpulse( flGrains, flFtPerSec, flImpulse )
+	return flFtPerSec * flGrains * flImpulse * 0.00077897727272727
+end
+
 game.AddAmmoType({
 	name = "StriderMinigun_Episodic",
 	dmgtype = DMG_BULLET,
