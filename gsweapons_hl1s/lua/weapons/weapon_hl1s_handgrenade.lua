@@ -25,6 +25,8 @@ SWEP.Primary = {
 	Automatic = false
 }
 
+SWEP.EmptyCooldown = 0 -- Prevent MouseLifted from interfering with fire times
+
 --- CSBase_Grenade
 SWEP.ThrowDelay = 0.5
 SWEP.GrenadeClass = "grenade_hand"
@@ -34,7 +36,7 @@ SWEP.DetonationTime = 1.5
 function SWEP:SetupDataTables()
 	BaseClass.SetupDataTables( self )
 	
-	self:DTVar( "Bool", 1, "ShouldThrow" )
+	self:DTVar( "Bool", 0, "ShouldThrow" )
 end
 
 function SWEP:Holster()
@@ -60,7 +62,7 @@ function SWEP:MouseLifted()
 		
 		local pPlayer = self:GetOwner()
 		
-		self:AddEvent( "Throw", self.ThrowDelay, function()
+		self:AddEvent( "throw", self.ThrowDelay, function()
 			local flVel = self:Throw()
 			pPlayer:SetAnimation( PLAYER_ATTACK1 )
 			pPlayer:RemoveAmmo( 1, self:GetPrimaryAmmoName() )
@@ -77,8 +79,8 @@ function SWEP:MouseLifted()
 			return true
 		end )
 		
-		self:AddEvent( "Reload", self:SequenceLength(), function()
-			if ( self:EventActive( "Throw" )) then
+		self:AddEvent( "reload", self:SequenceLength(), function()
+			if ( self:EventActive( "throw" )) then
 				return 0
 			end
 			

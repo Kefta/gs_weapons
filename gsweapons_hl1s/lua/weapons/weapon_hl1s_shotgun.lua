@@ -98,10 +98,10 @@ function SWEP:CanSecondaryAttack()
 	local flCurTime = CurTime()
 	local flNextReload = self:GetNextReload()
 	
-	if ( self:EventActive( "Reload" )) then
+	if ( self:EventActive( "reload" )) then
 		if ( self.Secondary.InterruptReload ) then
 			self:SetNextReload( CurTime() - 0.1 )
-			self:RemoveEvent( "Reload" )
+			self:RemoveEvent( "reload" )
 		else
 			return false
 		end

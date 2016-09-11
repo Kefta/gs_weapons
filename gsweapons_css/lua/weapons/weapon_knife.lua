@@ -160,7 +160,7 @@ function SWEP:PrimaryAttack( bStab )
 		
 		if ( not tr.HitSky ) then
 			// delay the decal a bit
-			self:AddEvent( "Smack", bStab and self.Secondary.SmackTime or self.Primary.SmackTime, function()
+			self:AddEvent( "smack", bStab and self.Secondary.SmackTime or self.Primary.SmackTime, function()
 				if ( pEntity == NULL ) then
 					return true
 				end

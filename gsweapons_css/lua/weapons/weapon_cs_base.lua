@@ -39,6 +39,15 @@ function SWEP:CanPrimaryAttack()
 		return false
 	end
 	
+	if ( self:EventActive( "reload" )) then
+		if ( self.Primary.InterruptReload ) then
+			self:SetNextReload( CurTime() - 0.1 )
+			self:RemoveEvent( "reload" )
+		else
+			return false
+		end
+	end
+	
 	-- Give priority to water check over clip
 	if ( not self.Primary.FireUnderwater and pPlayer:WaterLevel() == 3 ) then
 		self:HandleFireUnderwater( false )
@@ -52,15 +61,6 @@ function SWEP:CanPrimaryAttack()
 		self:HandleFireOnEmpty( false )
 		
 		return false
-	end
-	
-	if ( self:EventActive( "Reload" )) then
-		if ( self.Primary.InterruptReload ) then
-			self:SetNextReload( CurTime() - 0.1 )
-			self:RemoveEvent( "Reload" )
-		else
-			return false
-		end
 	end
 	
 	return true
@@ -77,6 +77,15 @@ function SWEP:CanSecondaryAttack()
 		return false
 	end
 	
+	if ( self:EventActive( "reload" )) then
+		if ( self.Secondary.InterruptReload ) then
+			self:SetNextReload( CurTime() - 0.1 )
+			self:RemoveEvent( "reload" )
+		else
+			return false
+		end
+	end
+	
 	if ( not self.Secondary.FireUnderwater and pPlayer:WaterLevel() == 3 ) then
 		self:HandleFireUnderwater( true )
 		
@@ -89,15 +98,6 @@ function SWEP:CanSecondaryAttack()
 		self:HandleFireOnEmpty( true )
 		
 		return false
-	end
-	
-	if ( self:EventActive( "Reload" )) then
-		if ( self.Secondary.InterruptReload ) then
-			self:SetNextReload( CurTime() - 0.1 )
-			self:RemoveEvent( "Reload" )
-		else
-			return false
-		end
 	end
 	
 	return true

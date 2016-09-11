@@ -51,19 +51,6 @@ function SWEP:Precache()
 	util.PrecacheModel( "models/grenade.mdl" )
 end
 
-function SWEP:PrimaryAttack()
-	if ( BaseClass.PrimaryAttack( self )) then
-		self:SetNextSecondaryFire(0) -- Don't penalise secondary attack
-		
-		-- Random seed is already set from ShootBullets
-		self:SetNextIdle( CurTime() + random.RandomFloat(10, 15) )
-		
-		return true
-	end
-	
-	return false
-end
-
 function SWEP:SecondaryAttack()
 	if ( self:CanSecondaryAttack() ) then
 		self:DoMuzzleFlash()
@@ -97,6 +84,13 @@ function SWEP:SecondaryAttack()
 			pGrenade:SetMoveType( MOVETYPE_FLYGRAVITY )
 		end
 	end
+end
+
+function SWEP:ShootBullets( tbl --[[{}]], bSecondary --[[= false]], iClipDeduction --[[= 1]] )
+	BaseClass.ShootBullets( self, tbl, bSecondary, iClipDeduction )
+	
+	self:SetNextSecondaryFire(0) -- Don't penalise secondary time
+	self:SetNextIdle( CurTime() + random.RandomFloat(10, 15) )
 end
 
 function SWEP:PlayActivity( sActivity, iIndex, flRate )

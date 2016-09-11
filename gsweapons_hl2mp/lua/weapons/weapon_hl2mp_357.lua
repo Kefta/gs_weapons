@@ -1,4 +1,3 @@
--- FIXME: Lowercase event names?
 DEFINE_BASECLASS( "basehl2mpcombatweapon" )
 
 --- GSBase
@@ -39,8 +38,12 @@ end
 function SWEP:Punch()
 	local pPlayer = self:GetOwner()
 	
-	// Add it to the view punch
-	-- FIX
-	pPlayer:ViewPunchReset()
+	// Disorient the player
+	local aPlayer = pPlayer:GetLocalAngles()
+	aPlayer.p = aPlayer.p + random.RandomInt(-1, 1)
+	aPlayer.y = aPlayer.y + random.RandomInt(-1, 1)
+	aPlayer.r = 0
+	
+	pPlayer:SetEyeAngles( aPlayer )
 	pPlayer:ViewPunch( Angle( -8, random.RandomFloat(-2, 2), 0 ))
 end

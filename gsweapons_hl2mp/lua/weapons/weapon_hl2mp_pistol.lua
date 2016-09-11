@@ -35,6 +35,8 @@ SWEP.Primary = {
 }
 
 SWEP.Secondary.Spread = VECTOR_CONE_6DEGREES
+SWEP.EmptyCooldown = 0.2 -- This isn't used by the pistol if not -1, but rather SequenceDuration on the pistol's DryFire anim
+SWEP.ReloadOnEmptyFire = true
 
 if ( CLIENT ) then
 	SWEP.Category = "Half-Life 2 MP"
@@ -52,11 +54,20 @@ function SWEP:SetupDataTables()
 	BaseClass.SetupDataTables( self )
 	
 	self:DTVar( "Int", 1, "NumShotsFired" )
-	self:DTVar( "Float", 5, "LastAttackTime" )
-	self:DTVar( "Float", 6, "AccuracyPenalty" )
+	self:DTVar( "Float", 7, "LastAttackTime" )
+	self:DTVar( "Float", 8, "AccuracyPenalty" )
+	self:DTVar( "Bool", 0, "DryFired" )
 end
 
 local bSinglePlayer = game.SinglePlayer()
+
+function SWEP:SharedDeploy( bDelayed )
+	BaseClass.SharedDeploy( self, bDelayed )
+	
+	if ( not bDelayed and (not bSinglePlayer or SERVER) ) then
+		self.dt.DryFired = false
+	end
+end
 
 function SWEP:ItemFrame()
 	if ( (not bSinglePlayer or SERVER) and not self:GetOwner():KeyDown( IN_ATTACK )) then
@@ -73,7 +84,7 @@ function SWEP:ItemFrame()
 				self.dt.AccuracyPenalty = flAccuracyPenalty
 			end
 			
-			if ( not self:EventActive( "Reload" )) then
+			if ( not self:EventActive( "reload" )) then
 				//Allow a refire as fast as the player can click
 				self:SetNextPrimaryFire( flCurTime - 0.1 )
 			end
@@ -81,16 +92,19 @@ function SWEP:ItemFrame()
 	end
 end
 
-function SWEP:ShootBullets( tbl, bSecondary, iClipDeduction )
-	BaseClass.ShootBullets( self, tbl, bSecondary, iClipDeduction )
-	
+function SWEP:ShootBullets( tbl --[[{}]], bSecondary --[[= false]], iClipDeduction --[[= 1]] )
 	local flCurTime = CurTime()
 	
 	if ( flCurTime - self.dt.LastAttackTime > self:GetCooldown() ) then
-		self:GetOwner():SetShotsFired(1) -- FIX
+		self.dt.NumShotsFired = 0
+	else
+		self.dt.NumShotsFired = self.dt.NumShotsFired + 1
 	end
 	
 	self.dt.LastAttackTime = flCurTime
+	self.dt.DryFired = false
+	
+	BaseClass.ShootBullets( self, tbl, bSecondary, iClipDeduction )
 end
 
 function SWEP:SecondaryAttack()
@@ -109,26 +123,44 @@ function SWEP:Punch()
 end
 
 function SWEP:HandleFireOnEmpty( bSecondary )
-	local bUpdate = not self.m_bPlayedEmptySound
+	self.dt.LastAttackTime = CurTime() + self.Refire
 	
-	-- Only play empty sound per mouse press
-	if ( bUpdate ) then
-		self:PlayActivity( "empty" )
-	end
-	
-	BaseClass.HandleFireOnEmpty( self )
-	
-	if ( bUpdate ) then
-		local flCurTime = CurTime()
-		self:SetNextPrimaryFire( flCurTime + self:SequenceLength() )
-		self.dt.LastAttackTime = flCurTime + self.Refire
-	else
+	if ( self.EmptyCooldown == -1 ) then
+		BaseClass.HandleFireOnEmpty( self, bSecondary )
+		
+		return
+	elseif ( self.dt.DryFired ) then
 		local pPlayer = self:GetOwner()
 		
-		if ( not self:HasAnyAmmo() ) then
+		if ( self.SwitchOnEmptyFire and not self:HasAnyAmmo() ) then
 			pPlayer.m_pNewWeapon = pPlayer:GetNextBestWeapon( self.HighWeightPriority )
-		elseif ( pPlayer:GetAmmoCount( self:GetPrimaryAmmoName() ) > 0 ) then
+			
+			return
+		end
+		
+		if ( self.ReloadOnEmptyFire and pPlayer:GetAmmoCount( self:GetPrimaryAmmoName() ) > 0 ) then
 			self:Reload()
+			
+			return
+		end
+	end
+	
+	self:PlaySound( "empty" )
+	local bPlayed = self:PlayActivity( "empty" )
+	local flNextTime = CurTime() + (bPlayed and self:SequenceDuration() or self.EmptyCooldown)
+	self.dt.DryFired = true
+	
+	if ( bSecondary ) then
+		self:SetNextSecondaryFire( flNextTime )
+		
+		if ( self.PenaliseBothOnInvalid ) then
+			self:SetNextPrimaryFire( flNextTime )
+		end
+	else
+		self:SetNextPrimaryFire( flNextTime )
+		
+		if ( self.PenaliseBothOnInvalid ) then
+			self:SetNextSecondaryFire( flNextTime )
 		end
 	end
 end
@@ -137,7 +169,7 @@ function SWEP:PlayActivity( sActivity, iIndex, flRate )
 	if ( sActivity == "primary" and self:Clip1() ~= 0 ) then
 		local iShotsFired = self:GetOwner():GetShotsFired()
 		
-		return BaseClass.PlayActivity( self, iShotsFired == 1 and "primary" or iShotsFired == 2 and "primary2" or iShotsFired == 3 and "primary3" or "primary4", iIndex, flRate )
+		return BaseClass.PlayActivity( self, iShotsFired == 0 and "primary" or iShotsFired == 1 and "primary2" or iShotsFired == 2 and "primary3" or "primary4", iIndex, flRate )
 	end
 	
 	return BaseClass.PlayActivity( self, sActivity, iIndex, flRate )

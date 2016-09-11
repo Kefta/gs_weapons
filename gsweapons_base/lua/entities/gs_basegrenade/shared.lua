@@ -47,7 +47,7 @@ function ENT:Initialize()
 end
 
 function ENT:StartDetonation( flTime )
-	self:AddEvent( "Detonate", flTime, function()
+	self:AddEvent( "detonate", flTime, function()
 		self:Detonate()
 		
 		return true

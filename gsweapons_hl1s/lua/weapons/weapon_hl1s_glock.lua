@@ -48,17 +48,6 @@ if ( CLIENT ) then
 end
 
 --- GSBase
-function SWEP:PrimaryAttack()
-	if ( BaseClass.PrimaryAttack( self )) then
-		-- Random seed is already set from ShootBullets
-		self:SetNextIdle( CurTime() + random.RandomFloat(10, 15) )
-		
-		return true
-	end
-	
-	return false
-end
-
 function SWEP:CanSecondaryAttack()
 	if ( self:CanPrimaryAttack() ) then
 		self:ShootBullets({
@@ -80,4 +69,10 @@ function SWEP:CanSecondaryAttack()
 	end
 	
 	return false
+end
+
+function SWEP:ShootBullets( tbl --[[{}]], bSecondary --[[= false]], iClipDeduction --[[= 1]] )
+	BaseClass.ShootBullets( self, tbl, bSecondary, iClipDeduction )
+	
+	self:SetNextIdle( CurTime() + random.RandomFloat(10, 15) )
 end
