@@ -11,8 +11,6 @@ SWEP.Sounds = {
 }
 
 SWEP.Primary = {
-	BobScale = 0.45,
-	SwayScale = 0.5,
 	Spread = vector_origin,
 	PunchAngle = vector_origin
 }

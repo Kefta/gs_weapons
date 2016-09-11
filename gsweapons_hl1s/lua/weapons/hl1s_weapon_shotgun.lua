@@ -58,7 +58,7 @@ function SWEP:PlayActivity( sActivity, iIndex, flRate )
 		random.SetSeed( math.MD5Random( self:GetOwner():GetCurrentCommand():CommandNumber() ) % 0x100 )
 		local flRand = random.RandomFloat(0, 1)
 		
-		return BaseClass.PlayActivity( flRand > 0.95 and "idle3" or flRand > 0.8 and sActivity or "idle2", iIndex, flRate )
+		return BaseClass.PlayActivity( self, flRand > 0.95 and "idle3" or flRand > 0.8 and sActivity or "idle2", iIndex, flRate )
 	end
 	
 	return BaseClass.PlayActivity( self, sActivity, iIndex, flRate )
@@ -98,9 +98,9 @@ function SWEP:CanSecondaryAttack()
 	local flCurTime = CurTime()
 	local flNextReload = self:GetNextReload()
 	
-	if ( flNextReload == -1 or flNextReload > flCurTime ) then
+	if ( self:EventActive( "Reload" )) then
 		if ( self.Secondary.InterruptReload ) then
-			self:SetNextReload( flCurTime )
+			self:SetNextReload( CurTime() - 0.1 )
 			self:RemoveEvent( "Reload" )
 		else
 			return false

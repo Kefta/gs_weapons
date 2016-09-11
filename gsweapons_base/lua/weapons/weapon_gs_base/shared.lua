@@ -75,7 +75,7 @@ SWEP.Sounds = {
 	-- Default sound events. If a sound isn't available, nothing will play
 	--deploy = "sound.wav",
 	--[[primary = {
-		pitch = { 50, 100 },
+		pitch = {50, 100},
 		sound = "sound2.wav"
 	}]]
 	--secondary = "",
@@ -109,8 +109,8 @@ SWEP.Primary = {
 	FireUnderwater = true, -- Allows firing underwater
 	InterruptReload = false, -- Allows interrupting a reload to shoot
 	-- These are seperated by primary/secondary so ironsights can lower it
-	BobScale = CLIENT and 1 or nil, -- Magnitude of the weapon bob
-	SwayScale = CLIENT and 1 or nil -- Sway deviation
+	BobScale = CLIENT and 0.45 or nil, -- Magnitude of the weapon bob
+	SwayScale = CLIENT and 0.5 or nil -- Sway deviation
 }
 
 SWEP.Secondary = {
@@ -747,15 +747,12 @@ function SWEP:CanPrimaryAttack()
 		return false
 	end
 	
-	local flCurTime = CurTime()
-	local flNextReload = self:GetNextReload()
-	
 	-- In the middle of a reload
-	if ( flNextReload == -1 or flNextReload > flCurTime ) then
+	if ( self:EventActive( "Reload" )) then
 		-- Interrupt the reload to fire
 		if ( self.Primary.InterruptReload ) then
 			-- Stop the reload
-			self:SetNextReload( flCurTime )
+			self:SetNextReload( CurTime() - 0.1 )
 			self:RemoveEvent( "Reload" )
 		else
 			return false
@@ -795,12 +792,9 @@ function SWEP:CanSecondaryAttack()
 		return false
 	end
 	
-	local flCurTime = CurTime()
-	local flNextReload = self:GetNextReload()
-	
-	if ( flNextReload == -1 or flNextReload > flCurTime ) then
+	if ( self:EventActive( "Reload" )) then
 		if ( self.Secondary.InterruptReload ) then
-			self:SetNextReload( flCurTime )
+			self:SetNextReload( CurTime() - 0.1 )
 			self:RemoveEvent( "Reload" )
 		else
 			return false
@@ -1103,10 +1097,6 @@ function SWEP:HandleFireOnEmpty( bSecondary )
 		if ( not self.m_bPlayedEmptySound ) then
 			self.m_bPlayedEmptySound = true
 			self:PlaySound( "empty" )
-			
-			-- Every weapon in this category uses this specific time
-			-- Adding a variable just feels a bit superfluous
-			self:SetNextPrimaryFire(0.15)
 		end
 	else
 		local flNextTime = CurTime()
@@ -1382,12 +1372,8 @@ function SWEP:PlaySound( sSound )
 		sPlay = self:LookupSound( sSound )
 	end
 	
-	if ( sSound ~= "" ) then
-		if ( string.IsSoundFile( sSound )) then
-			self:GetOwner():EmitSound( sSound, 75, 100, 1, CHAN_WEAPON )
-		else
-			self:EmitSound( sSound )
-		end
+	if ( sPlay ~= "" ) then
+		self:EmitSound( sPlay )
 		
 		return true
 	end
@@ -1755,7 +1741,7 @@ function SWEP:LookupSound( sName )
 	local sSound = self.Sounds[sName] or ""
 	
 	-- Auto-refresh fix
-	if ( istable( sSound )) then
+	if ( istable( sSound ) or string.IsSoundFile( sSound )) then
 		self:Precache()
 		
 		return self.Sounds[sName] or ""

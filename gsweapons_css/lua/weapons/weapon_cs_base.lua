@@ -7,8 +7,8 @@ SWEP.Spawnable = false
 SWEP.ViewModelFlip = true
 
 SWEP.Primary = {
-	BobScale = 0.8,
-	SwayScale = 0.5
+	BobScale = CLIENT and 0.8 or nil,
+	SwayScale = CLIENT and 0.5 or nil
 }
 
 SWEP.FireFunction = _R.Player.FireCSBullets
@@ -54,12 +54,9 @@ function SWEP:CanPrimaryAttack()
 		return false
 	end
 	
-	local flCurTime = CurTime()
-	local flNextReload = self:GetNextReload()
-	
-	if ( flNextReload == -1 or flNextReload > flCurTime ) then
+	if ( self:EventActive( "Reload" )) then
 		if ( self.Primary.InterruptReload ) then
-			self:SetNextReload( flCurTime )
+			self:SetNextReload( CurTime() - 0.1 )
 			self:RemoveEvent( "Reload" )
 		else
 			return false
@@ -94,12 +91,9 @@ function SWEP:CanSecondaryAttack()
 		return false
 	end
 	
-	local flCurTime = CurTime()
-	local flNextReload = self:GetNextReload()
-	
-	if ( flNextReload == -1 or flNextReload > flCurTime ) then
+	if ( self:EventActive( "Reload" )) then
 		if ( self.Secondary.InterruptReload ) then
-			self:SetNextReload( flCurTime )
+			self:SetNextReload( CurTime() - 0.1 )
 			self:RemoveEvent( "Reload" )
 		else
 			return false

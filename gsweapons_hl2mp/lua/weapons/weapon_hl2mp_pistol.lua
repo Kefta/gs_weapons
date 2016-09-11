@@ -4,6 +4,7 @@ DEFINE_BASECLASS( "basehl2mpcombatweapon" )
 --- GSBase
 SWEP.PrintName = "#HL2_Pistol"
 SWEP.Spawnable = true
+SWEP.Slot = 1
 
 SWEP.ViewModel = "models/weapons/v_pistol.mdl"
 SWEP.WorldModel = "models/weapons/w_pistol.mdl"
@@ -14,7 +15,7 @@ SWEP.Activities = {
 	primary2 = ACT_VM_RECOIL1,
 	primary3 = ACT_VM_RECOIL2,
 	primary4 = ACT_VM_RECOIL3,
-	dryfire = ACT_VM_DRYFIRE
+	empty = ACT_VM_DRYFIRE
 }
 
 SWEP.Sounds = {
@@ -55,8 +56,10 @@ function SWEP:SetupDataTables()
 	self:DTVar( "Float", 6, "AccuracyPenalty" )
 end
 
+local bSinglePlayer = game.SinglePlayer()
+
 function SWEP:ItemFrame()
-	if ( not self:GetOwner():KeyDown( IN_ATTACK )) then
+	if ( (not bSinglePlayer or SERVER) and not self:GetOwner():KeyDown( IN_ATTACK )) then
 		local flCurTime = CurTime()
 		
 		if ( self.dt.LastAttackTime + self.Refire < flCurTime ) then
@@ -71,7 +74,8 @@ function SWEP:ItemFrame()
 			end
 			
 			if ( not self:EventActive( "Reload" )) then
-				self:SetNextPrimaryFire( flCurTime - self.Refire )
+				//Allow a refire as fast as the player can click
+				self:SetNextPrimaryFire( flCurTime - 0.1 )
 			end
 		end
 	end
@@ -102,6 +106,31 @@ function SWEP:Punch()
 	pPlayer:ViewPunchReset()
 	pPlayer:ViewPunch( Angle( pPlayer:SharedRandomFloat( "pistolpax", 0.25, 0.5 ),
 		pPlayer:SharedRandomFloat( "pistolpay", -0.6, 0.6 ), 0 ))
+end
+
+function SWEP:HandleFireOnEmpty( bSecondary )
+	local bUpdate = not self.m_bPlayedEmptySound
+	
+	-- Only play empty sound per mouse press
+	if ( bUpdate ) then
+		self:PlayActivity( "empty" )
+	end
+	
+	BaseClass.HandleFireOnEmpty( self )
+	
+	if ( bUpdate ) then
+		local flCurTime = CurTime()
+		self:SetNextPrimaryFire( flCurTime + self:SequenceLength() )
+		self.dt.LastAttackTime = flCurTime + self.Refire
+	else
+		local pPlayer = self:GetOwner()
+		
+		if ( not self:HasAnyAmmo() ) then
+			pPlayer.m_pNewWeapon = pPlayer:GetNextBestWeapon( self.HighWeightPriority )
+		elseif ( pPlayer:GetAmmoCount( self:GetPrimaryAmmoName() ) > 0 ) then
+			self:Reload()
+		end
+	end
 end
 
 function SWEP:PlayActivity( sActivity, iIndex, flRate )

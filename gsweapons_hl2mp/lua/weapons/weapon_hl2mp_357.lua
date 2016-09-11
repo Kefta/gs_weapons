@@ -4,6 +4,7 @@ DEFINE_BASECLASS( "basehl2mpcombatweapon" )
 --- GSBase
 SWEP.PrintName = "#HL2_357Handgun"
 SWEP.Spawnable = true
+SWEP.Slot = 1
 
 SWEP.ViewModel = "models/weapons/v_357.mdl"
 SWEP.WorldModel = "models/weapons/w_357.mdl"
@@ -25,6 +26,8 @@ SWEP.Primary = {
 	FireUnderwater = false,
 	Spread = vector_origin
 }
+
+SWEP.ReloadOnEmptyFire = true
 
 if ( CLIENT ) then
 	SWEP.Category = "Half-Life 2 MP"

@@ -68,20 +68,20 @@ end
 local fGetBobbingMethod = include( "bob.lua" )
 
 function SWEP:CalcViewModelView( vm, vPos, ang, vNewPos, aNew )
-	return fGetBobbingMethod( self.BobStyle )( self, vm, vPos, ang, vNewPos, aNew )
+	return fGetBobbingMethod( self.BobStyle:lower() )( self, vm, vPos, ang, vNewPos, aNew )
 end
 
 local fGetCrosshair = include( "crosshair.lua" )
 
 function SWEP:DoDrawCrosshair( x, y )
-	return fGetCrosshair( self.Zoom.DrawOverlay and self:GetZoomLevel() ~= 0 and not self:GetOwner():ShouldDrawLocalPlayer() and self.Zoom.ScopeStyle or self.CrosshairStyle )( self, x, y )
+	return fGetCrosshair( self.Zoom.DrawOverlay and self:GetZoomLevel() ~= 0 and not self:GetOwner():ShouldDrawLocalPlayer() and self.Zoom.ScopeStyle:lower() or self.CrosshairStyle:lower() )( self, x, y )
 end
 
 local fGetAnimEvent = include( "event.lua" )
 
 function SWEP:FireAnimationEvent( vPos, ang, iEvent, sOptions )
 	if ( self.EventStyle[iEvent] ) then
-		return fGetAnimEvent( iEvent, self.EventStyle[iEvent] )( self, vPos, ang, iEvent, sOptions )
+		return fGetAnimEvent( iEvent, self.EventStyle[iEvent]:lower() )( self, vPos, ang, iEvent, sOptions )
 	else
 		DevMsg( 2, string.format( "%s (weapon_gs_base) Missing event %u: %s", self:GetClass(), iEvent, sOptions ))
 	end
