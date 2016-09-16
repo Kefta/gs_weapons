@@ -36,7 +36,7 @@ function SWEP:Punch()
 	local pPlayer = self:GetOwner()
 	
 	// Update punch angles.
-	local aPunch = pPlayer:GetPunchAngle()
+	local aPunch = pPlayer:GetViewPunchAngles()
 	
 	if ( pPlayer:OnGround() ) then
 		aPunch.p = aPunch.p - pPlayer:SharedRandomInt( self.Alias .. "PunchAngleGround", self.Random.GroundMin, self.Random.GroundMax )

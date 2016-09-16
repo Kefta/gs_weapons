@@ -168,7 +168,6 @@ SWEP.IronSights = {
 	FireInZoom = false -- Allow fire during zoom/unzoom
 }
 
-SWEP.FireFunction = _R.Player.LuaFireBullets -- Fire function to use with ShootBullets when PhysicalBullets is false. Args are ( pPlayer, tFireBulletsInfo )
 SWEP.PhysicalBullets = false -- Instead of using traces to simulate bullet firing, shoot a physical entity
 SWEP.PhysicalBulletSpeed = 5000 -- Speed of bullet entity when fired
 SWEP.SpecialType = 0 -- Sets what the secondary fire should do. Uses SPECIAL enums:
@@ -186,7 +185,7 @@ SWEP.ReloadSingly = false // True if this weapon reloads 1 round at a time (shot
 
 SWEP.AutoSwitchFrom = true -- Allows auto-switching away from the weapon. This is only checked for engine switching and is ignored when AutoSwitchOnEmpty
 SWEP.AutoSwitchTo = true -- Allows auto-switching to the weapon
-SWEP.RestrictAmmoSwitch = false -- Do not allow switching to this weapon if it has no ammo
+SWEP.BlockDeployOnEmpty = false -- Block deploying the weapon if it has no ammo
 
 SWEP.UnderwaterCooldown = 0.2 -- Time between empty sound if the weapon cannot fire underwater. Set to -1 to only play once per mouse press
 SWEP.EmptyCooldown = -1 -- Time between empty sound. Set to -1 to only play once per mouse press
@@ -194,11 +193,22 @@ SWEP.ShotDecreaseTime = 0.0225 -- (CS:S crosshair) How fast the shot count shoul
 SWEP.ShotInitialDecreaseTime = 0.4 -- (CS:S crosshair) How long until the shot decrement starts after the mouse is lifter
 
 --- Spawn/Constructor
+local PLAYER = _R.Player
 local static_precached = {} -- Persists through all weapon instances -- acts like static keyword in C++
 
 function SWEP:Initialize()
 	local sClass = self:GetClass()
 	DevMsg( 2, sClass .. " (weapon_gs_base) Initialize" )
+	
+	--self.FireFunction = nil -- Fire function to use with ShootBullets when PhysicalBullets is false. Args are ( pPlayer, tFireBulletsInfo ). nil = Default FireBullets
+	--self.PunchDecayFunction = nil -- Function to decay the punch angle manually. Args are ( pPlayer, aPunchAngle ). The function should modify aPunchAngle and return it. nil = Default decaying
+	
+	self.SpecialTypes = { -- Secondary/special methods. Set SWEP.SpecialType to which function you want to call
+		[SPECIAL_SILENCE] = self.Silence,
+		[SPECIAL_BURST] = self.ToggleBurst,
+		[SPECIAL_ZOOM] = self.AdvanceZoom,
+		[SPECIAL_IRONSIGHTS] = self.ToggleIronSights
+	}
 	
 	self.m_bInitialized = true
 	self.m_bDeployed = false
@@ -208,12 +218,6 @@ function SWEP:Initialize()
 	self.m_bHolsterAnimDone = false
 	self.m_tEvents = {}
 	self.m_tEventHoles = {}
-	self.m_tSpecialTypes = {
-		[SPECIAL_SILENCE] = self.Silence,
-		[SPECIAL_BURST] = self.ToggleBurst,
-		[SPECIAL_ZOOM] = self.AdvanceZoom,
-		[SPECIAL_IRONSIGHTS] = self.ToggleIronSights
-	}
 	
 	self:SetHoldType( self.HoldType )
 	
@@ -300,27 +304,28 @@ end
 
 function SWEP:SetupDataTables()
 	self:DTVar( "Int", 0, "SpecialLevel" )
+	self:DTVar( "Int", 1, "ShotsFired" )
 	self:DTVar( "Float", 0, "NextThink" )
 	self:DTVar( "Float", 1, "NextReload" )
+	self:DTVar( "Float", 2, "ReduceShotTime" )
+	self:DTVar( "Float", 3, "ZoomActiveTime" )
 	
 	-- These could be removed with https://github.com/Facepunch/garrysmod-requests/issues/704
-	self:DTVar( "Float", 2, "NextIdle" )
-	self:DTVar( "Float", 3, "NextIdle1" )
-	self:DTVar( "Float", 4, "NextIdle2" )
-	self:DTVar( "Float", 5, "ReduceShotTime" )
-	self:DTVar( "Float", 6, "ZoomActiveTime" )
+	self:DTVar( "Float", 4, "NextIdle" )
+	self:DTVar( "Float", 5, "NextIdle1" )
+	self:DTVar( "Float", 6, "NextIdle2" )
 	
 	-- Below are the default CNetworkVars in the engine for reference
 	--self:DTVar( "Entity", 0, "Owner" )
-	--self:DTVar( "Float", 5, "NextPrimaryAttack" )
-	--self:DTVar( "Float", 6, "NextSecondaryAttack" )
-	--self:DTVar( "Int", 0, "ViewModelIndex" )
-	--self:DTVar( "Int", 1, "WorldModelIndex" )
-	--self:DTVar( "Int", 2, "State" )
-	--self:DTVar( "Int", 3, "PrimaryAmmoType" )
-	--self:DTVar( "Int", 4, "SecondaryAmmoType" )
-	--self:DTVar( "Int", 5, "Clip1" )
-	--self:DTVar( "Int", 6, "Clip2" )
+	--self:DTVar( "Float", 7, "NextPrimaryAttack" )
+	--self:DTVar( "Float", 8, "NextSecondaryAttack" )
+	--self:DTVar( "Int", 2, "ViewModelIndex" )
+	--self:DTVar( "Int", 3, "WorldModelIndex" )
+	--self:DTVar( "Int", 4, "State" )
+	--self:DTVar( "Int", 5, "PrimaryAmmoType" )
+	--self:DTVar( "Int", 6, "SecondaryAmmoType" )
+	--self:DTVar( "Int", 7, "Clip1" )
+	--self:DTVar( "Int", 8, "Clip2" )
 end
 
 --- Deploy
@@ -337,8 +342,7 @@ function SWEP:Deploy()
 	local pPlayer = self:GetOwner()
 	
 	// Dead men deploy no weapons
-	-- Player:Alive() will return true on the frame the death occured but the health will be less than or equal to 0
-	if ( pPlayer == NULL or pPlayer:Health() < 1 or not pPlayer:Alive() or (self.RestrictAmmoSwitch and not self:HasAnyAmmo()) ) then
+	if ( pPlayer == NULL or not pPlayer:Alive() or (self.BlockDeployOnEmpty and not self:HasAnyAmmo()) ) then
 		return false
 	end
 	
@@ -378,10 +382,10 @@ function SWEP:SharedDeploy( bDelayed )
 		
 		self:PlaySound( "deploy" )
 		self:SetReduceShotTime(0)
+		self:SetShotsFired(0)
 		
 		local pPlayer = self:GetOwner()
 		pPlayer:SetFOV(0, 0)
-		pPlayer:SetShotsFired(0)
 		
 		-- Wait for all viewmodels to deploy
 		local flSequenceDuration = self:PlayActivity( "deploy" ) and self:SequenceLength() or 0
@@ -414,6 +418,7 @@ function SWEP:Holster( pSwitchingTo )
 	local pPlayer = self:GetOwner()
 	
 	-- Holster is called when the player dies with it active but nothing should be done
+	-- Player:Alive() will return true on the frame the death occured but the health will be less than or equal to 0
 	if ( pPlayer ~= NULL and (pPlayer:Health() < 1 or not pPlayer:Alive()) ) then
 		return true
 	end
@@ -493,10 +498,10 @@ function SWEP:DoHolsterAnim( pSwitchingTo )
 			
 			if ( bIsNULL ) then -- Switching to NULL to begin with
 				self:GetOwner().m_pNewWeapon = NULL
-			elseif ( pSwitchingTo ~= NULL ) then -- Weapon being swapped to is still on the player
-				self:GetOwner().m_pNewWeapon = pSwitchingTo
-			else -- Weapon disappeared; find a new one or come back to the same weapon
+			elseif ( pSwitchingTo == NULL ) then -- Weapon disappeared; find a new one or come back to the same weapon
 				self:GetOwner().m_pNewWeapon = self:GetOwner():GetNextBestWeapon( self.HighWeightPriority )
+			else -- Weapon being swapped to is still on the player
+				self:GetOwner().m_pNewWeapon = pSwitchingTo
 			end
 			
 			return true
@@ -568,7 +573,6 @@ function SWEP:OnRemove()
 	else
 		if ( not bSinglePlayer or SERVER ) then
 			pPlayer:SetFOV(0, 0) // reset the default FOV
-			pPlayer:SetShotsFired(0)
 		end
 		
 		if ( pPlayer:Health() > 0 and pPlayer:Alive() and self:IsActiveWeapon() ) then
@@ -679,16 +683,6 @@ end
 function SWEP:MouseLifted()
 	local pPlayer = self:GetOwner()
 	
-	if ( self.EmptyCooldown == -1 or self.UnderwaterCooldown == -1 ) then
-		if ( self:GetNextPrimaryFire() == -1 ) then
-			self:SetNextPrimaryFire(0)
-		end
-		
-		if ( self:GetNextSecondaryFire() == -1 ) then
-			self:SetNextSecondaryFire(0)
-		end
-	end
-	
 	if ( self:Clip1() == 0 ) then
 		-- Just ran out of ammo and the mouse has been lifted, so switch away
 		if ( self.AutoSwitchOnEmpty and not self.m_bDeployedNoAmmo and not self:HasAnyAmmo() ) then
@@ -702,19 +696,22 @@ function SWEP:MouseLifted()
 	if ( not bSinglePlayer or SERVER and not self:EventActive( "burst" )) then
 		// The following code prevents the player from tapping the firebutton repeatedly 
 		// to simulate full auto and retaining the single shot accuracy of single fire
-		local flCurTime = CurTime()
-		local iShotsFired = pPlayer:GetShotsFired()
+		local iShotsFired = self:GetShotsFired()
 		local flShotTime = self:GetReduceShotTime()
 		
 		if ( flShotTime == -1 ) then
 			if ( iShotsFired > 15 ) then
-				pPlayer:SetShotsFired(15)
+				self:SetShotsFired(15)
 			end
 			
-			self:SetReduceShotTime( flCurTime + self.ShotInitialDecreaseTime )
-		elseif ( iShotsFired > 0 and flShotTime < flCurTime ) then
-			pPlayer:SetShotsFired( iShotsFired - 1 )
-			self:SetReduceShotTime( flCurTime + self.ShotDecreaseTime )
+			self:SetReduceShotTime( CurTime() + self.ShotInitialDecreaseTime )
+		elseif ( iShotsFired > 0 ) then
+			local flCurTime = CurTime()
+			
+			if ( flShotTime < flCurTime ) then
+				self:SetShotsFired( iShotsFired - 1 )
+				self:SetReduceShotTime( flCurTime + self.ShotDecreaseTime )
+			end
 		end
 	end
 end
@@ -807,7 +804,7 @@ end
 -- Will only be called serverside in single-player
 function SWEP:SecondaryAttack()
 	if ( self:CanSecondaryAttack() ) then
-		local func = self.m_tSpecialTypes[self.SpecialType]
+		local func = self.SpecialTypes[self.SpecialType]
 		
 		if ( func ) then
 			func( self )
@@ -863,9 +860,12 @@ function SWEP:ShootBullets( tbl --[[{}]], bSecondary --[[= false]], iClipDeducti
 					pBullet:SetupBullet( tbl )
 					pBullet:Spawn()
 				end
-			else
+			elseif ( self.FireFunction ) then
 				self.FireFunction( pPlayer, tbl )
+			else
+				pPlayer:FireBullets( tbl )
 			end
+				
 			
 			pPlayer:SetAnimation( PLAYER_ATTACK1 )
 			self:DoMuzzleFlash()
@@ -947,8 +947,8 @@ function SWEP:ShootBullets( tbl --[[{}]], bSecondary --[[= false]], iClipDeducti
 	end
 	
 	pPlayer:SetAnimation( PLAYER_ATTACK1 )
-	pPlayer:SetShotsFired( pPlayer:GetShotsFired() + 1 )
 	
+	self:SetShotsFired( self:GetShotsFired() + 1 )
 	self:DoMuzzleFlash()
 	self:Punch( bSecondary )
 	self:PlaySound( bSecondary and "secondary" or "primary" )
@@ -976,8 +976,10 @@ function SWEP:ShootBullets( tbl --[[{}]], bSecondary --[[= false]], iClipDeducti
 			bullet:SetupBullet( tbl )
 			bullet:Spawn()
 		end
-	else
+	elseif ( self.FireFunction ) then
 		self.FireFunction( pPlayer, tbl )
+	else
+		pPlayer:FireBullets( tbl )
 	end
 end
 
@@ -1095,19 +1097,52 @@ function SWEP:HandleFireOnEmpty( bSecondary )
 	self:PlaySound( "empty" )
 	self:PlayActivity( "empty" )
 	
-	local flNextTime = self.EmptyCooldown == -1 and -1 or CurTime() + self.EmptyCooldown
-	
-	if ( bSecondary ) then
-		self:SetNextSecondaryFire( flNextTime )
+	if ( self.EmptyCooldown == -1 ) then
+		local pPlayer = self:GetOwner()
 		
-		if ( self.PenaliseBothOnInvalid ) then
-			self:SetNextPrimaryFire( flNextTime )
+		self:AddEvent( "empty", 0, function()
+			if ( pPlayer:MouseLifted() ) then
+				if ( self.PenaliseBothOnInvalid ) then
+					self:SetNextPrimaryFire(0)
+					self:SetNextSecondaryFire(0)
+				elseif ( bSecondary ) then
+					self:SetNextSecondaryFire(0)
+				else
+					self:SetNextPrimaryFire(0)
+				end
+				
+				return true
+			end
+		end )
+		
+		if ( bSecondary ) then
+			self:SetNextSecondaryFire(-1)
+			
+			if ( self.PenaliseBothOnInvalid ) then
+				self:SetNextPrimaryFire(-1)
+			end
+		else
+			self:SetNextPrimaryFire(-1)
+			
+			if ( self.PenaliseBothOnInvalid ) then
+				self:SetNextSecondaryFire(-1)
+			end
 		end
 	else
-		self:SetNextPrimaryFire( flNextTime )
+		local flNextTime = CurTime() + self.EmptyCooldown
 		
-		if ( self.PenaliseBothOnInvalid ) then
+		if ( bSecondary ) then
 			self:SetNextSecondaryFire( flNextTime )
+			
+			if ( self.PenaliseBothOnInvalid ) then
+				self:SetNextPrimaryFire( flNextTime )
+			end
+		else
+			self:SetNextPrimaryFire( flNextTime )
+			
+			if ( self.PenaliseBothOnInvalid ) then
+				self:SetNextSecondaryFire( flNextTime )
+			end
 		end
 	end
 	
@@ -1124,19 +1159,52 @@ function SWEP:HandleFireUnderwater( bSecondary )
 	self:PlaySound( "empty" )
 	self:PlayActivity( "empty" )
 	
-	local flNextTime = self.EmptyCooldown == -1 and -1 or CurTime() + self.EmptyCooldown
-	
-	if ( bSecondary ) then
-		self:SetNextSecondaryFire( flNextTime )
+	if ( self.EmptyCooldown == -1 ) then
+		local pPlayer = self:GetOwner()
 		
-		if ( self.PenaliseBothOnInvalid ) then
-			self:SetNextPrimaryFire( flNextTime )
+		self:AddEvent( "empty", 0, function()
+			if ( pPlayer:MouseLifted() ) then
+				if ( self.PenaliseBothOnInvalid ) then
+					self:SetNextPrimaryFire(0)
+					self:SetNextSecondaryFire(0)
+				elseif ( bSecondary ) then
+					self:SetNextSecondaryFire(0)
+				else
+					self:SetNextPrimaryFire(0)
+				end
+				
+				return true
+			end
+		end )
+		
+		if ( bSecondary ) then
+			self:SetNextSecondaryFire(-1)
+			
+			if ( self.PenaliseBothOnInvalid ) then
+				self:SetNextPrimaryFire(-1)
+			end
+		else
+			self:SetNextPrimaryFire(-1)
+			
+			if ( self.PenaliseBothOnInvalid ) then
+				self:SetNextSecondaryFire(-1)
+			end
 		end
 	else
-		self:SetNextPrimaryFire( flNextTime )
+		local flNextTime = CurTime() + self.EmptyCooldown
 		
-		if ( self.PenaliseBothOnInvalid ) then
+		if ( bSecondary ) then
 			self:SetNextSecondaryFire( flNextTime )
+			
+			if ( self.PenaliseBothOnInvalid ) then
+				self:SetNextPrimaryFire( flNextTime )
+			end
+		else
+			self:SetNextPrimaryFire( flNextTime )
+			
+			if ( self.PenaliseBothOnInvalid ) then
+				self:SetNextSecondaryFire( flNextTime )
+			end
 		end
 	end
 end
@@ -1258,7 +1326,7 @@ function SWEP:Reload()
 				
 				if ( iMaxClip1 == -1 and iMaxClip2 == -1 ) then	
 					--pPlayer:DoAnimationEvent( PLAYERANIMEVENT_RELOAD_END )
-					pPlayer:SetShotsFired(0)
+					self:SetShotsFired(0)
 					self:PlaySound( "reload_finish" )
 					self:PlayActivity( "reload_finish" )
 					self:SetNextReload( CurTime() + self:SequenceLength() )
@@ -1311,7 +1379,7 @@ function SWEP:Reload()
 				pPlayer:RemoveAmmo( iAmmo, sAmmoType )
 			end
 			
-			pPlayer:SetShotsFired(0)
+			self:SetShotsFired(0)
 			self:FinishReload()
 			
 			return true
@@ -1651,11 +1719,19 @@ end
 function SWEP:GetShootAngles()
 	local pPlayer = self:GetOwner()
 	
-	return pPlayer:EyeAngles() + pPlayer:GetPunchAngle()
+	return pPlayer:EyeAngles() + pPlayer:GetViewPunchAngles()
 end
 
 function SWEP:GetShootSrc()
 	return self:GetOwner():GetShootPos()
+end
+
+function SWEP:GetShotsFired()
+	return self.dt.ShotsFired
+end
+
+function SWEP:SetShotsFired( iShots )
+	self.dt.ShotsFired = iShots
 end
 
 --[[function SWEP:GetSlot()

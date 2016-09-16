@@ -51,7 +51,7 @@ if ( CLIENT ) then
 	}
 end
 
---- CSBase_SMG
+--- CSBase_Rifle
 SWEP.Accuracy = {
 	Divisor = 175,
 	Offset = 0.4,
@@ -99,19 +99,63 @@ SWEP.Kick = {
 }
 
 --- GSBase
+// GOOSEMAN : Kick the view..
 function SWEP:Punch()
 	local pPlayer = self:GetOwner()
 	local tKick = self.Kick
 	
 	// Kick the gun based on the state of the player.
-	-- Ground first, speed second
+	-- Speed first, ground second
 	if ( not pPlayer:OnGround() ) then
-		pPlayer:KickBack( tKick.Air )
+		tKick = tKic.Air
 	elseif ( pPlayer:_GetAbsVelocity():Length2DSqr() > (pPlayer:GetWalkSpeed() * tKick.Speed) ^ 2 ) then
-		pPlayer:KickBack( tKick.Move )
+		tKick = tKick.Move
 	elseif ( pPlayer:Crouching() ) then
-		pPlayer:KickBack( tKick.Crouch )
+		tKick = tKick.Crouch
 	else
-		pPlayer:KickBack( tKick.Base )
+		tKick = tKick.Base
 	end
+	
+	local flKickUp = tKick.UpBase
+	local flKickLateral = tKick.LateralBase
+	local iShotsFired = self:GetShotsFired()
+	
+	-- Not the first round fired
+	if ( iShotsFired > 1 ) then
+		flKickUp = flKickUp + iShotsFired * tKick.UpModifier
+		flKickLateral = flKickLateral + iShotsFired * tKick.LateralModifier
+	end
+	
+	local ang = pPlayer:GetViewPunchAngles()
+	
+	ang.p = ang.p - flKickUp
+	local flUpMax = tKick.UpMax
+	
+	if ( ang.p < -1 * flUpMax ) then
+		ang.p = -1 * flUpMax
+	end
+	
+	local bDirection = pPlayer.dt.PunchDirection
+	
+	if ( bDirection ) then
+		ang.y = ang.y + flKickLateral
+		local flLateralMax = tKick.LateralMax
+		
+		if ( ang.y > flLateralMax ) then
+			ang.y = flLateralMax
+		end
+	else
+		ang.y = ang.y - flKickLateral
+		local flLateralMax = tKick.LateralMax
+		
+		if ( ang.y < -1 * flLateralMax ) then
+			ang.y = -1 * flLateralMax
+		end
+	end
+	
+	if ( pPlayer:SharedRandomInt( "KickBack", 0, tKick.DirectionChange ) == 0 ) then
+		pPlayer.dt.PunchDirection = not bDirection
+	end
+	
+	pPlayer:SetViewPunchAngles( ang )
 end

@@ -100,7 +100,7 @@ function SWEP:ShootBullets( tbl, bSecondary, iClipDeduction )
 	// These modifications feed back into flSpread eventually.
 	if ( self.Accuracy.Divisor ~= 0 ) then
 		local pPlayer = self:GetOwner()
-		local flAccuracy = ( (self.Accuracy.Quadratic and pPlayer:GetShotsFired() ^ 2 or pPlayer:GetShotsFired() ^ 3) / self.Accuracy.Divisor ) + self.Accuracy.Offset
+		local flAccuracy = ( (self.Accuracy.Quadratic and self:GetShotsFired() ^ 2 or self:GetShotsFired() ^ 3) / self.Accuracy.Divisor ) + self.Accuracy.Offset
 		
 		if ( flAccuracy > self.Accuracy.Max ) then
 			self.m_flAccuracy = self.Accuracy.Max
@@ -110,21 +110,65 @@ function SWEP:ShootBullets( tbl, bSecondary, iClipDeduction )
 	end
 end
 
+// GOOSEMAN : Kick the view..
 function SWEP:Punch()
 	local pPlayer = self:GetOwner()
 	local tKick = self.Kick
 	
 	// Kick the gun based on the state of the player.
-	-- Ground first, speed second
+	-- Speed first, ground second
 	if ( not pPlayer:OnGround() ) then
-		pPlayer:KickBack( tKick.Air )
+		tKick = tKic.Air
 	elseif ( pPlayer:_GetAbsVelocity():Length2DSqr() > (pPlayer:GetWalkSpeed() * tKick.Speed) ^ 2 ) then
-		pPlayer:KickBack( tKick.Move )
+		tKick = tKick.Move
 	elseif ( pPlayer:Crouching() ) then
-		pPlayer:KickBack( tKick.Crouch )
+		tKick = tKick.Crouch
 	else
-		pPlayer:KickBack( tKick.Base )
+		tKick = tKick.Base
 	end
+	
+	local flKickUp = tKick.UpBase
+	local flKickLateral = tKick.LateralBase
+	local iShotsFired = self:GetShotsFired()
+	
+	-- Not the first round fired
+	if ( iShotsFired > 1 ) then
+		flKickUp = flKickUp + iShotsFired * tKick.UpModifier
+		flKickLateral = flKickLateral + iShotsFired * tKick.LateralModifier
+	end
+	
+	local ang = pPlayer:GetViewPunchAngles()
+	
+	ang.p = ang.p - flKickUp
+	local flUpMax = tKick.UpMax
+	
+	if ( ang.p < -1 * flUpMax ) then
+		ang.p = -1 * flUpMax
+	end
+	
+	local bDirection = pPlayer.dt.PunchDirection
+	
+	if ( bDirection ) then
+		ang.y = ang.y + flKickLateral
+		local flLateralMax = tKick.LateralMax
+		
+		if ( ang.y > flLateralMax ) then
+			ang.y = flLateralMax
+		end
+	else
+		ang.y = ang.y - flKickLateral
+		local flLateralMax = tKick.LateralMax
+		
+		if ( ang.y < -1 * flLateralMax ) then
+			ang.y = -1 * flLateralMax
+		end
+	end
+	
+	if ( pPlayer:SharedRandomInt( "KickBack", 0, tKick.DirectionChange ) == 0 ) then
+		pPlayer.dt.PunchDirection = not bDirection
+	end
+	
+	pPlayer:SetViewPunchAngles( ang )
 end
 
 --- CSBase_Gun

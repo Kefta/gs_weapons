@@ -133,7 +133,7 @@ end
 
 --- Player functions
 -- DTVar exists are varying times based on when the player loads in
-hook.Add( "Think", "GSBase-Player DTVars", function()
+hook.Add( "Think", "GSWeapons-Player DTVars", function()
 	local pLocalPlayer = LocalPlayer()
 	
 	if ( pLocalPlayer.DTVar ) then
@@ -143,6 +143,6 @@ hook.Add( "Think", "GSBase-Player DTVars", function()
 			ErrorNoHalt( "Player DTVars could not be initialized! This is probably due to an earlier error that halted loading. Please fix/contact code_gs before using GSWeapons" )
 		end
 		
-		hook.Remove( "Think", "GSBase-Player DTVars" )
+		hook.Remove( "Think", "GSWeapons-Player DTVars" )
 	end
 end )

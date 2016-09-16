@@ -85,7 +85,7 @@ end
 
 function SWEP:Punch()
 	local pPlayer = self:GetOwner()
-	local aPunch = pPlayer:GetPunchAngle()
+	local aPunch = pPlayer:GetViewPunchAngles()
 	aPunch.x = aPunch.x - self.PunchIntensity
 	pPlayer:SetViewPunchAngles( aPunch )
 end

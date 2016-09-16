@@ -40,9 +40,9 @@ local bCalled = false
 
 function game.AddAmmoType( tAmmo )
 	if ( bCalled ) then
-		ErrorNoHalt( string.format( "BuildAmmoTypes already called! Ammo type %q will not be registered", tAmmo.name or "No Name" ))
+		MsgN( string.format( "BuildAmmoTypes already called! Ammo type %q will not be registered", tAmmo.name or "No Name" ))
 	elseif ( not tAmmo.name ) then
-		ErrorNoHalt( "Ammo attempted to be registered with no name!" )
+		MsgN( "Ammo attempted to be registered with no name!" )
 	elseif ( tAmmoNames[tAmmo.name] ) then
 		MsgN( string.format( "Ammo %q registered twice; giving priority to later registration", tAmmo.name ))
 		tAmmo.num = tAmmoNames[tAmmo.name].num or #tAmmoTypes + 1

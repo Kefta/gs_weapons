@@ -13,6 +13,14 @@ if ( CLIENT ) then
 	SWEP.BobStyle = "hl2"
 end
 
+local PLAYER = _R.Player
+
+function SWEP:Initialize()
+	BaseClass.Initialize( self )
+	
+	self.FireFunction = PLAYER.LuaFireBullets
+end
+
 function SWEP:PrimaryAttack()
 	if ( not self:CanPrimaryAttack() ) then
 		return false

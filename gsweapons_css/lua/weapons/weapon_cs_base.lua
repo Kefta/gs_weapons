@@ -28,6 +28,15 @@ if ( CLIENT ) then
 	surface.CreateFont( "CSSSelection", { font = "cs", size = ScreenScale(120), weight = 500, additive = true })
 end
 
+local PLAYER = _R.Player
+
+function SWEP:Initialize()
+	BaseClass.Initialize( self )
+	
+	self.FireFunction = PLAYER.FireCSBullets
+	self.PunchDecayFunction = PLAYER.CSDecayPunchAngle
+end
+
 function SWEP:CanPrimaryAttack()
 	if ( self:GetNextPrimaryFire() == -1 ) then
 		return false

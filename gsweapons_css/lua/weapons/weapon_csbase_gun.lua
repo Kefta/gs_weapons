@@ -85,7 +85,7 @@ end
 function SWEP:GetShootAngles()
 	local pPlayer = self:GetOwner()
 	
-	return pPlayer:EyeAngles() + 2 * pPlayer:GetPunchAngle()
+	return pPlayer:EyeAngles() + 2 * pPlayer:GetViewPunchAngles()
 end
 
 --- CSBase_Gun

@@ -63,6 +63,7 @@ function SWEP:CanSecondaryAttack()
 		}, true )
 		
 		-- Random seed is already set from ShootBullets
+		-- FIXME: Does prediction screw this up? Check results
 		self:SetNextIdle( CurTime() + random.RandomFloat(10, 15) )
 		
 		return true

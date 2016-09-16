@@ -53,7 +53,7 @@ SWEP.MaxAccuracyPenalty = 1.5 // Maximum penalty to deal out
 function SWEP:SetupDataTables()
 	BaseClass.SetupDataTables( self )
 	
-	self:DTVar( "Int", 1, "NumShotsFired" )
+	self:DTVar( "Int", 2, "AnimLevel" )
 	self:DTVar( "Float", 7, "LastAttackTime" )
 	self:DTVar( "Float", 8, "AccuracyPenalty" )
 	self:DTVar( "Bool", 0, "DryFired" )
@@ -96,9 +96,14 @@ function SWEP:ShootBullets( tbl --[[{}]], bSecondary --[[= false]], iClipDeducti
 	local flCurTime = CurTime()
 	
 	if ( flCurTime - self.dt.LastAttackTime > self:GetCooldown() ) then
-		self.dt.NumShotsFired = 0
+		self.dt.AnimLevel = 0
 	else
-		self.dt.NumShotsFired = self.dt.NumShotsFired + 1
+		local iLevel = self.dt.AnimLevel
+		
+		-- Don't update the networked value if we don't need to
+		if ( iLevel ~= 3 ) then
+			self.dt.AnimLevel = iLevel + 1
+		end
 	end
 	
 	self.dt.LastAttackTime = flCurTime
@@ -167,7 +172,7 @@ end
 
 function SWEP:PlayActivity( sActivity, iIndex, flRate )
 	if ( sActivity == "primary" and self:Clip1() ~= 0 ) then
-		local iShotsFired = self:GetOwner():GetShotsFired()
+		local iShotsFired = sefl.dt.AnimLevel
 		
 		return BaseClass.PlayActivity( self, iShotsFired == 0 and "primary" or iShotsFired == 1 and "primary2" or iShotsFired == 2 and "primary3" or "primary4", iIndex, flRate )
 	end

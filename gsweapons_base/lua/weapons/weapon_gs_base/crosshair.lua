@@ -31,7 +31,7 @@ AddCrosshair( "css", function( pWeapon, x, y )
 	
 	if ( cl_dynamiccrosshair:GetBool() ) then
 		if ( not pPlayer:OnGround() ) then
-			iDistance = iDistance * 2.0
+			iDistance = iDistance * 2
 		elseif ( pPlayer:Crouching() ) then
 			iDistance = math.floor( iDistance * 0.5 )
 		elseif ( pPlayer:_GetAbsVelocity():LengthSqr() > (pPlayer:GetWalkSpeed() * pWeapon.CSSCrosshair.Vel) ^ 2 ) then
@@ -39,7 +39,7 @@ AddCrosshair( "css", function( pWeapon, x, y )
 		end
 	end
 	
-	local iShotsFired = pPlayer:GetShotsFired()
+	local iShotsFired = pWeapon:GetShotsFired()
 	
 	if ( iShotsFired > pWeapon.m_iAmmoLastCheck ) then
 		-- FIXME: Doesn't look right in-game
@@ -56,7 +56,7 @@ AddCrosshair( "css", function( pWeapon, x, y )
 	pWeapon.m_iAmmoLastCheck = iShotsFired
 	
 	//scale bar size to the resolution
-	local flScale = 1
+	local flScale
 	
 	if ( cl_scalecrosshair:GetBool() ) then
 		flScale = cl_crosshairscale:GetInt()
@@ -73,6 +73,8 @@ AddCrosshair( "css", function( pWeapon, x, y )
 		else
 			flScale = iHeight / flScale
 		end
+	else
+		flScale = 1
 	end
 	
 	local tCrosshairColor = cl_crosshaircolor:GetInt()
