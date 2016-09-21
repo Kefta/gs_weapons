@@ -6,7 +6,6 @@ SWEP.Spawnable = true
 SWEP.Slot = 3
 
 SWEP.ViewModel = "models/v_shotgun.mdl"
-SWEP.ViewModelFOV = 90
 SWEP.WorldModel = "models/w_shotgun.mdl"
 SWEP.HoldType = "shotgun"
 SWEP.Weight = 15
@@ -43,7 +42,10 @@ SWEP.Secondary = {
 	PunchAngle = Angle(-10, 0, 0)
 }
 
-SWEP.ReloadSingly = true
+SWEP.SingleReload = {
+	Enabled = true
+}
+
 SWEP.ReloadOnEmptyFire = true
 SWEP.PenaliseBothOnInvalid = true
 SWEP.EmptyCooldown = 0.75
@@ -77,7 +79,7 @@ function SWEP:CanSecondaryAttack()
 	
 	local iClip = self:Clip1()
 	
-	if ( iClip == 0 ) then
+	if ( iClip == 0 or iClip == -1 and self:GetDefaultClip1() ~= -1 and pPlayer:GetAmmoCount( self:GetPrimaryAmmoName() ) == 0 ) then
 		self:HandleFireOnEmpty( true )
 		
 		return false
@@ -95,13 +97,26 @@ function SWEP:CanSecondaryAttack()
 		return false
 	end
 	
-	local flCurTime = CurTime()
-	local flNextReload = self:GetNextReload()
-	
 	if ( self:EventActive( "reload" )) then
 		if ( self.Secondary.InterruptReload ) then
 			self:SetNextReload( CurTime() - 0.1 )
 			self:RemoveEvent( "reload" )
+		elseif ( self.SingleReload.Enabled and self.SingleReload.QueuedFire ) then
+			self:RemoveEvent( "reload" )
+			local flNextTime = self:SequenceLength()
+			
+			self:AddEvent( "fire", flNextTime, function()
+				self:SecondaryAttack()
+				
+				return true
+			end )
+			
+			flNextTime = CurTime() + flNextTime + 0.1
+			self:SetNextPrimaryFire( flNextTime )
+			self:SetNextSecondaryFire( flNextTime )
+			self:SetNextReload( flNextTime )
+			
+			return false
 		else
 			return false
 		end

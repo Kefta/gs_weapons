@@ -1,28 +1,25 @@
 DEFINE_BASECLASS( "gs_baseentity" )
 
---- GS_BaseEntity
+--- GSBase
+ENT.PrintName = "BaseGrenade"
+ENT.Spawnable = false
+
 ENT.Sounds = {
-	["detonate"] = "BaseGrenade.Explode",
-	["bounce"] = "BaseGrenade.BounceSound"
+	detonate = "BaseGrenade.Explode",
+	bounce = "BaseGrenade.BounceSound"
 }
 
-if ( SERVER ) then
-	ENT.CanPickup = true
-end
-
---- GS_BaseGrenade
--- Fix
-ENT.DetonateOnDamage = false
+--- BaseGrenade
 ENT.Force = vector_origin
 ENT.ThrowDamage = 1
 ENT.Damage = 100
 ENT.DamageRadius = 100
-ENT.DetonationType = "Explode"
+ENT.DetonationType = "explode"
 
 // smaller, cube bounding box so we rest on the ground
 ENT.Size = {
 	Min = vector_origin,
-	Max = vector_origin,
+	Max = vector_origin
 }
 
 ENT.Shake = { -- Screen shake parameters for explosions. Set Amplitude to 0 to disable
@@ -48,18 +45,15 @@ end
 
 function ENT:StartDetonation( flTime )
 	self:AddEvent( "detonate", flTime, function()
-		self:Detonate()
-		
-		return true
+		return self:Detonate()
 	end )
 end
 
-local fGetDetonation = include( "detonationtype.lua" )
+local fGetDetonation = include( "detonation.lua" )
 
 function ENT:Detonate()
-	fGetDetonation( self.DetonationType )( self )
+	return fGetDetonation( self.DetonationType:lower() )( self )
 end
-
 
 --[[
 function ENT:Touch_Bounce( pOther )

@@ -130,6 +130,12 @@ SWEP.Secondary = {
 	SwayScale = CLIENT and -1 or nil
 }
 
+SWEP.SingleReload = {
+	Enabled = false,  // True if this weapon reloads 1 round at a time (shotguns)
+	QueuedFire = true, -- Queue a primary/secondary fire to activate once the next bullet is put in the chamber
+	InitialRound = true -- Give round for the first reload (HL2) or subsequent reloads only (CS:S)
+}
+
 SWEP.Burst = {
 	Times = { -- Times between burst shots
 		0.1, -- Time until first extra shot
@@ -154,8 +160,7 @@ SWEP.Zoom = {
 	UnzoomOnFire = false, -- Unzoom when the weapon is fired; rezooms after Primary/Secondary cooldown if the clip is not 0
 	HideViewModel = false, -- Hide view model when zoomed
 	FireDuringZoom = true, -- Allow fire during zoom/unzoom
-	DrawOverlay = CLIENT and false or nil, -- (Clientside) Draw scope overlay when zoomed
-	ScopeStyle = CLIENT and "scope_css" or nil -- (Clientside) Style defined in crosshair.lua to use if DrawOverlay is set to true
+	DrawOverlay = CLIENT and false or nil -- (Clientside) Draw scope overlay when zoomed
 }
 
 SWEP.IronSights = {
@@ -168,20 +173,20 @@ SWEP.IronSights = {
 	FireInZoom = false -- Allow fire during zoom/unzoom
 }
 
-SWEP.PhysicalBullets = false -- Instead of using traces to simulate bullet firing, shoot a physical entity
-SWEP.PhysicalBulletSpeed = 5000 -- Speed of bullet entity when fired
 SWEP.SpecialType = 0 -- Sets what the secondary fire should do. Uses SPECIAL enums:
 -- SPECIAL_SILENCE: Attaches silencer. Changes all sounds and animations to use the s_param version if available
 -- SPECIAL_BURST: Toggles between single-shot and burst fire modes
 -- SPECIAL_ZOOM: Zooms in the weapon by setting the player's FOV. Can have multiple levels
 -- SPECIAL_IRONSIGHTS: "Zooms" in the weapon by moving the viewmodel
 
+SWEP.PhysicalBullets = false -- Instead of using traces to simulate bullet firing, shoot a physical entity
+SWEP.PhysicalBulletSpeed = 5000 -- Speed of bullet entity when fired
+
 SWEP.AutoReloadOnEmpty = true -- Automatically reload if the clip is empty and the mouse is not being held
 SWEP.AutoSwitchOnEmpty = false -- Automatically switch away if the weapon has no ammo, the mouse is not being held, and AutoSwitchFrom is true
 SWEP.ReloadOnEmptyFire = false -- Reload if the weapon is fired with an empty clip
 SWEP.SwitchOnEmptyFire = false -- Switch away if the weapon is fired with no ammo
 SWEP.PenaliseBothOnInvalid = false -- Penalise both primary and secondary fire times for shooting while empty or underwater (if applies)
-SWEP.ReloadSingly = false // True if this weapon reloads 1 round at a time (shotguns) 
 
 SWEP.AutoSwitchFrom = true -- Allows auto-switching away from the weapon. This is only checked for engine switching and is ignored when AutoSwitchOnEmpty
 SWEP.AutoSwitchTo = true -- Allows auto-switching to the weapon
@@ -428,7 +433,7 @@ function SWEP:Holster( pSwitchingTo )
 		
 		if ( bCanHolster ) then
 			if ( self.HolsterAnimation and not self.m_bHolsterAnimDone ) then
-				self:DoHolsterAnim( pSwitchingTo )
+				self:HolsterAnim( pSwitchingTo )
 				
 				-- Run this clientside to reset the viewmodels and set the variables for a full holster
 				if ( bSinglePlayer ) then
@@ -458,7 +463,7 @@ function SWEP:Holster( pSwitchingTo )
 	return false
 end
 
-function SWEP:DoHolsterAnim( pSwitchingTo )
+function SWEP:HolsterAnim( pSwitchingTo )
 	DevMsg( 2, string.format( "%s (weapon_gs_base) Holster animation to %s", self:GetClass(), tostring( pSwitchingTo )))
 	
 	-- https://github.com/Facepunch/garrysmod-requests/issues/739
@@ -729,21 +734,29 @@ function SWEP:CanPrimaryAttack()
 		return false
 	end
 	
-	-- In the middle of a reload
-	if ( self:EventActive( "reload" )) then
-		-- Interrupt the reload to fire
-		if ( self.Primary.InterruptReload ) then
-			-- Stop the reload
-			self:SetNextReload( CurTime() - 0.1 )
-			self:RemoveEvent( "reload" )
-		else
-			return false
-		end
+	local bActive = self:EventActive( "reload" )
+	
+	if ( bActive and self.SingleReload.Enabled and self.SingleReload.QueuedFire ) then
+		local flNextTime = self:SequenceEnd()
+		self:RemoveEvent( "reload" )
+		
+		self:AddEvent( "fire", flNextTime, function()
+			self:PrimaryAttack()
+			
+			return true
+		end )
+		
+		flNextTime = CurTime() + flNextTime + 0.1
+		self:SetNextPrimaryFire( flNextTime )
+		self:SetNextSecondaryFire( flNextTime )
+		self:SetNextReload( flNextTime )
+		
+		return false
 	end
 	
-	-- By default, clip has priority over water
 	local iClip = self:Clip1()
 	
+	-- By default, clip has priority over water
 	if ( iClip == 0 or iClip == -1 and self:GetDefaultClip1() ~= -1 and pPlayer:GetAmmoCount( self:GetPrimaryAmmoName() ) == 0 ) then
 		self:HandleFireOnEmpty( false )
 		
@@ -754,6 +767,18 @@ function SWEP:CanPrimaryAttack()
 		self:HandleFireUnderwater( false )
 		
 		return false
+	end
+	
+	-- In the middle of a reload
+	if ( bActive ) then
+		-- Interrupt the reload to fire
+		if ( self.Primary.InterruptReload ) then
+			-- Stop the reload
+			self:SetNextReload( CurTime() - 0.1 )
+			self:RemoveEvent( "reload" )
+		else
+			return false
+		end
 	end
 	
 	return true
@@ -775,13 +800,24 @@ function SWEP:CanSecondaryAttack()
 		return false
 	end
 	
-	if ( self:EventActive( "reload" )) then
-		if ( self.Secondary.InterruptReload ) then
-			self:SetNextReload( CurTime() - 0.1 )
-			self:RemoveEvent( "reload" )
-		else
-			return false
-		end
+	local bActive = self:EventActive( "reload" )
+	
+	if ( bActive and self.SingleReload.Enabled and self.SingleReload.QueuedFire ) then
+		local flNextTime = self:SequenceEnd()
+		self:RemoveEvent( "reload" )
+		
+		self:AddEvent( "fire", flNextTime, function()
+			self:SecondaryAttack()
+			
+			return true
+		end )
+		
+		flNextTime = CurTime() + flNextTime + 0.1
+		self:SetNextPrimaryFire( flNextTime )
+		self:SetNextSecondaryFire( flNextTime )
+		self:SetNextReload( flNextTime )
+		
+		return false
 	end
 	
 	local iClip = self:Clip2()
@@ -796,6 +832,15 @@ function SWEP:CanSecondaryAttack()
 		self:HandleFireUnderwater( true )
 		
 		return false
+	end
+	
+	if ( bActive ) then
+		if ( self.Secondary.InterruptReload ) then
+			self:SetNextReload( CurTime() - 0.1 )
+			self:RemoveEvent( "reload" )
+		else
+			return false
+		end
 	end
 	
 	return true
@@ -817,6 +862,10 @@ function SWEP:SecondaryAttack()
 end
 
 function SWEP:ShootBullets( tbl --[[{}]], bSecondary --[[= false]], iClipDeduction --[[= 1]] )
+	if ( not tbl ) then
+		tbl = {}
+	end
+	
 	if ( not iClipDeduction ) then
 		iClipDeduction = 1
 	end
@@ -1257,7 +1306,9 @@ function SWEP:Reload()
 		end
 	end
 	
-	if ( self.ReloadSingly ) then
+	local tSingleReload = self.SingleReload
+	
+	if ( tSingleReload.Enabled ) then
 		local iMaxClip1 = self:GetMaxClip1()
 		local iMaxClip2 = self:GetMaxClip2()
 		local sAmmo1
@@ -1285,23 +1336,21 @@ function SWEP:Reload()
 		self:PlayActivity( "reload_start" )
 		
 		local flSeqTime = self:SequenceLength()
-		local flNewTime = flSeqTime + CurTime()
-		self:SetNextPrimaryFire( flNewTime )
-		self:SetNextSecondaryFire( flNewTime )
-		self:SetNextReload(-1)
-		
 		local bFirst = true
 		
 		self:AddEvent( "reload", flSeqTime, function()
-			if ( bFirst ) then
-				bFirst = false
-				pPlayer:SetAnimation( PLAYER_RELOAD )
-				self:PlaySound( "reload" )
-				self:PlayActivity( "reload" )
+			-- HACK: Don't reload with primary fire underwater
+			if ( (pPlayer:KeyDown( IN_ATTACK ) and not self.Primary.FireUnderwater and pPlayer:WaterLevel() == 3 or pPlayer:KeyDown( IN_ATTACK2 )) and not tSingleReload.QueuedFire ) then
+				self:SetNextIdle(-1)
 				
-				-- Start anim times are different than mid reload
-				return self:SequenceLength()
+				-- Start reloading when the mouse is lifted
+				return 0
 			else
+				-- Re-enable idling
+				self:SetNextIdle(0)
+			end
+			
+			if ( not bFirst or tSingleReload.InitialRound ) then
 				if ( iMaxClip1 ~= -1 ) then
 					iClip1 = iClip1 + 1
 					self:SetClip1( iClip1 )
@@ -1329,17 +1378,30 @@ function SWEP:Reload()
 					self:SetShotsFired(0)
 					self:PlaySound( "reload_finish" )
 					self:PlayActivity( "reload_finish" )
-					self:SetNextReload( CurTime() + self:SequenceLength() )
+					
+					local flNextTime = CurTime() + self:SequenceLength()
+					self:SetNextPrimaryFire( flNextTime )
+					self:SetNextSecondaryFire( flNextTime )
+					self:SetNextReload( flNextTime )
 					self:FinishReload()
 					
 					return true
-				else
-					--pPlayer:DoAnimationEvent( PLAYERANIMEVENT_RELOAD_LOOP )
-					self:PlaySound( "reload" )
-					self:PlayActivity( "reload" )
 				end
 			end
+			
+			if ( bFirst ) then
+				bFirst = false
+				pPlayer:SetAnimation( PLAYER_RELOAD )
+			end
+			
+			self:PlaySound( "reload" )
+			self:PlayActivity( "reload" )
+			
+			-- Start anim times are different than mid reload
+			return self:SequenceLength()
 		end )
+		
+		self:SetNextReload(-1)
 	else
 		// Play the player's reload animation
 		pPlayer:SetAnimation( PLAYER_RELOAD )
@@ -1440,7 +1502,7 @@ function SWEP:PlaySound( sSound )
 	return false
 end
 
-function SWEP:PlayActivity( sActivity, iIndex, flRate --[[= 1]] )
+function SWEP:PlayActivity( sActivity, iIndex --[[= nil]], flRate --[[= 1]] )
 	if ( sActivity == "primary" ) then
 		if ( self:LookupActivity( "dryfire" ) ~= ACT_INVALID and self:Clip1() == 0 ) then
 			sActivity = "dryfire"
@@ -1518,60 +1580,17 @@ function SWEP:GetBulletCount( bSecondary --[[= self:SpecialActive()]] )
 	return self.Primary.Bullets
 end
 
-function SWEP:GetCurrentHoldType()
+function SWEP:GetWeaponHoldType()
 	return self.m_sCurrentHoldType
 end
 
-local tHoldTypes = {
-	pistol = ACT_HL2MP_IDLE_PISTOL,
-	smg = ACT_HL2MP_IDLE_SMG1,
-	grenade = ACT_HL2MP_IDLE_GRENADE,
-	ar2 = ACT_HL2MP_IDLE_AR2,
-	shotgun = ACT_HL2MP_IDLE_SHOTGUN,
-	rpg = ACT_HL2MP_IDLE_RPG,
-	physgun = ACT_HL2MP_IDLE_PHYSGUN,
-	crossbow = ACT_HL2MP_IDLE_CROSSBOW,
-	melee = ACT_HL2MP_IDLE_MELEE,
-	slam = ACT_HL2MP_IDLE_SLAM,
-	normal = ACT_HL2MP_IDLE,
-	fist = ACT_HL2MP_IDLE_FIST,
-	melee2 = ACT_HL2MP_IDLE_MELEE2,
-	passive = ACT_HL2MP_IDLE_PASSIVE,
-	knife = ACT_HL2MP_IDLE_KNIFE,
-	duel = ACT_HL2MP_IDLE_DUEL,
-	camera = ACT_HL2MP_IDLE_CAMERA,
-	magic = ACT_HL2MP_IDLE_MAGIC,
-	revolver = ACT_HL2MP_IDLE_REVOLVER
-}
-
 function SWEP:SetWeaponHoldType( sHold )
-	sHold = string.lower( sHold )
-	local iStartIndex = tHoldTypes[sHold]
-	
-	if ( not iStartIndex ) then
-		DevMsg( 2, string.format( "%s (weapon_gs_base) HoldType %q isn't valid! Defaulting to \"normal\"", self:GetClass(), sHold ))
-		sHold = "normal"
-		iStartIndex = tHoldTypes[sHold]
-	end
-	
+	sHold = sHold:lower()
 	self.m_sCurrentHoldType = sHold
-	self.m_tActivityTranslate = {
-		[ACT_MP_STAND_IDLE] = iStartIndex,
-		[ACT_MP_WALK] = iStartIndex + 1,
-		[ACT_MP_RUN] = iStartIndex + 2,
-		[ACT_MP_CROUCH_IDLE] = iStartIndex + 3,
-		[ACT_MP_CROUCHWALK] = iStartIndex + 4,
-		[ACT_MP_ATTACK_STAND_PRIMARYFIRE] = iStartIndex + 5,
-		[ACT_MP_ATTACK_CROUCH_PRIMARYFIRE] = iStartIndex + 5,
-		[ACT_MP_RELOAD_STAND] = iStartIndex + 6,
-		[ACT_MP_RELOAD_CROUCH] = iStartIndex + 6,
-		[ACT_MP_JUMP] = iStartIndex == ACT_HL2MP_IDLE and ACT_HL2MP_JUMP_SLAM or iStartIndex + 7,
-		[ACT_RANGE_ATTACK1] = iStartIndex + 8,
-		[ACT_MP_SWIM] = iStartIndex + 9
-	}
+	self.m_tActivityTranslate = gsweapons.GetHoldType( sHold )
 end
 
-function SWEP:FlipsViewModel( iIndex )
+function SWEP:FlipsViewModel( iIndex --[[= 0]] )
 	return iIndex == 1 and self.ViewModelFlip1 or iIndex == 2 and self.ViewModelFlip2 or self.ViewModelFlip
 end
 

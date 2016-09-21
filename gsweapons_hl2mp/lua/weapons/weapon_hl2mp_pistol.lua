@@ -171,7 +171,7 @@ function SWEP:HandleFireOnEmpty( bSecondary )
 end
 
 function SWEP:PlayActivity( sActivity, iIndex, flRate )
-	if ( sActivity == "primary" and self:Clip1() ~= 0 ) then
+	if ( sActivity == "primary" and self:Clip1() ~= 0 ) then -- Fixme
 		local iShotsFired = sefl.dt.AnimLevel
 		
 		return BaseClass.PlayActivity( self, iShotsFired == 0 and "primary" or iShotsFired == 1 and "primary2" or iShotsFired == 2 and "primary3" or "primary4", iIndex, flRate )

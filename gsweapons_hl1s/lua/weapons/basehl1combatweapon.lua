@@ -26,6 +26,12 @@ if ( CLIENT ) then
 	SWEP.CrosshairStyle = "hl"
 end
 
+function SWEP:Initialize()
+	BaseClass.Initialize( self )
+	
+	self.FireFunction = PLAYER.LuaFireBullets
+end
+
 function SWEP:PrimaryAttack()
 	if ( self:CanPrimaryAttack() ) then
 		self:ShootBullets({

@@ -4,8 +4,8 @@ DEFINE_BASECLASS( "weapon_basecsgrenade" )
 SWEP.PrintName = "#CStrike_Flashbang"
 SWEP.Spawnable = true
 
-SWEP.ViewModel = "models/weapons/v_eq_fraggrenade.mdl"
-SWEP.WorldModel = "models/weapons/w_eq_fraggrenade.mdl"
+SWEP.ViewModel = "models/weapons/v_eq_flashgrenade.mdl"
+SWEP.WorldModel = "models/weapons/w_eq_flashgrenade.mdl"
 SWEP.Weight = 1
 
 SWEP.Primary.Ammo = "Flashbang"

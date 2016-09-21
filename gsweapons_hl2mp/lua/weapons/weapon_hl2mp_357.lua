@@ -15,13 +15,12 @@ SWEP.Sounds = {
 	primary = "Weapon_357.Single"
 }
 
-SWEP.Damage = 75
-
 SWEP.Primary = {
 	Ammo = "357",
 	ClipSize = 6,
 	DefaultClip = 12,
 	Cooldown = 0.75,
+	Damage = 75,
 	FireUnderwater = false,
 	Spread = vector_origin
 }

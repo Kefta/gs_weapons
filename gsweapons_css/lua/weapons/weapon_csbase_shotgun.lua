@@ -8,15 +8,21 @@ SWEP.Slot = 3
 SWEP.HoldType = "shotgun"
 SWEP.Weight = 20
 
-SWEP.ReloadOnEmptyFire = true
-SWEP.ReloadSingly = true
-
 SWEP.Primary = {
 	Range = 3000,
-	FiresUnderwater = false,
+	FireUnderwater = false,
 	InterruptReload = true,
 	RangeModifier = 0.7
 }
+
+SWEP.SingleReload = {
+	Enabled = true,
+	QueuedFire = false,
+	InitialRound = false
+}
+
+SWEP.ReloadOnEmptyFire = true
+
 
 if ( CLIENT ) then
 	SWEP.Category = "Counter-Strike: Source"

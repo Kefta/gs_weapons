@@ -1,24 +1,24 @@
--- TODO: Convert styles to send into a weapons function
 include( "shared.lua" )
 
 --- Selection/Menu
 SWEP.Category = "Source" -- Category in the spawn menu the weapon should appear in. This must be defined in every weapon!
 SWEP.DrawAmmo = true -- Draw HL2 ammo HUD when the weapon is out
 
-SWEP.KillIcon = 'v' -- Letter from the KillIconFont file to draw on the weapon selection panel and killicons
+SWEP.KillIcon = 'v' -- Letter from the KillIconFont file to draw for killicon notifications
 SWEP.KillIconFont = "HL2KillIcon" -- Font defined by surface.CreateFont to use for killicons
-SWEP.KillIconColor = Color( 255, 80, 0, 255 ) -- Color of the font for killicons
-SWEP.SelectionIcon = 'V'
+SWEP.KillIconColor = Color(255, 80, 0, 255) -- Color of the font for killicons
+SWEP.SelectionIcon = 'V' -- Letter from the SelectionFont file to draw on the weapon selection panel
 SWEP.SelectionFont = "HL2Selection" -- Font defined by surface.CreateFont to use for weapon selection icons
-SWEP.SelectionColor = Color( 255, 210, 0, 255 ) -- Color of the font for weapon selection icons
+SWEP.SelectionColor = Color(255, 210, 0, 255) -- Color of the font for weapon selection icons
 
 --- Weapon demeanour
-SWEP.BobStyle = "default" -- Style defined in bob.lua. Set to "" to disable bobbing
-SWEP.BobSpeed = 320/250 -- Speed at which the bob is clamped at. Only affects cstrike and hl bob styles 
+SWEP.BobStyle = "default" -- Style defined by gsweapons.RegisterBobType. Set to "" to disable all bobbing
+SWEP.BobSpeed = 320/250 -- Speed at which the bob is clamped at. Only affects css and hl bob styles
 
-SWEP.CrosshairStyle = "default" -- Style defined in crosshair.lua
+SWEP.CrosshairStyle = "default" -- Style defined by gsweapons.RegisterCrosshair. Set to "" to disable crosshair drawing
+SWEP.ScopeStyle = "css" -- Style defined by gsweapons.RegsiterScope. Set to "" to disable scope drawing. Scope style to show if the weapon is zoomed and SWEP.Zoom.DrawOverlay is true
 SWEP.DrawCrosshair = true -- Call DoDrawCrosshair or not
-SWEP.AccurateCrosshair = false -- (Buggy) Moves crosshair with actual shooting position
+SWEP.AccurateCrosshair = false -- Moves crosshair with actual shooting position
 
 SWEP.CSSCrosshair = {
 	Min = 4, // The minimum distance the crosshair can achieve...
@@ -28,7 +28,8 @@ SWEP.CSSCrosshair = {
 
 SWEP.MuzzleFlashScale = 1 -- Only for CS:S muzzle flash
 
-SWEP.EventStyle = { -- Set to "" to disable an event
+-- Events defined by gsweapons.RegisterAnimEvent. Weapon model anim events. Set to "" to block engine execution
+SWEP.EventStyle = {
 	-- CS:S bullet ejection
 	[20] = "css",
 	
@@ -55,7 +56,7 @@ SWEP.EventStyle = { -- Set to "" to disable an event
 --- Holster
 if ( game.SinglePlayer() ) then
 	net.Receive( "GSWeaponBase - Holster Animation", function()
-		net.ReadEntity():DoHolsterAnim( net.ReadEntity() )
+		net.ReadEntity():HolsterAnim( net.ReadEntity() )
 	end )
 	
 	net.Receive( "GSWeaponBase - Holster", function()
@@ -65,23 +66,19 @@ end
 
 --- HUD/Visual
 -- Bobbing affects all view models; individual view models can call CalcViewModelView
-local fGetBobbingMethod = include( "bob.lua" )
-
 function SWEP:CalcViewModelView( vm, vPos, ang, vNewPos, aNew )
-	return fGetBobbingMethod( self.BobStyle:lower() )( self, vm, vPos, ang, vNewPos, aNew )
+	return gsweapons.GetBobType( self.BobStyle )( self, vm, vPos, ang, vNewPos, aNew )
 end
-
-local fGetCrosshair = include( "crosshair.lua" )
 
 function SWEP:DoDrawCrosshair( x, y )
-	return fGetCrosshair( self.Zoom.DrawOverlay and self:GetZoomLevel() ~= 0 and not self:GetOwner():ShouldDrawLocalPlayer() and self.Zoom.ScopeStyle:lower() or self.CrosshairStyle:lower() )( self, x, y )
+	return self.Zoom.DrawOverlay and self:GetZoomLevel() ~= 0 and not self:GetOwner():ShouldDrawLocalPlayer()
+		and gsweapons.GetScope( self.ScopeStyle )( self, x, y )
+		or gsweapons.GetCrosshair( self.CrosshairStyle )( self, x, y )
 end
-
-local fGetAnimEvent = include( "event.lua" )
 
 function SWEP:FireAnimationEvent( vPos, ang, iEvent, sOptions )
 	if ( self.EventStyle[iEvent] ) then
-		return fGetAnimEvent( iEvent, self.EventStyle[iEvent]:lower() )( self, vPos, ang, iEvent, sOptions )
+		return gsweapons.GetAnimEvent( iEvent, self.EventStyle[iEvent]:lower() )( self, vPos, ang, iEvent, sOptions )
 	else
 		DevMsg( 2, string.format( "%s (weapon_gs_base) Missing event %u: %s", self:GetClass(), iEvent, sOptions ))
 	end
@@ -93,7 +90,7 @@ end
 
 --- Utilities
 surface.CreateFont( "HL2KillIcon", { font = "HL2MP", size = ScreenScale(30), weight = 500, additive = true })
-surface.CreateFont( "HL2Selection", { font = "HALFLIFE2", size = ScreenScale(120), weight = 500, additive = true }) -- cs font doesn't work for some reason
+surface.CreateFont( "HL2Selection", { font = "HALFLIFE2", size = ScreenScale(120), weight = 500, additive = true })
 
 function SWEP:DrawWorldModel()
 	if ( self.SilencerModel ~= "" and self:Silenced() ) then
@@ -115,17 +112,6 @@ function SWEP:DrawWorldModelTranslucent()
 	self:DrawModel()
 end
 
-local fSetDormant = _R.Entity.SetDormant
-
-function SWEP:SetDormant( bDormant )
-	// If I'm going from active to dormant and I'm carried by another player, holster me.
-	if ( bDormant and not self:IsDormant() and not self:IsCarriedByLocalPlayer() ) then
-		self:Holster( NULL )
-	end
-	
-	fSetDormant( self, bDormant ) -- Weapon metatable baseclass
-end
-
 --- Accessors/Modifiers
 function SWEP:GetMuzzleFlashScale()
 	return self.MuzzleFlashScale
@@ -140,7 +126,7 @@ hook.Add( "Think", "GSWeapons-Player DTVars", function()
 		if ( pLocalPlayer.SetupWeaponDataTables ) then
 			pLocalPlayer:SetupWeaponDataTables()
 		else
-			ErrorNoHalt( "Player DTVars could not be initialized! This is probably due to an earlier error that halted loading. Please fix/contact code_gs before using GSWeapons" )
+			ErrorNoHalt( "Player DTVars could not be initialized! This is probably due to an earlier error that halted loading. Please fix, or contact code_gs" )
 		end
 		
 		hook.Remove( "Think", "GSWeapons-Player DTVars" )

@@ -43,6 +43,7 @@ function SWEP:PrimaryAttack()
 	return true
 end
 
+--- HL2MPBase
 function SWEP:GetSpread( bSecondary --[[= self:SpecialActive()]] )
 	if ( bSecondary or bSecondary == nil and self:SpecialActive() ) then
 		local flSpecial = self.Secondary.Spread

@@ -11,7 +11,6 @@ SWEP.Primary = {
 	SwayScale = CLIENT and 0.5 or nil
 }
 
-SWEP.FireFunction = _R.Player.FireCSBullets
 SWEP.UnderwaterCooldown = 0.15
 
 if ( CLIENT ) then
@@ -48,16 +47,27 @@ function SWEP:CanPrimaryAttack()
 		return false
 	end
 	
-	if ( self:EventActive( "reload" )) then
-		if ( self.Primary.InterruptReload ) then
-			self:SetNextReload( CurTime() - 0.1 )
-			self:RemoveEvent( "reload" )
-		else
-			return false
-		end
+	local bActive = self:EventActive( "reload" )
+	
+	if ( bActive and self.SingleReload.Enabled and self.SingleReload.QueuedFire ) then
+		local flNextTime = self:SequenceEnd()
+		self:RemoveEvent( "reload" )
+		
+		self:AddEvent( "fire", flNextTime, function()
+			self:PrimaryAttack()
+			
+			return true
+		end )
+		
+		flNextTime = CurTime() + flNextTime + 0.1
+		self:SetNextPrimaryFire( flNextTime )
+		self:SetNextSecondaryFire( flNextTime )
+		self:SetNextReload( flNextTime )
+		
+		return false
 	end
 	
-	-- Give priority to water check over clip
+	-- In CS:S weapons, water has priority over the clip
 	if ( not self.Primary.FireUnderwater and pPlayer:WaterLevel() == 3 ) then
 		self:HandleFireUnderwater( false )
 		
@@ -70,6 +80,15 @@ function SWEP:CanPrimaryAttack()
 		self:HandleFireOnEmpty( false )
 		
 		return false
+	end
+	
+	if ( bActive ) then
+		if ( self.Primary.InterruptReload ) then
+			self:SetNextReload( CurTime() - 0.1 )
+			self:RemoveEvent( "reload" )
+		else
+			return false
+		end
 	end
 	
 	return true
@@ -86,13 +105,24 @@ function SWEP:CanSecondaryAttack()
 		return false
 	end
 	
-	if ( self:EventActive( "reload" )) then
-		if ( self.Secondary.InterruptReload ) then
-			self:SetNextReload( CurTime() - 0.1 )
-			self:RemoveEvent( "reload" )
-		else
-			return false
-		end
+	local bActive = self:EventActive( "reload" )
+	
+	if ( bActive and self.SingleReload.Enabled and self.SingleReload.QueuedFire ) then
+		local flNextTime = self:SequenceEnd()
+		self:RemoveEvent( "reload" )
+		
+		self:AddEvent( "fire", flNextTime, function()
+			self:SecondaryAttack()
+			
+			return true
+		end )
+		
+		flNextTime = CurTime() + flNextTime + 0.1
+		self:SetNextPrimaryFire( flNextTime )
+		self:SetNextSecondaryFire( flNextTime )
+		self:SetNextReload( flNextTime )
+		
+		return false
 	end
 	
 	if ( not self.Secondary.FireUnderwater and pPlayer:WaterLevel() == 3 ) then
@@ -107,6 +137,15 @@ function SWEP:CanSecondaryAttack()
 		self:HandleFireOnEmpty( true )
 		
 		return false
+	end
+	
+	if ( bActive ) then
+		if ( self.Secondary.InterruptReload ) then
+			self:SetNextReload( CurTime() - 0.1 )
+			self:RemoveEvent( "reload" )
+		else
+			return false
+		end
 	end
 	
 	return true

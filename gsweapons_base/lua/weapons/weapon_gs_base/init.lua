@@ -1,6 +1,3 @@
-AddCSLuaFile( "bob.lua" )
-AddCSLuaFile( "crosshair.lua" )
-AddCSLuaFile( "event.lua" )
 AddCSLuaFile( "cl_init.lua" )
 AddCSLuaFile( "shared.lua" )
 include( "shared.lua" )
