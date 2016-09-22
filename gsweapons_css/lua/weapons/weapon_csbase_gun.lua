@@ -72,7 +72,7 @@ function SWEP:PrimaryAttack()
 			Spread = self:GetSpread( bSecondary ),
 			SpreadBias = flSpreadBias,
 			Src = self:GetShootSrc(),
-			TracerFreq = 0
+			Tracer = 0
 		})
 		
 		return true

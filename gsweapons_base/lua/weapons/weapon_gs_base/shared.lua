@@ -1249,7 +1249,7 @@ function SWEP:HandleFireUnderwater( bSecondary )
 		end
 	end
 end
-
+-- FIXME: Fix CS:S shotgun reloading
 --- Reload
 function SWEP:CanReload()
 	if ( self:EventActive( "reload" )) then
@@ -1284,10 +1284,6 @@ function SWEP:CanReload()
 end
 
 -- Will only be called serverside in single-player
--- Prediction is really messed up here in multi-player
--- The method can be called twice more with the previous Clip1 value AFTER the weapon has finished reloading
--- This causes a slight hiccup where the reload anim/sound is replayed for a second
--- I have yet to find a solution without tossing prediction out the window completely here
 function SWEP:Reload()
 	if ( not self:CanReload() ) then
 		return false

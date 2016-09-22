@@ -59,7 +59,7 @@ function SWEP:CanSecondaryAttack()
 			Num = self:GetBulletCount( true ),
 			Spread = self:GetSpread( true ),
 			Src = self:GetShootSrc(),
-			TracerFreq = 2
+			Tracer = 2
 		}, true )
 		
 		-- Random seed is already set from ShootBullets

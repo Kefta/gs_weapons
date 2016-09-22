@@ -35,7 +35,7 @@ function SWEP:PrimaryAttack()
 			RangeModifier = flRangeModifier,
 			Spread = self:GetSpread(),
 			Src = self:GetShootSrc(),
-			TracerFreq = 2
+			Tracer = 2
 		})
 		
 		return true
