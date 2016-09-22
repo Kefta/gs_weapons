@@ -64,7 +64,7 @@ function SWEP:PrimaryAttack()
 			AmmoType = self:GetPrimaryAmmoName(),
 			Damage = self:GetDamage( bSecondary ),
 			Distance = self:GetRange( bSecondary ),
-			Flags = FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS,
+			--Flags = FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS,
 			Num = self:GetBulletCount( bSecondary ),
 			Penetration = self.Penetration,
 			RangeModifier = flRangeModifier,
@@ -72,7 +72,7 @@ function SWEP:PrimaryAttack()
 			Spread = self:GetSpread( bSecondary ),
 			SpreadBias = flSpreadBias,
 			Src = self:GetShootSrc(),
-			TracerFreq = self.TracerFreq
+			TracerFreq = 0
 		})
 		
 		return true

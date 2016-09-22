@@ -132,11 +132,11 @@ function SWEP:SecondaryAttack()
 			Damage = self:GetDamage( true ),
 			Dir = self:GetShootAngles():Forward(),
 			Distance = self:GetRange( true ),
-			Flags = FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS,
+			--Flags = FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS,
 			Num = self:GetBulletCount( true ),
 			Spread = self:GetSpread( true ),
 			Src = self:GetShootSrc(),
-			TracerFreq = self.TracerFreq
+			TracerFreq = 2
 		}, true, 2 )
 		
 		--self:PlaySound( "primary" )

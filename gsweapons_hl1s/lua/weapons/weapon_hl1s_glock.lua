@@ -55,11 +55,11 @@ function SWEP:CanSecondaryAttack()
 			Damage = self:GetDamage( true ),
 			Dir = self:GetShootAngles():Forward(),
 			Distance = self:GetRange( true ),
-			Flags = FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS,
+			--Flags = FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS,
 			Num = self:GetBulletCount( true ),
 			Spread = self:GetSpread( true ),
 			Src = self:GetShootSrc(),
-			TracerFreq = self.TracerFreq
+			TracerFreq = 2
 		}, true )
 		
 		-- Random seed is already set from ShootBullets

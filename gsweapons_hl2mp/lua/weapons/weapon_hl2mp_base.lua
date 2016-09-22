@@ -6,6 +6,7 @@ SWEP.Spawnable = false
 
 SWEP.Primary.Spread = vector_origin
 SWEP.Secondary.Spread = NULL -- NULL = off
+SWEP.EmptyCooldown = 0.75
 
 if ( CLIENT ) then
 	SWEP.Category = "Half-Life 2 MP"
@@ -22,25 +23,25 @@ function SWEP:Initialize()
 end
 
 function SWEP:PrimaryAttack()
-	if ( not self:CanPrimaryAttack() ) then
-		return false
+	if ( self:CanPrimaryAttack() ) then
+		self:ShootBullets({
+			AmmoType = self:GetPrimaryAmmoName(),
+			Damage = self:GetDamage(),
+			Distance = self:GetRange(),
+			Dir = self:GetShootAngles():Forward(),
+			--Flags = FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS,
+			Num = self:GetBulletCount(),
+			Penetration = self.Penetration,
+			RangeModifier = flRangeModifier,
+			Spread = self:GetSpread(),
+			Src = self:GetShootSrc(),
+			TracerFreq = 2
+		})
+		
+		return true
 	end
 	
-	self:ShootBullets({
-		AmmoType = self:GetPrimaryAmmoName(),
-		Damage = self:GetDamage(),
-		Distance = self:GetRange(),
-		Dir = self:GetShootAngles():Forward(),
-		Flags = FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS,
-		Num = self:GetBulletCount(),
-		Penetration = self.Penetration,
-		RangeModifier = flRangeModifier,
-		Spread = self:GetSpread(),
-		Src = self:GetShootSrc(),
-		TracerFreq = self.TracerFreq
-	})
-	
-	return true
+	return false
 end
 
 --- HL2MPBase

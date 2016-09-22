@@ -26,6 +26,8 @@ if ( CLIENT ) then
 	SWEP.CrosshairStyle = "hl"
 end
 
+local PLAYER = _R.Player
+
 function SWEP:Initialize()
 	BaseClass.Initialize( self )
 	
@@ -39,11 +41,11 @@ function SWEP:PrimaryAttack()
 			Damage = self:GetDamage(),
 			Dir = self:GetShootAngles():Forward(),
 			Distance = self:GetRange(),
-			Flags = FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS,
+			--Flags = FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS,
 			Num = self:GetBulletCount(),
 			Spread = self:GetSpread(),
 			Src = self:GetShootSrc(),
-			TracerFreq = self.TracerFreq
+			TracerFreq = 2
 		})
 		
 		return true

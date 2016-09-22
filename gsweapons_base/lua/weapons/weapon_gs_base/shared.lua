@@ -33,7 +33,6 @@ SWEP.SilencerModel = "" -- World model to use when the weapon is silenced
 SWEP.HoldType = "pistol" -- How the player should hold the weapon in third-person http://wiki.garrysmod.com/page/Hold_Types
 SWEP.m_WeaponDeploySpeed = 1 -- Speed of deployment. Can be negative
 SWEP.HolsterAnimation = false -- Play an animation when the weapon is being holstered. Only works if the weapon has a holster animation
-SWEP.TracerFreq = 1 -- How often the tracer effect should show
 
 SWEP.Weight = 0 -- Weight in automatic weapon selection
 -- There are two weapon switching algorithms:
@@ -734,24 +733,32 @@ function SWEP:CanPrimaryAttack()
 		return false
 	end
 	
-	local bActive = self:EventActive( "reload" )
-	
-	if ( bActive and self.SingleReload.Enabled and self.SingleReload.QueuedFire ) then
-		local flNextTime = self:SequenceEnd()
-		self:RemoveEvent( "reload" )
-		
-		self:AddEvent( "fire", flNextTime, function()
-			self:PrimaryAttack()
+	-- In the middle of a reload
+	if ( self:EventActive( "reload" )) then
+		if ( self.SingleReload.Enabled and self.SingleReload.QueuedFire ) then
+			local flNextTime = self:SequenceEnd()
+			self:RemoveEvent( "reload" )
 			
-			return true
-		end )
-		
-		flNextTime = CurTime() + flNextTime + 0.1
-		self:SetNextPrimaryFire( flNextTime )
-		self:SetNextSecondaryFire( flNextTime )
-		self:SetNextReload( flNextTime )
-		
-		return false
+			self:AddEvent( "fire", flNextTime, function()
+				self:PrimaryAttack()
+				
+				return true
+			end )
+			
+			flNextTime = CurTime() + flNextTime + 0.1
+			self:SetNextPrimaryFire( flNextTime )
+			self:SetNextSecondaryFire( flNextTime )
+			self:SetNextReload( flNextTime )
+			
+			return false
+		-- Interrupt the reload to fire
+		elseif ( self.Primary.InterruptReload ) then
+			-- Stop the reload
+			self:SetNextReload( CurTime() - 0.1 )
+			self:RemoveEvent( "reload" )
+		else
+			return false
+		end
 	end
 	
 	local iClip = self:Clip1()
@@ -767,18 +774,6 @@ function SWEP:CanPrimaryAttack()
 		self:HandleFireUnderwater( false )
 		
 		return false
-	end
-	
-	-- In the middle of a reload
-	if ( bActive ) then
-		-- Interrupt the reload to fire
-		if ( self.Primary.InterruptReload ) then
-			-- Stop the reload
-			self:SetNextReload( CurTime() - 0.1 )
-			self:RemoveEvent( "reload" )
-		else
-			return false
-		end
 	end
 	
 	return true
@@ -800,24 +795,29 @@ function SWEP:CanSecondaryAttack()
 		return false
 	end
 	
-	local bActive = self:EventActive( "reload" )
-	
-	if ( bActive and self.SingleReload.Enabled and self.SingleReload.QueuedFire ) then
-		local flNextTime = self:SequenceEnd()
-		self:RemoveEvent( "reload" )
-		
-		self:AddEvent( "fire", flNextTime, function()
-			self:SecondaryAttack()
+	if ( self:EventActive( "reload" )) then
+		if ( self.SingleReload.Enabled and self.SingleReload.QueuedFire ) then
+			local flNextTime = self:SequenceEnd()
+			self:RemoveEvent( "reload" )
 			
-			return true
-		end )
-		
-		flNextTime = CurTime() + flNextTime + 0.1
-		self:SetNextPrimaryFire( flNextTime )
-		self:SetNextSecondaryFire( flNextTime )
-		self:SetNextReload( flNextTime )
-		
-		return false
+			self:AddEvent( "fire", flNextTime, function()
+				self:SecondaryAttack()
+				
+				return true
+			end )
+			
+			flNextTime = CurTime() + flNextTime + 0.1
+			self:SetNextPrimaryFire( flNextTime )
+			self:SetNextSecondaryFire( flNextTime )
+			self:SetNextReload( flNextTime )
+			
+			return false
+		elseif ( self.Secondary.InterruptReload ) then
+			self:SetNextReload( CurTime() - 0.1 )
+			self:RemoveEvent( "reload" )
+		else
+			return false
+		end
 	end
 	
 	local iClip = self:Clip2()
@@ -832,15 +832,6 @@ function SWEP:CanSecondaryAttack()
 		self:HandleFireUnderwater( true )
 		
 		return false
-	end
-	
-	if ( bActive ) then
-		if ( self.Secondary.InterruptReload ) then
-			self:SetNextReload( CurTime() - 0.1 )
-			self:RemoveEvent( "reload" )
-		else
-			return false
-		end
 	end
 	
 	return true
@@ -1200,6 +1191,7 @@ function SWEP:HandleFireOnEmpty( bSecondary )
 	if ( self.SwitchOnEmptyFire and not self:HasAnyAmmo() ) then
 		pPlayer.m_pNewWeapon = pPlayer:GetNextBestWeapon( self.HighWeightPriority )
 	elseif ( self.ReloadOnEmptyFire and pPlayer:GetAmmoCount( self:GetPrimaryAmmoName() ) > 0 ) then
+		self:SetNextReload(0)
 		self:Reload()
 	end
 end
@@ -1208,7 +1200,7 @@ function SWEP:HandleFireUnderwater( bSecondary )
 	self:PlaySound( "empty" )
 	self:PlayActivity( "empty" )
 	
-	if ( self.EmptyCooldown == -1 ) then
+	if ( self.UnderwaterCooldown == -1 ) then
 		local pPlayer = self:GetOwner()
 		
 		self:AddEvent( "empty", 0, function()
@@ -1240,7 +1232,7 @@ function SWEP:HandleFireUnderwater( bSecondary )
 			end
 		end
 	else
-		local flNextTime = CurTime() + self.EmptyCooldown
+		local flNextTime = CurTime() + self.UnderwaterCooldown
 		
 		if ( bSecondary ) then
 			self:SetNextSecondaryFire( flNextTime )
@@ -1267,14 +1259,28 @@ function SWEP:CanReload()
 	local flNextReload = self:GetNextReload()
 	
 	-- Do not reload if both clips are already full
-	if ( flNextReload == -1 or flNextReload > CurTime() or (self:Clip1() == self:GetMaxClip1() and self:Clip2() == self:GetMaxClip2()) ) then
+	if ( flNextReload == -1 or flNextReload > CurTime() ) then
 		return false
 	end
 	
 	local pPlayer = self:GetOwner()
 	
+	if ( pPlayer == NULL ) then
+		return false
+	end
+	
 	// If I don't have any spare ammo, I can't reload
-	return pPlayer ~= NULL and ( pPlayer:GetAmmoCount( self:GetPrimaryAmmoName() ) ~= 0 or pPlayer:GetAmmoCount( self:GetSecondaryAmmoName() ) ~= 0 )
+	local iMaxClip1 = self:GetMaxClip1()
+	
+	if ( iMaxClip1 == -1 or self:Clip1() == iMaxClip1 or pPlayer:GetAmmoCount( self:GetPrimaryAmmoName() ) == 0 ) then
+		local iMaxClip2 = self:GetMaxClip2()
+		
+		if ( iMaxClip2 == -1 or self:Clip2() == iMaxClip2 or pPlayer:GetAmmoCount( self:GetSecondaryAmmoName() ) == 0 ) then
+			return false
+		end
+	end
+	
+	return true
 end
 
 -- Will only be called serverside in single-player

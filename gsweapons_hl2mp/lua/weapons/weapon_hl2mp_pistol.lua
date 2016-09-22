@@ -24,18 +24,16 @@ SWEP.Sounds = {
 	primary = "Weapon_Pistol.Single"
 }
 
-SWEP.Damage = 8
-
 SWEP.Primary = {
 	Ammo = "Pistol",
 	ClipSize = 18,
 	DefaultClip = 36,
+	Damage = 8,
 	Cooldown = 0.5,
 	Spread = VECTOR_CONE_1DEGREES
 }
 
 SWEP.Secondary.Spread = VECTOR_CONE_6DEGREES
-SWEP.EmptyCooldown = 0.2 -- This isn't used by the pistol if not -1, but rather SequenceDuration on the pistol's DryFire anim
 SWEP.ReloadOnEmptyFire = true
 
 if ( CLIENT ) then
@@ -57,6 +55,7 @@ function SWEP:SetupDataTables()
 	self:DTVar( "Float", 7, "LastAttackTime" )
 	self:DTVar( "Float", 8, "AccuracyPenalty" )
 	self:DTVar( "Bool", 0, "DryFired" )
+	self:DTVar( "Bool", 1, "MouseHeld" )
 end
 
 local bSinglePlayer = game.SinglePlayer()
@@ -71,6 +70,7 @@ end
 
 function SWEP:ItemFrame()
 	if ( (not bSinglePlayer or SERVER) and not self:GetOwner():KeyDown( IN_ATTACK )) then
+		self.dt.MouseHeld = false
 		local flCurTime = CurTime()
 		
 		if ( self.dt.LastAttackTime + self.Refire < flCurTime ) then
@@ -108,6 +108,7 @@ function SWEP:ShootBullets( tbl --[[{}]], bSecondary --[[= false]], iClipDeducti
 	
 	self.dt.LastAttackTime = flCurTime
 	self.dt.DryFired = false
+	self.dt.MouseHeld = true
 	
 	BaseClass.ShootBullets( self, tbl, bSecondary, iClipDeduction )
 end
@@ -134,7 +135,7 @@ function SWEP:HandleFireOnEmpty( bSecondary )
 		BaseClass.HandleFireOnEmpty( self, bSecondary )
 		
 		return
-	elseif ( self.dt.DryFired ) then
+	elseif ( self.dt.DryFired or not self.dt.MouseHeld ) then
 		local pPlayer = self:GetOwner()
 		
 		if ( self.SwitchOnEmptyFire and not self:HasAnyAmmo() ) then
@@ -144,6 +145,7 @@ function SWEP:HandleFireOnEmpty( bSecondary )
 		end
 		
 		if ( self.ReloadOnEmptyFire and pPlayer:GetAmmoCount( self:GetPrimaryAmmoName() ) > 0 ) then
+			self:SetNextReload(0)
 			self:Reload()
 			
 			return
@@ -152,7 +154,7 @@ function SWEP:HandleFireOnEmpty( bSecondary )
 	
 	self:PlaySound( "empty" )
 	local bPlayed = self:PlayActivity( "empty" )
-	local flNextTime = CurTime() + (bPlayed and self:SequenceDuration() or self.EmptyCooldown)
+	local flNextTime = CurTime() + (bPlayed and self:SequenceLength() or self.EmptyCooldown)
 	self.dt.DryFired = true
 	
 	if ( bSecondary ) then
@@ -171,8 +173,8 @@ function SWEP:HandleFireOnEmpty( bSecondary )
 end
 
 function SWEP:PlayActivity( sActivity, iIndex, flRate )
-	if ( sActivity == "primary" and self:Clip1() ~= 0 ) then -- Fixme
-		local iShotsFired = sefl.dt.AnimLevel
+	if ( sActivity == "primary" ) then
+		local iShotsFired = self.dt.AnimLevel
 		
 		return BaseClass.PlayActivity( self, iShotsFired == 0 and "primary" or iShotsFired == 1 and "primary2" or iShotsFired == 2 and "primary3" or "primary4", iIndex, flRate )
 	end
