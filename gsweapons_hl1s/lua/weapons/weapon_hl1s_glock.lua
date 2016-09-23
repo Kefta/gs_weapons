@@ -42,14 +42,15 @@ SWEP.Secondary = {
 }
 
 SWEP.ReloadOnEmptyFire = true
+SWEP.CheckPrimaryClipForSecondary = true
 
 if ( CLIENT ) then
 	SWEP.Category = "Half-Life: Source"
 end
 
 --- GSBase
-function SWEP:CanSecondaryAttack()
-	if ( self:CanPrimaryAttack() ) then
+function SWEP:SecondaryAttack()
+	if ( self:CanSecondaryAttack() ) then
 		self:ShootBullets({
 			AmmoType = self:GetPrimaryAmmoName(),
 			Damage = self:GetDamage( true ),

@@ -30,7 +30,6 @@ SWEP.Secondary = {
 	PunchAngle = Angle(-10, 0, 0)
 }
 
-SWEP.PenaliseBothOnInvalid = true
 SWEP.EmptyCooldown = 0.15
 
 if ( CLIENT ) then

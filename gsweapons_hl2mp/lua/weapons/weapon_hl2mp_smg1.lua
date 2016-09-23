@@ -11,10 +11,15 @@ SWEP.HoldType = "smg"
 
 SWEP.Weight = 3
 
+SWEP.Activities = {
+	empty = ACT_VM_DRYFIRE
+}
+
 SWEP.Sounds = {
 	reload = "Weapon_SMG1.Reload",
 	empty = "Weapon_SMG1.Empty",
-	primary = "Weapon_SMG1.Single"
+	primary = "Weapon_SMG1.Single",
+	secondary = "Weapon_SMG1.Double"
 }
 
 SWEP.Primary = {
@@ -23,7 +28,16 @@ SWEP.Primary = {
 	DefaultClip = 90,
 	Cooldown = 0.075, // 13.3hz
 	Damage = 5,
-	Spread = VECTOR_CONE_5DEGREES
+	Spread = VECTOR_CONE_5DEGREES,
+	FireUnderwater = false
+}
+
+SWEP.Secondary = {
+	Ammo = "SMG1_Grenade",
+	DefaultClip = 2,
+	Cooldown = 1,
+	InterruptReload = true,
+	FireUnderwater = false
 }
 
 if ( CLIENT ) then
@@ -32,8 +46,65 @@ if ( CLIENT ) then
 	SWEP.SelectionIcon = 'a'
 end
 
+-- FIXME: Test empty times
+
 --- HL2MPBase_MachineGun
 SWEP.PunchAngle = {
 	VerticalKick = 1,
 	SlideLimit = 2
 }
+
+--- SMG1
+SWEP.Entity = "grenade_ar2"
+
+function SWEP:SecondaryAttack()
+	if ( self:CanSecondaryAttack() ) then
+		local pPlayer = self:GetOwner()
+		pPlayer:SetAnimation( PLAYER_ATTACK1 )
+		pPlayer:RemoveAmmo( 1, self:GetSecondaryAmmoName() )
+		self:PlaySound( "secondary" )
+		self:PlayActivity( "secondary" )
+		
+		local flCooldown = self:GetCooldown( true ) / 2
+		local flNextTime = CurTime() + flCooldown
+		self:SetNextPrimaryFire( flNextTime )
+		self:SetNextSecondaryFire( flNextTime + flCooldown )
+		self:SetNextReload( flNextTime )
+		
+		if ( SERVER ) then
+			// Create the grenade
+			local pGrenade = ents.Create( self.Entity )
+			pGrenade:SetPos( self:GetShootSrc() )
+			local vThrow = self:GetShootAngles():Forward() * 1000
+			pGrenade:SetAngles( angle_zero )
+			pGrenade:_SetAbsVelocity( vThrow )
+			pGrenade:SetOwner( pPlayer )
+			
+			-- Don't need to set the seed here since it's serverside only
+			pGrenade:SetLocalAngularVelocity( AngleRand( -400, 400 ))
+			pGrenade:Spawn()
+			pGrenade:SetMoveType( MOVETYPE_FLYGRAVITY )
+			pGrenade:SetMoveCollide( MOVECOLLIDE_FLY_BOUNCE )
+		end
+	end
+end
+
+function SWEP:HandleFireOnEmpty( bSecondary )
+	BaseClass.HandleFireOnEmpty( self, bSecondary )
+	
+	if ( bSecondary ) then
+		local flNextTime = CurTime() + self:GetCooldown( true ) / 2
+		self:SetNextPrimaryFire( flNextTime )
+		self:SetNextSecondaryFire( flNextTime )
+	end
+end
+
+function SWEP:HandleFireUnderwater( bSecondary )
+	BaseClass.HandleFireUnderwater( self, bSecondary )
+	
+	if ( bSecondary ) then
+		local flNextTime = CurTime() + self:GetCooldown( true ) / 2
+		self:SetNextPrimaryFire( flNextTime )
+		self:SetNextSecondaryFire( flNextTime )
+	end
+end

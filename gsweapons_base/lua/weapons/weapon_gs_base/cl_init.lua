@@ -56,11 +56,19 @@ SWEP.EventStyle = {
 --- Holster
 if ( game.SinglePlayer() ) then
 	net.Receive( "GSWeaponBase - Holster Animation", function()
-		net.ReadEntity():HolsterAnim( net.ReadEntity() )
+		local pWeapon = net.ReadEntity()
+		
+		if ( pWeapon.HolsterAnim ) then
+			pWeapon:HolsterAnim( net.ReadEntity() )
+		end
 	end )
 	
 	net.Receive( "GSWeaponBase - Holster", function()
-		net.ReadEntity():SharedHolster( net.ReadEntity() )
+		local pWeapon = net.ReadEntity()
+		
+		if ( pWeapon.SharedHolster ) then
+			pWeapon:SharedHolster( net.ReadEntity() )
+		end
 	end )
 end
 
@@ -126,7 +134,7 @@ hook.Add( "Think", "GSWeapons-Player DTVars", function()
 		if ( pLocalPlayer.SetupWeaponDataTables ) then
 			pLocalPlayer:SetupWeaponDataTables()
 		else
-			ErrorNoHalt( "Player DTVars could not be initialized! This is probably due to an earlier error that halted loading. Please fix, or contact code_gs" )
+			ErrorNoHalt( "[GSWeapons] Player DTVars could not be initialized! This is probably due to an earlier error that halted loading. Please fix, or contact code_gs" )
 		end
 		
 		hook.Remove( "Think", "GSWeapons-Player DTVars" )

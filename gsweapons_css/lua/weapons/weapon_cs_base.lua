@@ -47,6 +47,9 @@ function SWEP:CanPrimaryAttack()
 		return false
 	end
 	
+	local iClip = self:Clip1()
+	local iWaterLevel = pPlayer:WaterLevel()
+	
 	if ( self:EventActive( "reload" )) then
 		if ( self.SingleReload.Enabled and self.SingleReload.QueuedFire ) then
 			local flNextTime = self:SequenceEnd()
@@ -64,7 +67,7 @@ function SWEP:CanPrimaryAttack()
 			self:SetNextReload( flNextTime )
 			
 			return false
-		elseif ( self.Primary.InterruptReload ) then
+		elseif ( self.Primary.InterruptReload and iClip ~= 0 and (self.Primary.FireUnderwater or iWaterLevel ~= 3) ) then
 			self:SetNextReload( CurTime() - 0.1 )
 			self:RemoveEvent( "reload" )
 		else
@@ -73,13 +76,11 @@ function SWEP:CanPrimaryAttack()
 	end
 	
 	-- In CS:S weapons, water has priority over the clip
-	if ( not self.Primary.FireUnderwater and pPlayer:WaterLevel() == 3 ) then
+	if ( not self.Primary.FireUnderwater and iWaterLevel == 3 ) then
 		self:HandleFireUnderwater( false )
 		
 		return false
 	end
-	
-	local iClip = self:Clip1()
 	
 	if ( iClip == 0 or iClip == -1 and self:GetDefaultClip1() ~= -1 and pPlayer:GetAmmoCount( self:GetPrimaryAmmoName() ) == 0 ) then
 		self:HandleFireOnEmpty( false )
@@ -101,6 +102,9 @@ function SWEP:CanSecondaryAttack()
 		return false
 	end
 	
+	local iClip = self:Clip2()
+	local iWaterLevel = pPlayer:WaterLevel()
+	
 	if ( self:EventActive( "reload" )) then
 		if ( self.SingleReload.Enabled and self.SingleReload.QueuedFire ) then
 			local flNextTime = self:SequenceEnd()
@@ -118,7 +122,7 @@ function SWEP:CanSecondaryAttack()
 			self:SetNextReload( flNextTime )
 			
 			return false
-		elseif ( self.Secondary.InterruptReload ) then
+		elseif ( self.Secondary.InterruptReload and iClip ~= 0 and (self.Secondary.FireUnderwater or iWaterLevel ~= 3) ) then
 			self:SetNextReload( CurTime() - 0.1 )
 			self:RemoveEvent( "reload" )
 		else
@@ -126,13 +130,11 @@ function SWEP:CanSecondaryAttack()
 		end
 	end
 	
-	if ( not self.Secondary.FireUnderwater and pPlayer:WaterLevel() == 3 ) then
+	if ( not self.Secondary.FireUnderwater and iWaterLevel == 3 ) then
 		self:HandleFireUnderwater( true )
 		
 		return false
 	end
-	
-	local iClip = self:Clip2()
 	
 	if ( iClip == 0 or iClip == -1 and self:GetDefaultClip2() ~= -1 and pPlayer:GetAmmoCount( self:GetSecondaryAmmoName() ) == 0 ) then
 		self:HandleFireOnEmpty( true )

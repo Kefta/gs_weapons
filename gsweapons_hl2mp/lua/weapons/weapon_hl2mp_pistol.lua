@@ -154,22 +154,11 @@ function SWEP:HandleFireOnEmpty( bSecondary )
 	
 	self:PlaySound( "empty" )
 	local bPlayed = self:PlayActivity( "empty" )
-	local flNextTime = CurTime() + (bPlayed and self:SequenceLength() or self.EmptyCooldown)
 	self.dt.DryFired = true
 	
-	if ( bSecondary ) then
-		self:SetNextSecondaryFire( flNextTime )
-		
-		if ( self.PenaliseBothOnInvalid ) then
-			self:SetNextPrimaryFire( flNextTime )
-		end
-	else
-		self:SetNextPrimaryFire( flNextTime )
-		
-		if ( self.PenaliseBothOnInvalid ) then
-			self:SetNextSecondaryFire( flNextTime )
-		end
-	end
+	local flNextTime = CurTime() + (bPlayed and self:SequenceLength() or self.EmptyCooldown)
+	self:SetNextPrimaryFire( flNextTime )
+	self:SetNextSecondaryFire( flNextTime )
 end
 
 function SWEP:PlayActivity( sActivity, iIndex, flRate )

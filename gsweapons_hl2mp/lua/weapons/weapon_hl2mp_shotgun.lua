@@ -73,66 +73,13 @@ function SWEP:FinishReload()
 	self:SetBodygroup(1, 1)
 end
 
-function SWEP:CanSecondaryAttack()
-	if ( self:GetNextSecondaryFire() == -1 ) then
-		return false
-	end
-	
-	local pPlayer = self:GetOwner()
-	
-	if ( pPlayer == NULL ) then
-		return false
-	end
-	
-	local iClip = self:Clip1()
-	
-	if ( iClip == 1 ) then
+function SWEP:SecondaryAttack()
+	if ( self:Clip1() == 1 ) then
 		self:PrimaryAttack()
 		
 		return false
 	end
 	
-	if ( iClip == 0 or iClip == -1 and self:GetDefaultClip1() ~= -1 and pPlayer:GetAmmoCount( self:GetPrimaryAmmoName() ) == 0 ) then
-		self:HandleFireOnEmpty( true )
-		
-		return false
-	end
-	
-	if ( not self.Secondary.FireUnderwater and pPlayer:WaterLevel() == 3 ) then
-		self:HandleFireUnderwater( true )
-		
-		return false
-	end
-	
-	if ( self:EventActive( "reload" )) then
-		if ( self.Secondary.InterruptReload ) then
-			self:SetNextReload( CurTime() - 0.1 )
-			self:RemoveEvent( "reload" )
-		elseif ( self.SingleReload.Enabled and self.SingleReload.QueuedFire ) then
-			self:RemoveEvent( "reload" )
-			local flNextTime = self:SequenceLength()
-			
-			self:AddEvent( "fire", flNextTime, function()
-				self:SecondaryAttack()
-				
-				return true
-			end )
-			
-			flNextTime = CurTime() + flNextTime + 0.1
-			self:SetNextPrimaryFire( flNextTime )
-			self:SetNextSecondaryFire( flNextTime )
-			self:SetNextReload( flNextTime )
-			
-			return false
-		else
-			return false
-		end
-	end
-	
-	return true
-end
-
-function SWEP:SecondaryAttack()
 	if ( self:CanSecondaryAttack() ) then
 		self:ShootBullets({
 			AmmoType = self:GetPrimaryAmmoName(),

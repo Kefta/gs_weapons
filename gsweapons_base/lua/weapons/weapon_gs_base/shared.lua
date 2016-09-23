@@ -185,7 +185,7 @@ SWEP.AutoReloadOnEmpty = true -- Automatically reload if the clip is empty and t
 SWEP.AutoSwitchOnEmpty = false -- Automatically switch away if the weapon has no ammo, the mouse is not being held, and AutoSwitchFrom is true
 SWEP.ReloadOnEmptyFire = false -- Reload if the weapon is fired with an empty clip
 SWEP.SwitchOnEmptyFire = false -- Switch away if the weapon is fired with no ammo
-SWEP.PenaliseBothOnInvalid = false -- Penalise both primary and secondary fire times for shooting while empty or underwater (if applies)
+SWEP.CheckPrimaryClipForSecondary = false -- Check Clip1 instead of Clip2 in CanSecondaryAttack
 
 SWEP.AutoSwitchFrom = true -- Allows auto-switching away from the weapon. This is only checked for engine switching and is ignored when AutoSwitchOnEmpty
 SWEP.AutoSwitchTo = true -- Allows auto-switching to the weapon
@@ -733,6 +733,9 @@ function SWEP:CanPrimaryAttack()
 		return false
 	end
 	
+	local iClip = self:Clip1()
+	local iWaterLevel = pPlayer:WaterLevel()
+	
 	-- In the middle of a reload
 	if ( self:EventActive( "reload" )) then
 		if ( self.SingleReload.Enabled and self.SingleReload.QueuedFire ) then
@@ -752,7 +755,7 @@ function SWEP:CanPrimaryAttack()
 			
 			return false
 		-- Interrupt the reload to fire
-		elseif ( self.Primary.InterruptReload ) then
+		elseif ( self.Primary.InterruptReload and iClip ~= 0 and (self.Primary.FireUnderwater or iWaterLevel ~= 3) ) then
 			-- Stop the reload
 			self:SetNextReload( CurTime() - 0.1 )
 			self:RemoveEvent( "reload" )
@@ -761,8 +764,6 @@ function SWEP:CanPrimaryAttack()
 		end
 	end
 	
-	local iClip = self:Clip1()
-	
 	-- By default, clip has priority over water
 	if ( iClip == 0 or iClip == -1 and self:GetDefaultClip1() ~= -1 and pPlayer:GetAmmoCount( self:GetPrimaryAmmoName() ) == 0 ) then
 		self:HandleFireOnEmpty( false )
@@ -770,7 +771,7 @@ function SWEP:CanPrimaryAttack()
 		return false
 	end
 	
-	if ( not self.Primary.FireUnderwater and pPlayer:WaterLevel() == 3 ) then
+	if ( not self.Primary.FireUnderwater and iWaterLevel == 3 ) then
 		self:HandleFireUnderwater( false )
 		
 		return false
@@ -795,6 +796,9 @@ function SWEP:CanSecondaryAttack()
 		return false
 	end
 	
+	local iClip = self.CheckPrimaryClipForSecondary and self:Clip1() or self:Clip2()
+	local iWaterLevel = pPlayer:WaterLevel()
+	
 	if ( self:EventActive( "reload" )) then
 		if ( self.SingleReload.Enabled and self.SingleReload.QueuedFire ) then
 			local flNextTime = self:SequenceEnd()
@@ -812,7 +816,7 @@ function SWEP:CanSecondaryAttack()
 			self:SetNextReload( flNextTime )
 			
 			return false
-		elseif ( self.Secondary.InterruptReload ) then
+		elseif ( self.Secondary.InterruptReload and iClip ~= 0 and (self.Secondary.FireUnderwater or iWaterLevel ~= 3) ) then
 			self:SetNextReload( CurTime() - 0.1 )
 			self:RemoveEvent( "reload" )
 		else
@@ -820,15 +824,13 @@ function SWEP:CanSecondaryAttack()
 		end
 	end
 	
-	local iClip = self:Clip2()
-	
 	if ( iClip == 0 or iClip == -1 and self:GetDefaultClip2() ~= -1 and pPlayer:GetAmmoCount( self:GetSecondaryAmmoName() ) == 0 ) then
 		self:HandleFireOnEmpty( true )
 		
 		return false
 	end
 	
-	if ( not self.Secondary.FireUnderwater and pPlayer:WaterLevel() == 3 ) then
+	if ( not self.Secondary.FireUnderwater and iWaterLevel == 3 ) then
 		self:HandleFireUnderwater( true )
 		
 		return false
@@ -1137,56 +1139,31 @@ function SWEP:HandleFireOnEmpty( bSecondary )
 	self:PlaySound( "empty" )
 	self:PlayActivity( "empty" )
 	
+	local pPlayer = self:GetOwner()
+	
 	if ( self.EmptyCooldown == -1 ) then
-		local pPlayer = self:GetOwner()
-		
-		self:AddEvent( "empty", 0, function()
-			if ( pPlayer:MouseLifted() ) then
-				if ( self.PenaliseBothOnInvalid ) then
-					self:SetNextPrimaryFire(0)
+		self:AddEvent( "empty_" .. (bSecondary and "secondary" or "primary"), 0, function()
+			if ( bSecondary ) then
+				if ( not pPlayer:KeyDown( IN_ATTACK2 )) then
 					self:SetNextSecondaryFire(0)
-				elseif ( bSecondary ) then
-					self:SetNextSecondaryFire(0)
-				else
-					self:SetNextPrimaryFire(0)
 				end
-				
-				return true
+			elseif ( not pPlayer:KeyDown( IN_ATTACK )) then
+				self:SetNextPrimaryFire(0)
 			end
+			
+			return true
 		end )
 		
 		if ( bSecondary ) then
 			self:SetNextSecondaryFire(-1)
-			
-			if ( self.PenaliseBothOnInvalid ) then
-				self:SetNextPrimaryFire(-1)
-			end
 		else
 			self:SetNextPrimaryFire(-1)
-			
-			if ( self.PenaliseBothOnInvalid ) then
-				self:SetNextSecondaryFire(-1)
-			end
 		end
 	else
 		local flNextTime = CurTime() + self.EmptyCooldown
-		
-		if ( bSecondary ) then
-			self:SetNextSecondaryFire( flNextTime )
-			
-			if ( self.PenaliseBothOnInvalid ) then
-				self:SetNextPrimaryFire( flNextTime )
-			end
-		else
-			self:SetNextPrimaryFire( flNextTime )
-			
-			if ( self.PenaliseBothOnInvalid ) then
-				self:SetNextSecondaryFire( flNextTime )
-			end
-		end
+		self:SetNextPrimaryFire( flNextTime )
+		self:SetNextSecondaryFire( flNextTime )
 	end
-	
-	local pPlayer = self:GetOwner()
 	
 	if ( self.SwitchOnEmptyFire and not self:HasAnyAmmo() ) then
 		pPlayer.m_pNewWeapon = pPlayer:GetNextBestWeapon( self.HighWeightPriority )
@@ -1203,53 +1180,30 @@ function SWEP:HandleFireUnderwater( bSecondary )
 	if ( self.UnderwaterCooldown == -1 ) then
 		local pPlayer = self:GetOwner()
 		
-		self:AddEvent( "empty", 0, function()
-			if ( pPlayer:MouseLifted() ) then
-				if ( self.PenaliseBothOnInvalid ) then
-					self:SetNextPrimaryFire(0)
+		self:AddEvent( "empty_" .. (bSecondary and "secondary" or "primary"), 0, function()
+			if ( bSecondary ) then
+				if ( not pPlayer:KeyDown( IN_ATTACK2 )) then
 					self:SetNextSecondaryFire(0)
-				elseif ( bSecondary ) then
-					self:SetNextSecondaryFire(0)
-				else
-					self:SetNextPrimaryFire(0)
 				end
-				
-				return true
+			elseif ( not pPlayer:KeyDown( IN_ATTACK )) then
+				self:SetNextPrimaryFire(0)
 			end
+			
+			return true
 		end )
 		
 		if ( bSecondary ) then
 			self:SetNextSecondaryFire(-1)
-			
-			if ( self.PenaliseBothOnInvalid ) then
-				self:SetNextPrimaryFire(-1)
-			end
 		else
 			self:SetNextPrimaryFire(-1)
-			
-			if ( self.PenaliseBothOnInvalid ) then
-				self:SetNextSecondaryFire(-1)
-			end
 		end
 	else
 		local flNextTime = CurTime() + self.UnderwaterCooldown
-		
-		if ( bSecondary ) then
-			self:SetNextSecondaryFire( flNextTime )
-			
-			if ( self.PenaliseBothOnInvalid ) then
-				self:SetNextPrimaryFire( flNextTime )
-			end
-		else
-			self:SetNextPrimaryFire( flNextTime )
-			
-			if ( self.PenaliseBothOnInvalid ) then
-				self:SetNextSecondaryFire( flNextTime )
-			end
-		end
+		self:SetNextPrimaryFire( flNextTime )
+		self:SetNextSecondaryFire( flNextTime )
 	end
 end
--- FIXME: Fix CS:S shotgun reloading
+
 --- Reload
 function SWEP:CanReload()
 	if ( self:EventActive( "reload" )) then
@@ -1347,9 +1301,12 @@ function SWEP:Reload()
 				
 				-- Start reloading when the mouse is lifted
 				return 0
-			else
+			elseif ( self:GetNextIdle() == -1 ) then
 				-- Re-enable idling
 				self:SetNextIdle(0)
+				
+				-- Skip one tick for PrimaryAttack to have priority
+				return 0
 			end
 			
 			if ( not bFirst or tSingleReload.InitialRound ) then
@@ -1394,6 +1351,8 @@ function SWEP:Reload()
 			if ( bFirst ) then
 				bFirst = false
 				pPlayer:SetAnimation( PLAYER_RELOAD )
+				self:SetNextPrimaryFire(0)
+				self:SetNextSecondaryFire(0)
 			end
 			
 			self:PlaySound( "reload" )
@@ -1403,6 +1362,8 @@ function SWEP:Reload()
 			return self:SequenceLength()
 		end )
 		
+		self:SetNextPrimaryFire(-1)
+		self:SetNextSecondaryFire(-1)
 		self:SetNextReload(-1)
 	else
 		// Play the player's reload animation
