@@ -66,8 +66,8 @@ function SWEP:FinishReload()
 	self.m_flAccuracy = self.Accuracy.Base
 end
 
-function SWEP:ShootBullets( tbl, bSecondary, iClipDeduction )
-	BaseClass.ShootBullets( self, tbl, bSecondary, iClipDeduction )
+function SWEP:Shoot( bSecondary, iClipDeduction )
+	BaseClass.Shoot( self, bSecondary, iClipDeduction )
 	
 	// Mark the time of this shot and determine the accuracy modifier based on the last shot fired...
 	local flCurTime = CurTime()

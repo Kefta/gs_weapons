@@ -22,26 +22,11 @@ function SWEP:Initialize()
 	self.FireFunction = PLAYER.LuaFireBullets
 end
 
-function SWEP:PrimaryAttack()
-	if ( self:CanPrimaryAttack() ) then
-		self:ShootBullets({
-			AmmoType = self:GetPrimaryAmmoName(),
-			Damage = self:GetDamage(),
-			Distance = self:GetRange(),
-			Dir = self:GetShootAngles():Forward(),
-			--Flags = FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS,
-			Num = self:GetBulletCount(),
-			Penetration = self.Penetration,
-			RangeModifier = flRangeModifier,
-			Spread = self:GetSpread(),
-			Src = self:GetShootSrc(),
-			Tracer = 2
-		})
-		
-		return true
-	end
+function SWEP:GetShotTable( bSecondary )
+	local tbl = BaseClass.GetShotTable( self, bSecondary )
+	tbl.Spread = self:GetSpread( bSecondary )
 	
-	return false
+	return tbl
 end
 
 --- HL2MPBase

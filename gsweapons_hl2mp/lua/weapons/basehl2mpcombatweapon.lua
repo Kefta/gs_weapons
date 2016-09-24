@@ -7,5 +7,3 @@ SWEP.Spawnable = false
 if ( CLIENT ) then
 	SWEP.Category = "Half-Life 2 MP"
 end
-
-

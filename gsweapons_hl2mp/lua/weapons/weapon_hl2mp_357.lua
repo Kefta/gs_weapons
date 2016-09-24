@@ -22,10 +22,9 @@ SWEP.Primary = {
 	Cooldown = 0.75,
 	Damage = 75,
 	FireUnderwater = false,
+	ReloadOnEmptyFire = true,
 	Spread = vector_origin
 }
-
-SWEP.ReloadOnEmptyFire = true
 
 if ( CLIENT ) then
 	SWEP.Category = "Half-Life 2 MP"

@@ -25,6 +25,8 @@ SWEP.Secondary = {
 	}
 }
 
+SWEP.TracerFreq = 0
+
 if ( CLIENT ) then
 	SWEP.Category = "Counter-Strike: Source"
 end
@@ -33,59 +35,60 @@ end
 SWEP.Penetration = 1
 
 --- GSBase
-function SWEP:PrimaryAttack()
-	if ( self:CanPrimaryAttack() ) then
-		local bSecondary = self:SpecialActive()
-		local flRangeModifier
-		local flSpreadBias
-		
-		if ( bSecondary ) then
-			local flSpecial = self.Secondary.RangeModifier
-			
-			if ( flSpecial ~= -1 ) then
-				flRangeModifier = flSpecial
-			else
-				flRangeModifier = self.Primary.RangeModifier
-			end
-			
-			flSpecial = self.Secondary.Spread.Bias
-			
-			if ( flSpecial ~= -1 ) then
-				flSpreadBias = flSpecial
-			else
-				flSpreadBias = self.Primary.Spread.Bias
-			end
-		else
-			flRangeModifier = self.Primary.RangeModifier
-			flSpreadBias = self.Primary.Spread.Bias
-		end
-		
-		self:ShootBullets({
-			AmmoType = self:GetPrimaryAmmoName(),
-			Damage = self:GetDamage( bSecondary ),
-			Distance = self:GetRange( bSecondary ),
-			--Flags = FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS,
-			Num = self:GetBulletCount( bSecondary ),
-			Penetration = self.Penetration,
-			RangeModifier = flRangeModifier,
-			ShootAngles = self:GetShootAngles(),
-			Spread = self:GetSpread( bSecondary ),
-			SpreadBias = flSpreadBias,
-			Src = self:GetShootSrc(),
-			Tracer = 0
-		})
-		
-		return true
-	end
+local PLAYER = _R.Player
+
+function SWEP:Initialize()
+	BaseClass.Initialize( self )
 	
-	return false
+	self.FireFunction = PLAYER.FireCSBullets
 end
 
--- Punch angles get more influence with CS:S weapons
-function SWEP:GetShootAngles()
-	local pPlayer = self:GetOwner()
+function SWEP:UpdateBurstShotTable( tbl )
+	tbl.ShootAngles = self:GetShootAngles()
+	tbl.Src = self:GetShootSrc()
+end
+
+function SWEP:GetShotTable( bSecondary )
+	local bSecondary = self:SpecialActive()
+	local flRangeModifier
+	local flSpreadBias
 	
-	return pPlayer:EyeAngles() + 2 * pPlayer:GetViewPunchAngles()
+	if ( bSecondary ) then
+		local flSpecial = self.Secondary.RangeModifier
+		
+		if ( flSpecial ~= -1 ) then
+			flRangeModifier = flSpecial
+		else
+			flRangeModifier = self.Primary.RangeModifier
+		end
+		
+		flSpecial = self.Secondary.Spread.Bias
+		
+		if ( flSpecial ~= -1 ) then
+			flSpreadBias = flSpecial
+		else
+			flSpreadBias = self.Primary.Spread.Bias
+		end
+	else
+		flRangeModifier = self.Primary.RangeModifier
+		flSpreadBias = self.Primary.Spread.Bias
+	end
+	
+	return {
+		AmmoType = self:GetPrimaryAmmoName(),
+		Damage = self:GetDamage( bSecondary ),
+		Distance = self:GetRange( bSecondary ),
+		--Flags = FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS,
+		Num = self:GetBulletCount( bSecondary ),
+		Penetration = self.Penetration,
+		RangeModifier = flRangeModifier,
+		ShootAngles = self:GetShootAngles(),
+		Spread = self:GetSpread( bSecondary ),
+		SpreadBias = flSpreadBias,
+		Src = self:GetShootSrc(),
+		Tracer = self.TracerFreq,
+		TracerName = self.TracerName
+	}
 end
 
 --- CSBase_Gun

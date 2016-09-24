@@ -14,8 +14,10 @@ SWEP.Activities = {
 	primary4 = ACT_VM_RECOIL3
 }
 
-SWEP.Primary.Spread = VECTOR_CONE_3DEGREES
-SWEP.ReloadOnEmptyFire = true
+SWEP.Primary = {
+	ReloadOnEmptyFire = true,
+	Spread = VECTOR_CONE_3DEGREES
+}
 
 --- HL2MPBase_MachineGun
 SWEP.PunchAngle = {

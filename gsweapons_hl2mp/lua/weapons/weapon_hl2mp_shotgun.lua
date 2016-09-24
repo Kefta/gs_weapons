@@ -28,6 +28,7 @@ SWEP.Primary = {
 	DefaultClip = 14,
 	Bullets = 7,
 	Damage = 9,
+	ReloadOnEmptyFire = true,
 	Spread = VECTOR_CONE_10DEGREES
 }
 
@@ -40,8 +41,6 @@ SWEP.Secondary = {
 SWEP.SingleReload = {
 	Enabled = true
 }
-
-SWEP.ReloadOnEmptyFire = true
 
 if ( CLIENT ) then
 	SWEP.Category = "Half-Life 2 MP"
@@ -81,17 +80,7 @@ function SWEP:SecondaryAttack()
 	end
 	
 	if ( self:CanSecondaryAttack() ) then
-		self:ShootBullets({
-			AmmoType = self:GetPrimaryAmmoName(),
-			Damage = self:GetDamage( true ),
-			Dir = self:GetShootAngles():Forward(),
-			Distance = self:GetRange( true ),
-			--Flags = FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS,
-			Num = self:GetBulletCount( true ),
-			Spread = self:GetSpread( true ),
-			Src = self:GetShootSrc(),
-			Tracer = 2
-		}, true, 2 )
+		self:Shoot( true, 2 )
 		
 		return true
 	end
@@ -99,8 +88,8 @@ function SWEP:SecondaryAttack()
 	return false
 end
 
-function SWEP:ShootBullets( tbl --[[{}]], bSecondary --[[= false]], iClipDeduction --[[= 1]] )
-	BaseClass.ShootBullets( self, tbl, bSecondary, iClipDeduction )
+function SWEP:Shoot( bSecondary --[[= false]], iClipDeduction --[[= 1]] )
+	BaseClass.Shoot( self, bSecondary, iClipDeduction )
 	
 	self:SetNextPrimaryFire(-1)
 	self:SetNextSecondaryFire(-1)

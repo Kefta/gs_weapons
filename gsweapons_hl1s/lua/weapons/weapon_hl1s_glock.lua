@@ -32,6 +32,7 @@ SWEP.Primary = {
 	ClipSize = 17,
 	DefaultClip = 34,
 	Cooldown = 0.3,
+	ReloadOnEmptyFire = true,
 	PunchAngle = Angle(-2, 0, 0),
 	Spread = Vector(0.01, 0.01, 0.01)
 }
@@ -41,7 +42,6 @@ SWEP.Secondary = {
 	Spread = Vector(0.1, 0.1, 0.1)
 }
 
-SWEP.ReloadOnEmptyFire = true
 SWEP.CheckPrimaryClipForSecondary = true
 
 if ( CLIENT ) then
@@ -51,19 +51,9 @@ end
 --- GSBase
 function SWEP:SecondaryAttack()
 	if ( self:CanSecondaryAttack() ) then
-		self:ShootBullets({
-			AmmoType = self:GetPrimaryAmmoName(),
-			Damage = self:GetDamage( true ),
-			Dir = self:GetShootAngles():Forward(),
-			Distance = self:GetRange( true ),
-			--Flags = FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS,
-			Num = self:GetBulletCount( true ),
-			Spread = self:GetSpread( true ),
-			Src = self:GetShootSrc(),
-			Tracer = 2
-		}, true )
+		self:Shoot( true )
 		
-		-- Random seed is already set from ShootBullets
+		-- Random seed is already set from Shoot
 		-- FIXME: Does prediction screw this up? Check results
 		self:SetNextIdle( CurTime() + random.RandomFloat(10, 15) )
 		
@@ -71,10 +61,4 @@ function SWEP:SecondaryAttack()
 	end
 	
 	return false
-end
-
-function SWEP:ShootBullets( tbl --[[{}]], bSecondary --[[= false]], iClipDeduction --[[= 1]] )
-	BaseClass.ShootBullets( self, tbl, bSecondary, iClipDeduction )
-	
-	self:SetNextIdle( CurTime() + random.RandomFloat(10, 15) )
 end

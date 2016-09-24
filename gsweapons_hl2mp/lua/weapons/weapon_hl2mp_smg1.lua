@@ -34,7 +34,7 @@ SWEP.Primary = {
 
 SWEP.Secondary = {
 	Ammo = "SMG1_Grenade",
-	DefaultClip = 2,
+	DefaultClip = 2, -- Fix
 	Cooldown = 1,
 	InterruptReload = true,
 	FireUnderwater = false
@@ -75,12 +75,8 @@ function SWEP:SecondaryAttack()
 			// Create the grenade
 			local pGrenade = ents.Create( self.Entity )
 			pGrenade:SetPos( self:GetShootSrc() )
-			local vThrow = self:GetShootAngles():Forward() * 1000
-			pGrenade:SetAngles( angle_zero )
-			pGrenade:_SetAbsVelocity( vThrow )
+			pGrenade:_SetAbsVelocity( self:GetShootAngles():Forward() * 1000 )
 			pGrenade:SetOwner( pPlayer )
-			
-			-- Don't need to set the seed here since it's serverside only
 			pGrenade:SetLocalAngularVelocity( AngleRand( -400, 400 ))
 			pGrenade:Spawn()
 			pGrenade:SetMoveType( MOVETYPE_FLYGRAVITY )
@@ -92,7 +88,7 @@ end
 function SWEP:HandleFireOnEmpty( bSecondary )
 	BaseClass.HandleFireOnEmpty( self, bSecondary )
 	
-	if ( bSecondary ) then
+	if ( bSecondary and self.EmptyCooldown ~= -1 ) then
 		local flNextTime = CurTime() + self:GetCooldown( true ) / 2
 		self:SetNextPrimaryFire( flNextTime )
 		self:SetNextSecondaryFire( flNextTime )
@@ -102,7 +98,7 @@ end
 function SWEP:HandleFireUnderwater( bSecondary )
 	BaseClass.HandleFireUnderwater( self, bSecondary )
 	
-	if ( bSecondary ) then
+	if ( bSecondary and self.UnderwaterCooldown ~= -1 ) then
 		local flNextTime = CurTime() + self:GetCooldown( true ) / 2
 		self:SetNextPrimaryFire( flNextTime )
 		self:SetNextSecondaryFire( flNextTime )

@@ -94,8 +94,8 @@ function SWEP:FinishReload()
 	self.m_flAccuracy = self.Accuracy.Base
 end
 
-function SWEP:ShootBullets( tbl, bSecondary, iClipDeduction )
-	BaseClass.ShootBullets( self, tbl, bSecondary, iClipDeduction )
+function SWEP:Shoot( bSecondary, iClipDeduction )
+	BaseClass.Shoot( self, bSecondary, iClipDeduction )
 	
 	// These modifications feed back into flSpread eventually.
 	if ( self.Accuracy.Divisor ~= 0 ) then
@@ -118,7 +118,7 @@ function SWEP:Punch()
 	// Kick the gun based on the state of the player.
 	-- Speed first, ground second
 	if ( not pPlayer:OnGround() ) then
-		tKick = tKic.Air
+		tKick = tKick.Air
 	elseif ( pPlayer:_GetAbsVelocity():Length2DSqr() > (pPlayer:GetWalkSpeed() * tKick.Speed) ^ 2 ) then
 		tKick = tKick.Move
 	elseif ( pPlayer:Crouching() ) then

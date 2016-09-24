@@ -30,11 +30,11 @@ SWEP.Primary = {
 	DefaultClip = 36,
 	Damage = 8,
 	Cooldown = 0.5,
+	ReloadOnEmptyFire = true,
 	Spread = VECTOR_CONE_1DEGREES
 }
 
 SWEP.Secondary.Spread = VECTOR_CONE_6DEGREES
-SWEP.ReloadOnEmptyFire = true
 
 if ( CLIENT ) then
 	SWEP.Category = "Half-Life 2 MP"
@@ -92,10 +92,12 @@ function SWEP:ItemFrame()
 	end
 end
 
-function SWEP:ShootBullets( tbl --[[{}]], bSecondary --[[= false]], iClipDeduction --[[= 1]] )
+function SWEP:Shoot( bSecondary --[[= false]], iClipDeduction --[[= 1]] )
+	BaseClass.Shoot( self, bSecondary, iClipDeduction )
+	
 	local flCurTime = CurTime()
 	
-	if ( flCurTime - self.dt.LastAttackTime > self:GetCooldown() ) then
+	if ( flCurTime - self.dt.LastAttackTime > self:GetCooldown( bSecondary )) then
 		self.dt.AnimLevel = 0
 	else
 		local iLevel = self.dt.AnimLevel
@@ -109,8 +111,6 @@ function SWEP:ShootBullets( tbl --[[{}]], bSecondary --[[= false]], iClipDeducti
 	self.dt.LastAttackTime = flCurTime
 	self.dt.DryFired = false
 	self.dt.MouseHeld = true
-	
-	BaseClass.ShootBullets( self, tbl, bSecondary, iClipDeduction )
 end
 
 function SWEP:SecondaryAttack()
@@ -144,7 +144,7 @@ function SWEP:HandleFireOnEmpty( bSecondary )
 			return
 		end
 		
-		if ( self.ReloadOnEmptyFire and pPlayer:GetAmmoCount( self:GetPrimaryAmmoName() ) > 0 ) then
+		if ( bSecondary and self.Secondary.ReloadOnEmptyFire or not bSecondary and self.Primary.ReloadOnEmptyFire ) then
 			self:SetNextReload(0)
 			self:Reload()
 			

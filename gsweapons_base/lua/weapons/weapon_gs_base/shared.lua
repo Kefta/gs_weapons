@@ -107,6 +107,8 @@ SWEP.Primary = {
 	RunSpeed = 1, -- Run speed multiplier to use when the weapon is deployed
 	FireUnderwater = true, -- Allows firing underwater
 	InterruptReload = false, -- Allows interrupting a reload to shoot
+	AutoReloadOnEmpty = true, -- Automatically reload if the clip is empty and the mouse is not being held
+	ReloadOnEmptyFire = false, -- Reload if the weapon is fired with an empty clip
 	-- These are seperated by primary/secondary so ironsights can lower it
 	BobScale = CLIENT and 0.45 or nil, -- Magnitude of the weapon bob
 	SwayScale = CLIENT and 0.5 or nil -- Sway deviation
@@ -125,6 +127,8 @@ SWEP.Secondary = {
 	RunSpeed = -1,
 	FireUnderwater = true,
 	InterruptReload = false,
+	AutoReloadOnEmpty = false,
+	ReloadOnEmptyFire = false,
 	BobScale = CLIENT and -1 or nil,
 	SwayScale = CLIENT and -1 or nil
 }
@@ -181,13 +185,11 @@ SWEP.SpecialType = 0 -- Sets what the secondary fire should do. Uses SPECIAL enu
 SWEP.PhysicalBullets = false -- Instead of using traces to simulate bullet firing, shoot a physical entity
 SWEP.PhysicalBulletSpeed = 5000 -- Speed of bullet entity when fired
 
-SWEP.AutoReloadOnEmpty = true -- Automatically reload if the clip is empty and the mouse is not being held
-SWEP.AutoSwitchOnEmpty = false -- Automatically switch away if the weapon has no ammo, the mouse is not being held, and AutoSwitchFrom is true
-SWEP.ReloadOnEmptyFire = false -- Reload if the weapon is fired with an empty clip
+SWEP.AutoSwitchOnEmpty = false -- Automatically switch away if the weapon is completely empty, the mouse is not being held, and AutoSwitchFrom is true
 SWEP.SwitchOnEmptyFire = false -- Switch away if the weapon is fired with no ammo
 SWEP.CheckPrimaryClipForSecondary = false -- Check Clip1 instead of Clip2 in CanSecondaryAttack
 
-SWEP.AutoSwitchFrom = true -- Allows auto-switching away from the weapon. This is only checked for engine switching and is ignored when AutoSwitchOnEmpty
+SWEP.AutoSwitchFrom = true -- Allows auto-switching away from the weapon. This is only checked for engine switching and is ignored when AutoSwitchOnEmpty is true
 SWEP.AutoSwitchTo = true -- Allows auto-switching to the weapon
 SWEP.BlockDeployOnEmpty = false -- Block deploying the weapon if it has no ammo
 
@@ -195,6 +197,9 @@ SWEP.UnderwaterCooldown = 0.2 -- Time between empty sound if the weapon cannot f
 SWEP.EmptyCooldown = -1 -- Time between empty sound. Set to -1 to only play once per mouse press
 SWEP.ShotDecreaseTime = 0.0225 -- (CS:S crosshair) How fast the shot count should decrease per shot
 SWEP.ShotInitialDecreaseTime = 0.4 -- (CS:S crosshair) How long until the shot decrement starts after the mouse is lifter
+
+SWEP.TracerFreq = 2
+SWEP.TracerName = "Tracer"
 
 --- Spawn/Constructor
 local PLAYER = _R.Player
@@ -204,7 +209,7 @@ function SWEP:Initialize()
 	local sClass = self:GetClass()
 	DevMsg( 2, sClass .. " (weapon_gs_base) Initialize" )
 	
-	--self.FireFunction = nil -- Fire function to use with ShootBullets when PhysicalBullets is false. Args are ( pPlayer, tFireBulletsInfo ). nil = Default FireBullets
+	--self.FireFunction = nil -- Fire function to use with Shoot when PhysicalBullets is false. Args are ( pPlayer, tFireBulletsInfo ). nil = Default FireBullets
 	--self.PunchDecayFunction = nil -- Function to decay the punch angle manually. Args are ( pPlayer, aPunchAngle ). The function should modify aPunchAngle and return it. nil = Default decaying
 	
 	self.SpecialTypes = { -- Secondary/special methods. Set SWEP.SpecialType to which function you want to call
@@ -687,14 +692,13 @@ end
 function SWEP:MouseLifted()
 	local pPlayer = self:GetOwner()
 	
-	if ( self:Clip1() == 0 ) then
-		-- Just ran out of ammo and the mouse has been lifted, so switch away
-		if ( self.AutoSwitchOnEmpty and not self.m_bDeployedNoAmmo and not self:HasAnyAmmo() ) then
-			pPlayer.m_pNewWeapon = pPlayer:GetNextBestWeapon( self.HighWeightPriority )
-		-- Reload is still called serverside only in single-player
-		elseif ( self.AutoReloadOnEmpty and (not bSinglePlayer or SERVER) ) then
-			self:Reload()
-		end
+	-- Just ran out of ammo and the mouse has been lifted, so switch away
+	if ( self.AutoSwitchOnEmpty and not self.m_bDeployedNoAmmo and not self:HasAnyAmmo() ) then
+		pPlayer.m_pNewWeapon = pPlayer:GetNextBestWeapon( self.HighWeightPriority )
+	-- Reload is still called serverside only in single-player
+	elseif ( (self:Clip1() == 0 and self.Primary.AutoReloadOnEmpty or self:Clip2() == 0 and self.Secondary.AutoReloadOnEmpty)
+	and (not bSinglePlayer or SERVER) ) then
+		self:Reload()
 	end
 	
 	if ( not bSinglePlayer or SERVER and not self:EventActive( "burst" )) then
@@ -782,7 +786,13 @@ end
 
 -- Will only be called serverside in single-player
 function SWEP:PrimaryAttack()
-	return self:CanPrimaryAttack()
+	if ( self:CanPrimaryAttack() ) then
+		self:Shoot()
+		
+		return true
+	end
+	
+	return false
 end
 
 function SWEP:CanSecondaryAttack()
@@ -798,6 +808,7 @@ function SWEP:CanSecondaryAttack()
 	
 	local iClip = self.CheckPrimaryClipForSecondary and self:Clip1() or self:Clip2()
 	local iWaterLevel = pPlayer:WaterLevel()
+	local bEmpty = pPlayer:GetAmmoCount( self.CheckPrimaryClipForSecondary and self:GetPrimaryAmmoName() or self:GetSecondaryAmmoName() ) == 0
 	
 	if ( self:EventActive( "reload" )) then
 		if ( self.SingleReload.Enabled and self.SingleReload.QueuedFire ) then
@@ -816,7 +827,8 @@ function SWEP:CanSecondaryAttack()
 			self:SetNextReload( flNextTime )
 			
 			return false
-		elseif ( self.Secondary.InterruptReload and iClip ~= 0 and (self.Secondary.FireUnderwater or iWaterLevel ~= 3) ) then
+		elseif ( self.Secondary.InterruptReload and iClip ~= 0 and (iClip ~= -1 or not bEmpty)
+		and (self.Secondary.FireUnderwater or iWaterLevel ~= 3) ) then
 			self:SetNextReload( CurTime() - 0.1 )
 			self:RemoveEvent( "reload" )
 		else
@@ -824,7 +836,7 @@ function SWEP:CanSecondaryAttack()
 		end
 	end
 	
-	if ( iClip == 0 or iClip == -1 and self:GetDefaultClip2() ~= -1 and pPlayer:GetAmmoCount( self:GetSecondaryAmmoName() ) == 0 ) then
+	if ( iClip == 0 or iClip == -1 and self:GetDefaultClip2() ~= -1 and bEmpty ) then
 		self:HandleFireOnEmpty( true )
 		
 		return false
@@ -854,11 +866,7 @@ function SWEP:SecondaryAttack()
 	return false
 end
 
-function SWEP:ShootBullets( tbl --[[{}]], bSecondary --[[= false]], iClipDeduction --[[= 1]] )
-	if ( not tbl ) then
-		tbl = {}
-	end
-	
+function SWEP:Shoot( bSecondary --[[= false]], iClipDeduction --[[= 1]] )
 	if ( not iClipDeduction ) then
 		iClipDeduction = 1
 	end
@@ -868,9 +876,10 @@ function SWEP:ShootBullets( tbl --[[{}]], bSecondary --[[= false]], iClipDeducti
 	-- Check just in-case the weapon's CanPrimary/SecondaryAttack doesn't check properly
 	-- Do NOT let the clip overflow
 	if ( iClipDeduction > iClip ) then
-		error( self:GetClass() .. " (weapon_gs_base) Clip overflowed in ShootBullets! Add check to CanPrimary/SecondaryAttack" )
+		error( self:GetClass() .. " (weapon_gs_base) Clip overflowed in Shoot! Add check to CanPrimary/SecondaryAttack" )
 	end
 	
+	local tbl = self:GetShotTable()
 	local bBurst = iClip >= iClipDeduction * 2 and self:BurstEnabled()
 	local flCooldown = bBurst and nil or self:GetCooldown( bSecondary )
 	local pPlayer = self:GetOwner()
@@ -888,11 +897,7 @@ function SWEP:ShootBullets( tbl --[[{}]], bSecondary --[[= false]], iClipDeducti
 		self:AddEvent( "burst", flLastTime, function()
 			iClip = iClip - iClipDeduction
 			self:SetClip1( iClip )
-			
-			local aShoot = self:GetShootAngles()
-			tbl.Dir = aShoot:Forward()
-			tbl.ShootAngles = aShoot -- For FireCSBullets
-			tbl.Src = self:GetShootSrc()
+			self:UpdateBurstShotTable( tbl )
 			
 			if ( self.PhysicalBullets ) then
 				if ( SERVER ) then
@@ -907,7 +912,6 @@ function SWEP:ShootBullets( tbl --[[{}]], bSecondary --[[= false]], iClipDeducti
 			else
 				pPlayer:FireBullets( tbl )
 			end
-				
 			
 			pPlayer:SetAnimation( PLAYER_ATTACK1 )
 			self:DoMuzzleFlash()
@@ -1023,6 +1027,11 @@ function SWEP:ShootBullets( tbl --[[{}]], bSecondary --[[= false]], iClipDeducti
 	else
 		pPlayer:FireBullets( tbl )
 	end
+end
+
+function SWEP:UpdateBurstShotTable( tbl )
+	tbl.Dir = self:GetShootAngles():Forward()
+	tbl.Src = self:GetShootSrc()
 end
 
 function SWEP:Silence()
@@ -1144,14 +1153,21 @@ function SWEP:HandleFireOnEmpty( bSecondary )
 	if ( self.EmptyCooldown == -1 ) then
 		self:AddEvent( "empty_" .. (bSecondary and "secondary" or "primary"), 0, function()
 			if ( bSecondary ) then
-				if ( not pPlayer:KeyDown( IN_ATTACK2 )) then
-					self:SetNextSecondaryFire(0)
+				if ( not pPlayer:KeyDown( IN_ATTACK2 ) or self.CheckPrimaryClipForSecondary and self:Clip1() ~= 0
+				or not self.CheckPrimaryClipForSecondary and self:Clip2() ~= 0 ) then
+					if ( self:GetNextSecondaryFire() == -1 ) then
+						self:SetNextSecondaryFire(0)
+					end
+					
+					return true
 				end
-			elseif ( not pPlayer:KeyDown( IN_ATTACK )) then
-				self:SetNextPrimaryFire(0)
+			elseif ( not pPlayer:KeyDown( IN_ATTACK ) or self:Clip1() ~= 0 ) then
+				if ( self:GetNextPrimaryFire() == -1 ) then
+						self:SetNextPrimaryFire(0)
+					end
+				
+				return true
 			end
-			
-			return true
 		end )
 		
 		if ( bSecondary ) then
@@ -1167,7 +1183,7 @@ function SWEP:HandleFireOnEmpty( bSecondary )
 	
 	if ( self.SwitchOnEmptyFire and not self:HasAnyAmmo() ) then
 		pPlayer.m_pNewWeapon = pPlayer:GetNextBestWeapon( self.HighWeightPriority )
-	elseif ( self.ReloadOnEmptyFire and pPlayer:GetAmmoCount( self:GetPrimaryAmmoName() ) > 0 ) then
+	elseif ( bSecondary and self.Secondary.ReloadOnEmptyFire or not bSecondary and self.Primary.ReloadOnEmptyFire ) then
 		self:SetNextReload(0)
 		self:Reload()
 	end
@@ -1182,14 +1198,21 @@ function SWEP:HandleFireUnderwater( bSecondary )
 		
 		self:AddEvent( "empty_" .. (bSecondary and "secondary" or "primary"), 0, function()
 			if ( bSecondary ) then
-				if ( not pPlayer:KeyDown( IN_ATTACK2 )) then
-					self:SetNextSecondaryFire(0)
+				if ( not pPlayer:KeyDown( IN_ATTACK2 ) or (self.CheckPrimaryClipForSecondary and self:Clip1() ~= 0
+				or not self.CheckPrimaryClipForSecondary and self:Clip2() ~= 0) and self:WaterLevel() ~= 3  ) then
+					if ( self:GetNextSecondaryFire() == -1 ) then
+						self:SetNextSecondaryFire(0)
+					end
+					
+					return true
 				end
-			elseif ( not pPlayer:KeyDown( IN_ATTACK )) then
-				self:SetNextPrimaryFire(0)
+			elseif ( not pPlayer:KeyDown( IN_ATTACK ) or self:Clip1() ~= 0 and self:WaterLevel() ~= 3 ) then
+				if ( self:GetNextPrimaryFire() == -1 ) then
+						self:SetNextPrimaryFire(0)
+					end
+				
+				return true
 			end
-			
-			return true
 		end )
 		
 		if ( bSecondary ) then
@@ -1714,6 +1737,25 @@ end
 
 function SWEP:SetShotsFired( iShots )
 	self.dt.ShotsFired = iShots
+end
+
+function SWEP:GetShotTable( bSecondary )
+	return {
+		AmmoType = bSecondary and not self.CheckPrimaryClipForSecondary
+			and self:GetSecondaryAmmoName() or self:GetPrimaryAmmoName(),
+		Damage = self:GetDamage( bSecondary ),
+		Dir = self:GetShootAngles( bSecondary ):Forward(),
+		Distance = self:GetRange( bSecondary ),
+		--Flags = FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS,
+		Num = self:GetBulletCount( bSecondary ),
+		-- There is no default GetSpread function
+		-- Since HL weapons return a vector but CS:S weapons return a number
+		-- And it will error due to this: https://github.com/Facepunch/garrysmod-issues/issues/2346
+		--Spread = self:GetSpread(),
+		Src = self:GetShootSrc( bSecondary ),
+		Tracer = self.TracerFreq,
+		TracerName = self.TracerName
+	}
 end
 
 --[[function SWEP:GetSlot()

@@ -85,8 +85,8 @@ function SWEP:SecondaryAttack()
 	end
 end
 
-function SWEP:ShootBullets( tbl --[[{}]], bSecondary --[[= false]], iClipDeduction --[[= 1]] )
-	BaseClass.ShootBullets( self, tbl, bSecondary, iClipDeduction )
+function SWEP:Shoot( bSecondary --[[= false]], iClipDeduction --[[= 1]] )
+	BaseClass.Shoot( self, bSecondary, iClipDeduction )
 	
 	self:SetNextSecondaryFire(0) -- Don't penalise secondary time
 	self:SetNextIdle( CurTime() + random.RandomFloat(10, 15) )

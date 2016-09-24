@@ -12,6 +12,7 @@ SWEP.Primary = {
 	Range = 3000,
 	FireUnderwater = false,
 	InterruptReload = true,
+	ReloadOnEmptyFire = true,
 	RangeModifier = 0.7
 }
 
@@ -20,8 +21,6 @@ SWEP.SingleReload = {
 	QueuedFire = false,
 	InitialRound = false
 }
-
-SWEP.ReloadOnEmptyFire = true
 
 
 if ( CLIENT ) then

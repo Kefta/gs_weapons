@@ -30,6 +30,7 @@ SWEP.Primary = {
 	Bullets = game.SinglePlayer() and 6 or 4,
 	Cooldown = 0.75,
 	InterruptReload = true,
+	ReloadOnEmptyFire = true,
 	PunchAngle = Angle(-5, 0, 0),
 	Spread = game.SinglePlayer() and VECTOR_CONE_10DEGREES or Vector( 0.08716, 0.04362, 0 ) // 10 degrees by 5 degrees
 }
@@ -46,7 +47,6 @@ SWEP.SingleReload = {
 	Enabled = true
 }
 
-SWEP.ReloadOnEmptyFire = true
 SWEP.CheckPrimaryClipForSecondary = true
 SWEP.EmptyCooldown = 0.75
 
@@ -74,18 +74,7 @@ function SWEP:SecondaryAttack()
 	end
 	
 	if ( self:CanSecondaryAttack() ) then
-		self:ShootBullets({
-			AmmoType = self:GetPrimaryAmmoName(),
-			Damage = self:GetDamage( true ),
-			Dir = self:GetShootAngles():Forward(),
-			Distance = self:GetRange( true ),
-			--Flags = FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS,
-			Num = self:GetBulletCount( true ),
-			Spread = self:GetSpread( true ),
-			Src = self:GetShootSrc(),
-			Tracer = 2
-		}, true, 2 )
-		
+		self:Shoot( true, 2 )
 		--self:PlaySound( "primary" )
 		
 		return true

@@ -32,7 +32,6 @@ local PLAYER = _R.Player
 function SWEP:Initialize()
 	BaseClass.Initialize( self )
 	
-	self.FireFunction = PLAYER.FireCSBullets
 	self.PunchDecayFunction = PLAYER.CSDecayPunchAngle
 end
 
@@ -102,8 +101,9 @@ function SWEP:CanSecondaryAttack()
 		return false
 	end
 	
-	local iClip = self:Clip2()
+	local iClip = self.CheckPrimaryClipForSecondary and self:Clip1() or self:Clip2()
 	local iWaterLevel = pPlayer:WaterLevel()
+	local bEmpty = pPlayer:GetAmmoCount( self.CheckPrimaryClipForSecondary and self:GetPrimaryAmmoName() or self:GetSecondaryAmmoName() ) == 0
 	
 	if ( self:EventActive( "reload" )) then
 		if ( self.SingleReload.Enabled and self.SingleReload.QueuedFire ) then
@@ -122,7 +122,8 @@ function SWEP:CanSecondaryAttack()
 			self:SetNextReload( flNextTime )
 			
 			return false
-		elseif ( self.Secondary.InterruptReload and iClip ~= 0 and (self.Secondary.FireUnderwater or iWaterLevel ~= 3) ) then
+		elseif ( self.Secondary.InterruptReload and iClip ~= 0 and (iClip ~= -1 or not bEmpty)
+		and (self.Secondary.FireUnderwater or iWaterLevel ~= 3) ) then
 			self:SetNextReload( CurTime() - 0.1 )
 			self:RemoveEvent( "reload" )
 		else
@@ -136,11 +137,18 @@ function SWEP:CanSecondaryAttack()
 		return false
 	end
 	
-	if ( iClip == 0 or iClip == -1 and self:GetDefaultClip2() ~= -1 and pPlayer:GetAmmoCount( self:GetSecondaryAmmoName() ) == 0 ) then
+	if ( iClip == 0 or iClip == -1 and self:GetDefaultClip2() ~= -1 and bEmpty ) then
 		self:HandleFireOnEmpty( true )
 		
 		return false
 	end
 	
 	return true
+end
+
+-- Punch angles get more influence with CS:S weapons
+function SWEP:GetShootAngles()
+	local pPlayer = self:GetOwner()
+	
+	return pPlayer:EyeAngles() + 2 * pPlayer:GetViewPunchAngles()
 end
