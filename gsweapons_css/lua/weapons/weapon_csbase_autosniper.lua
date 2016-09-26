@@ -90,7 +90,7 @@ function SWEP:SharedDeploy( bDelayed )
 	self.m_flAccuracy = self.Accuracy.Base
 end
 
-function SWEP:FinishReload()	
+function SWEP:FinishReload()
 	self.m_flAccuracy = self.Accuracy.Base
 end
 

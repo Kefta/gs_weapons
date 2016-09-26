@@ -1,5 +1,4 @@
--- FIXME: Lowercase event names?
-DEFINE_BASECLASS( "basehl2mpcombatweapon" )
+DEFINE_BASECLASS( "weapon_hl2mp_base" )
 
 --- GSBase
 SWEP.PrintName = "#HL2_Pistol"
@@ -74,6 +73,7 @@ function SWEP:ItemFrame()
 		local flCurTime = CurTime()
 		
 		if ( self.dt.LastAttackTime + self.Refire < flCurTime ) then
+			-- FIXME: This will always be 0
 			local flAccuracyPenalty = self.dt.AccuracyPenalty - FrameTime()
 			
 			if ( flAccuracyPenalty < 0 ) then

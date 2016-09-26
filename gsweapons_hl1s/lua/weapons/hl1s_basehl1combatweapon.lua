@@ -4,7 +4,10 @@ DEFINE_BASECLASS( "weapon_gs_base" )
 SWEP.PrintName = "HLBase"
 SWEP.Spawnable = false
 
-SWEP.ViewModelFOV = 100
+SWEP.ViewModelFOV = 90
+
+// Make weapons easier to pick up in MP.
+SWEP.TriggerBoundSize = game.SinglePlayer() and 24 or 36
 
 SWEP.Sounds = {
 	empty = "Weapons.Empty"
@@ -22,8 +25,8 @@ SWEP.Secondary = {
 
 if ( CLIENT ) then
 	SWEP.Category = "Half-Life: Source"
-	SWEP.BobStyle = "hl"
-	SWEP.CrosshairStyle = "hl"
+	SWEP.BobStyle = "hls"
+	SWEP.CrosshairStyle = "hl1s"
 end
 
 local PLAYER = _R.Player

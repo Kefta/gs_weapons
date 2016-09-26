@@ -185,7 +185,7 @@ SWEP.SpecialType = 0 -- Sets what the secondary fire should do. Uses SPECIAL enu
 SWEP.PhysicalBullets = false -- Instead of using traces to simulate bullet firing, shoot a physical entity
 SWEP.PhysicalBulletSpeed = 5000 -- Speed of bullet entity when fired
 
-SWEP.AutoSwitchOnEmpty = false -- Automatically switch away if the weapon is completely empty, the mouse is not being held, and AutoSwitchFrom is true
+SWEP.AutoSwitchOnEmpty = false -- Automatically switch away if the weapon is completely empty and the mouse is not being held. Ignores AutoSwitchFrom
 SWEP.SwitchOnEmptyFire = false -- Switch away if the weapon is fired with no ammo
 SWEP.CheckPrimaryClipForSecondary = false -- Check Clip1 instead of Clip2 in CanSecondaryAttack
 
@@ -193,17 +193,20 @@ SWEP.AutoSwitchFrom = true -- Allows auto-switching away from the weapon. This i
 SWEP.AutoSwitchTo = true -- Allows auto-switching to the weapon
 SWEP.BlockDeployOnEmpty = false -- Block deploying the weapon if it has no ammo
 
-SWEP.UnderwaterCooldown = 0.2 -- Time between empty sound if the weapon cannot fire underwater. Set to -1 to only play once per mouse press
-SWEP.EmptyCooldown = -1 -- Time between empty sound. Set to -1 to only play once per mouse press
+SWEP.UnderwaterCooldown = 0.2 --  Set to -1 to only play once per mouse press. Time between empty sound if the weapon cannot fire underwater
+SWEP.EmptyCooldown = -1 -- Set to -1 to only play once per mouse press. Time between empty sounds
 SWEP.ShotDecreaseTime = 0.0225 -- (CS:S crosshair) How fast the shot count should decrease per shot
 SWEP.ShotInitialDecreaseTime = 0.4 -- (CS:S crosshair) How long until the shot decrement starts after the mouse is lifter
+SWEP.HolsterReloadTime = -1 -- Set to -1 to cancel all reload activity on holster. How long it should take for the weapon to reload if the player holsters during a reload
 
-SWEP.TracerFreq = 2
-SWEP.TracerName = "Tracer"
+SWEP.TracerFreq = 2 -- How often the tracer effect should show - (1 / SWEP.TracerFreq) frequency
+SWEP.TracerName = "Tracer" -- Tracer effect to use
+
+SWEP.TriggerBoundSize = 36 -- Set to -1 to disable pickup. Trigger box size to pickup the weapon off the ground. // Bloat the box for player pickup
 
 --- Spawn/Constructor
 local PLAYER = _R.Player
-local static_precached = {} -- Persists through all weapon instances -- acts like static keyword in C++
+local sm_tPrecached = {} -- Persists through all weapon instances - acts like static keyword in C++
 
 function SWEP:Initialize()
 	local sClass = self:GetClass()
@@ -225,10 +228,17 @@ function SWEP:Initialize()
 	self.m_bHolstered = false
 	self.m_bInHolsterAnim = false
 	self.m_bHolsterAnimDone = false
+	self.m_flHolsterTime = 0
 	self.m_tEvents = {}
 	self.m_tEventHoles = {}
 	
 	self:SetHoldType( self.HoldType )
+	
+	if ( self.TriggerBoundSize == -1 ) then
+		self:UseTriggerBounds( false, 0 )
+	else
+		self:UseTriggerBounds( true, self.TriggerBoundSize )
+	end
 	
 	if ( CLIENT ) then
 		self.BobScale = self.Primary.BobScale
@@ -240,8 +250,8 @@ function SWEP:Initialize()
 		self.m_flCrosshairDistance = 0
 	end
 	
-	if ( not static_precached[sClass] ) then
-		static_precached[sClass] = true
+	if ( not sm_tPrecached[sClass] ) then
+		sm_tPrecached[sClass] = true
 		self:Precache()
 	end
 end
@@ -441,7 +451,7 @@ function SWEP:Holster( pSwitchingTo )
 				
 				-- Run this clientside to reset the viewmodels and set the variables for a full holster
 				if ( bSinglePlayer ) then
-					net.Start( "GSWeaponBase - Holster Animation" )
+					net.Start( "GSWeapons - Holster Animation" )
 						net.WriteEntity( self )
 						net.WriteEntity( pSwitchingTo )
 					net.Send( pPlayer )
@@ -451,7 +461,7 @@ function SWEP:Holster( pSwitchingTo )
 				
 				-- Clientside does not run Holster in single-player
 				if ( bSinglePlayer ) then
-					net.Start( "GSWeaponBase - Holster" )
+					net.Start( "GSWeapons - Holster" )
 						net.WriteEntity( self )
 						net.WriteEntity( pSwitchingTo )
 					net.Send( pPlayer )
@@ -470,23 +480,17 @@ end
 function SWEP:HolsterAnim( pSwitchingTo )
 	DevMsg( 2, string.format( "%s (weapon_gs_base) Holster animation to %s", self:GetClass(), tostring( pSwitchingTo )))
 	
+	local bRun = not bSinglePlayer or SERVER
+	local bReload = self.HolsterReloadTime ~= -1 and self:EventActive( "reload" )
+	
 	-- https://github.com/Facepunch/garrysmod-requests/issues/739
 	table.Empty( self.m_tEvents )
 	table.Empty( self.m_tEventHoles )
 	self.m_bInHolsterAnim = true
 	
 	-- The client state is purged too early in single-player for the event to run on time
-	if ( not bSinglePlayer or SERVER ) then
-		if ( self:GetZoomLevel() ~= 0 ) then
-			self:SetSpecialLevel(0)
-		end
-		
-		-- Disable all events during Holster animation
-		self:SetNextPrimaryFire(-1)
-		self:SetNextSecondaryFire(-1)
-		self:SetNextReload(-1)
-		
-		self:PlaySound( "holster" )
+	if ( bRun or bReload ) then
+		local pPlayer = self:GetOwner()
 		
 		-- Wait for all viewmodels to holster
 		local flSequenceDuration = self:PlayActivity( "holster" ) and self:SequenceLength() or 0
@@ -499,22 +503,83 @@ function SWEP:HolsterAnim( pSwitchingTo )
 			flSequenceDuration = math.max( self:SequenceLength(2), flSequenceDuration )
 		end
 		
-		local bIsNULL = pSwitchingTo == NULL
-		
-		self:AddEvent( "holster", flSequenceDuration, function()
-			self.m_bInHolsterAnim = false
-			self.m_bHolsterAnimDone = true
+		-- We have to do this here since events are cleared here
+		if ( bReload ) then
+			local flReloadTime = flSequenceDuration + CurTime() + self.HolsterReloadTime
 			
-			if ( bIsNULL ) then -- Switching to NULL to begin with
-				self:GetOwner().m_pNewWeapon = NULL
-			elseif ( pSwitchingTo == NULL ) then -- Weapon disappeared; find a new one or come back to the same weapon
-				self:GetOwner().m_pNewWeapon = self:GetOwner():GetNextBestWeapon( self.HighWeightPriority )
-			else -- Weapon being swapped to is still on the player
-				self:GetOwner().m_pNewWeapon = pSwitchingTo
+			-- If self is NULL in the hook, there's no way to retrieve what EntIndex it had
+			local sName = "GSWeapons-Holster reload-" .. self:EntIndex()
+			
+			hook.Add( "Think", sName, function()
+				if ( self == NULL or pPlayer == NULL ) then
+					hook.Remove( "Think", sName )
+				elseif ( CurTime() >= flReloadTime ) then
+					if ( not self:IsActiveWeapon() ) then
+						local iMaxClip = self:GetMaxClip1()
+						
+						// If I use primary clips, reload primary
+						if ( iMaxClip ~= -1 ) then
+							local iClip = self:Clip1()
+							local sAmmoType = self:GetPrimaryAmmoName()
+							
+							-- Only reload what is available
+							local iAmmo = math.min( iMaxClip - iClip, pPlayer:GetAmmoCount( sAmmoType ))
+							
+							-- Add to the clip
+							self:SetClip1( iClip + iAmmo )
+							
+							-- Take from the player's reserve
+							pPlayer:RemoveAmmo( iAmmo, sAmmoType )
+						end
+						
+						iMaxClip = self:GetMaxClip2()
+						
+						// If I use secondary clips, reload secondary
+						if ( iMaxClip ~= -1 ) then
+							local iClip = self:Clip2()
+							local sAmmoType = self:GetSecondaryAmmoName()
+							local iAmmo = math.min( iMaxClip - iClip, pPlayer:GetAmmoCount( sAmmoType ))
+							self:SetClip2( iClip + iAmmo )
+							pPlayer:RemoveAmmo( iAmmo, sAmmoType )
+						end
+						
+						self:FinishReload( true )
+					end
+					
+					hook.Remove( "Think", sName )
+				end
+			end )
+		end
+		
+		if ( bRun ) then
+			if ( self:GetZoomLevel() ~= 0 ) then
+				self:SetSpecialLevel(0)
 			end
 			
-			return true
-		end )
+			-- Disable all events during Holster animation
+			self:SetNextPrimaryFire(-1)
+			self:SetNextSecondaryFire(-1)
+			self:SetNextReload(-1)
+			
+			self:PlaySound( "holster" )
+			
+			local bIsInvalid = pSwitchingTo == NULL
+			
+			self:AddEvent( "holster", flSequenceDuration, function()
+				self.m_bInHolsterAnim = false
+				self.m_bHolsterAnimDone = true
+				
+				if ( bIsInvalid ) then -- Switching to NULL to begin with
+					pPlayer.m_pNewWeapon = NULL
+				elseif ( pSwitchingTo == NULL ) then -- Weapon disappeared; find a new one or come back to the same weapon
+					pPlayer.m_pNewWeapon = pPlayer:GetNextBestWeapon( self.HighWeightPriority )
+				else -- Weapon being swapped to is still on the player
+					pPlayer.m_pNewWeapon = pSwitchingTo
+				end
+				
+				return true
+			end )
+		end
 	end
 end
 
@@ -522,9 +587,57 @@ function SWEP:SharedHolster( pSwitchingTo )
 	DevMsg( 2, string.format( "%s (weapon_gs_base) Holster to %s", self:GetClass(), tostring( pSwitchingTo )))
 	
 	local bRun = not bSinglePlayer or SERVER
+	local pPlayer = self:GetOwner()
+	local bIsValid = pPlayer ~= NULL
+	local flCurTime = CurTime()
 	
 	-- These are already set if there was a holster animation
 	if ( not self.HolsterAnimation ) then
+		if ( bIsValid and self.HolsterReloadTime ~= -1 and self:EventActive( "reload" )) then
+			local flReloadTime = flCurTime + self.HolsterReloadTime
+			local sName = "GSWeapons-Holster reload-" .. self:EntIndex()
+			
+			hook.Add( "Think", sName, function()
+				if ( self == NULL or pPlayer == NULL ) then
+					hook.Remove( "Think", sName )
+				elseif ( CurTime() >= flReloadTime ) then
+					if ( not self:IsActiveWeapon() ) then
+						local iMaxClip = self:GetMaxClip1()
+						
+						// If I use primary clips, reload primary
+						if ( iMaxClip ~= -1 ) then
+							local iClip = self:Clip1()
+							local sAmmoType = self:GetPrimaryAmmoName()
+							
+							-- Only reload what is available
+							local iAmmo = math.min( iMaxClip - iClip, pPlayer:GetAmmoCount( sAmmoType ))
+							
+							-- Add to the clip
+							self:SetClip1( iClip + iAmmo )
+							
+							-- Take from the player's reserve
+							pPlayer:RemoveAmmo( iAmmo, sAmmoType )
+						end
+						
+						iMaxClip = self:GetMaxClip2()
+						
+						// If I use secondary clips, reload secondary
+						if ( iMaxClip ~= -1 ) then
+							local iClip = self:Clip2()
+							local sAmmoType = self:GetSecondaryAmmoName()
+							local iAmmo = math.min( iMaxClip - iClip, pPlayer:GetAmmoCount( sAmmoType ))
+							self:SetClip2( iClip + iAmmo )
+							pPlayer:RemoveAmmo( iAmmo, sAmmoType )
+						end
+						
+						self:FinishReload( true )
+					end
+					
+					hook.Remove( "Think", sName )
+				end
+			end )
+		end
+		
 		-- https://github.com/Facepunch/garrysmod-requests/issues/739
 		table.Empty( self.m_tEvents )
 		table.Empty( self.m_tEventHoles )
@@ -547,6 +660,7 @@ function SWEP:SharedHolster( pSwitchingTo )
 	end
 	
 	self.m_bHolstered = true
+	self.m_flHolsterTime = flCurTime
 	
 	-- Don't let Think re-deploy after Holster
 	timer.Simple( 0, function()
@@ -566,9 +680,7 @@ function SWEP:SharedHolster( pSwitchingTo )
 			self:SetViewModel( nil, 2 )
 		end
 		
-		local pPlayer = self:GetOwner()
-		
-		if ( pPlayer ~= NULL ) then
+		if ( bIsValid ) then
 			pPlayer:SetFOV(0, 0) // reset the default FOV
 		end
 	end
@@ -596,6 +708,13 @@ end
 
 --- Think
 function SWEP:Think()
+	-- Do not think if there is no owner
+	local pPlayer = self:GetOwner()
+	
+	if ( pPlayer == NULL ) then
+		return
+	end
+	
 	-- For clientside deployment in single-player or by use of Player:SelectWeapon()
 	if ( not self.m_bDeployed ) then
 		if ( self:CanDeploy() ) then
@@ -605,13 +724,6 @@ function SWEP:Think()
 		-- Weapon is already deployed; CanDeploy should not return differently per realm
 		-- But in-case it does, do not check every Think
 		self.m_bDeployed = true
-	end
-	
-	-- Do not think if there is no owner
-	local pPlayer = self:GetOwner()
-	
-	if ( pPlayer == NULL ) then
-		return
 	end
 	
 	-- Events have priority over main think function
@@ -1428,7 +1540,7 @@ function SWEP:Reload()
 			end
 			
 			self:SetShotsFired(0)
-			self:FinishReload()
+			self:FinishReload( false )
 			
 			return true
 		end )

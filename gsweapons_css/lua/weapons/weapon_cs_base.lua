@@ -5,6 +5,7 @@ SWEP.PrintName = "CSBase"
 SWEP.Spawnable = false
 
 SWEP.ViewModelFlip = true
+SWEP.ViewModelFOV = 90
 
 SWEP.Primary = {
 	BobScale = CLIENT and 0.8 or nil,
@@ -12,6 +13,11 @@ SWEP.Primary = {
 }
 
 SWEP.UnderwaterCooldown = 0.15
+
+// Override the bloat that our base class sets as it's a little bit bigger than we want.
+// If it's too big, you drop a weapon and its box is so big that you're still touching it
+// when it falls and you pick it up again right away.
+SWEP.TriggerBoundSize = 30
 
 if ( CLIENT ) then
 	SWEP.KillIcon = 'C'

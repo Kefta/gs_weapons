@@ -1,4 +1,4 @@
-DEFINE_BASECLASS( "basehl1combatweapon" )
+DEFINE_BASECLASS( "hl1s_basehl1combatweapon" )
 
 --- GSBase
 SWEP.PrintName = "#HL1_HandGrenade"
@@ -27,9 +27,9 @@ SWEP.Primary = {
 
 SWEP.EmptyCooldown = 0 -- Prevent MouseLifted from interfering with fire times
 
---- CSBase_Grenade
+--- HL1_HandGrenade
 SWEP.ThrowDelay = 0.5
-SWEP.GrenadeClass = "grenade_hand"
+SWEP.Entity = "grenade_hand"
 SWEP.DetonationTime = 1.5
 
 --- GSBase
@@ -157,7 +157,7 @@ function SWEP:Throw()
 	if ( SERVER ) then
 		local vForward = aThrow:Forward()
 		-- Fix
-		local pGrenade = ents.Create( self.GrenadeClass )
+		local pGrenade = ents.Create( self.Entity )
 		pGrenade:SetPos( pPlayer:EyePos() + vForward * 16 )
 		pGrenade:_SetAbsVelocity( vForward * (flVel > 500 and 500 or flVel) + pPlayer:_GetAbsVelocity() )
 		--[[pGrenade:ApplyLocalAngularVelocityImpulse( Vector( random.RandomInt(-1200, 1200), 0, 600 ))

@@ -1,4 +1,4 @@
-DEFINE_BASECLASS( "basehl2mpcombatweapon" )
+DEFINE_BASECLASS( "weapon_hl2mp_base" )
 
 --- GSBase
 SWEP.PrintName = "#HL2_357Handgun"

@@ -20,4 +20,4 @@ if ( CLIENT ) then
 end
 
 --- CSBase_Grenade
-SWEP.GrenadeClass = "hegrenade_projectile"
+SWEP.Entity = "hegrenade_projectile"

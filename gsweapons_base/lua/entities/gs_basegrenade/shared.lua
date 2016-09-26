@@ -2,7 +2,6 @@ DEFINE_BASECLASS( "gs_baseentity" )
 
 --- GSBase
 ENT.PrintName = "BaseGrenade"
-ENT.Spawnable = false
 
 ENT.Sounds = {
 	detonate = "BaseGrenade.Explode",
@@ -49,10 +48,8 @@ function ENT:StartDetonation( flTime )
 	end )
 end
 
-local fGetDetonation = include( "detonation.lua" )
-
 function ENT:Detonate()
-	return fGetDetonation( self.DetonationType:lower() )( self )
+	return gsweapons.GetDetonationFunc( self.DetonationType )( self )
 end
 
 --[[

@@ -17,7 +17,7 @@ ENT.Sounds = { -- Default sound events
 	}]]
 }
 
-local static_precached = {} -- Persists through all entity instances -- acts like static keyword in C++
+local sm_tPrecached = {} -- Persists through all entity instances -- acts like static keyword in C++
 
 function ENT:Initialize()
 	local sClass = self:GetClass()
@@ -26,8 +26,8 @@ function ENT:Initialize()
 	self.m_tEvents = {}
 	self.m_tEventHoles = {}
 	
-	if ( not static_precached[sClass] ) then
-		static_precached[sClass] = true
+	if ( not sm_tPrecached[sClass] ) then
+		sm_tPrecached[sClass] = true
 		self:Precache()
 	end
 	

@@ -25,7 +25,7 @@ SWEP.EmptyCooldown = 0 -- Prevent MouseLifted from interfering with fire times
 
 --- CSBase_Grenade
 SWEP.ThrowDelay = 0.1
-SWEP.GrenadeClass = "basegrenade"
+SWEP.Entity = "basegrenade"
 SWEP.DetonationTime = 1.5
 
 --- GSBase
@@ -135,7 +135,7 @@ if ( SERVER ) then
 		local flVel = (90 - aThrow.p) * 6
 		local vSrc = pPlayer:EyePos()
 		
-		local pGrenade = ents.Create( self.GrenadeClass )
+		local pGrenade = ents.Create( self.Entity )
 		pGrenade:SetPos( util.TraceHull( {
 				start = vSrc,
 				endpos = vSrc + vForward * 16,

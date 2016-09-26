@@ -2,7 +2,6 @@ DEFINE_BASECLASS( "gs_basegrenade" )
 
 --- GSBase
 ENT.PrintName = "BaseCSGrenade"
-ENT.Spawnable = false
 
 --- BaseGrenade
 ENT.DetonationType = "explode_css"

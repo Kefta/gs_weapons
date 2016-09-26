@@ -55,7 +55,7 @@ SWEP.EventStyle = {
 
 --- Holster
 if ( game.SinglePlayer() ) then
-	net.Receive( "GSWeaponBase - Holster Animation", function()
+	net.Receive( "GSWeapons - Holster Animation", function()
 		local pWeapon = net.ReadEntity()
 		
 		if ( pWeapon.HolsterAnim ) then
@@ -63,7 +63,7 @@ if ( game.SinglePlayer() ) then
 		end
 	end )
 	
-	net.Receive( "GSWeaponBase - Holster", function()
+	net.Receive( "GSWeapons - Holster", function()
 		local pWeapon = net.ReadEntity()
 		
 		if ( pWeapon.SharedHolster ) then

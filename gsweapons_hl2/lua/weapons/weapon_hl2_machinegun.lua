@@ -1,11 +1,11 @@
-DEFINE_BASECLASS( "weapon_hl2mp_base" )
+DEFINE_BASECLASS( "hl2_basehlcombatweapon" )
 
 --- GSBase
-SWEP.PrintName = "HL2MPBase_MachineGun"
+SWEP.PrintName = "HL2Base_MachineGun"
 SWEP.Spawnable = false
 
 if ( CLIENT ) then
-	SWEP.Category = "Half-Life 2 MP"
+	SWEP.Category = "Half-Life 2 SP"
 end
 
 SWEP.Activities = {
@@ -19,13 +19,14 @@ SWEP.Primary = {
 	Spread = VECTOR_CONE_3DEGREES
 }
 
---- HL2MPBase_MachineGun
+--- HL2Base_MachineGun
 SWEP.PunchAngle = {
 	Min = Vector(0.2, 0.2, 0.1), // Degrees
 	Clip = Angle(24, 3, 1),
 	Dampening = 0.5, // NOTE: 0.5 is just tuned to match the old effect before the punch became simulated
 	VerticalKick = 1, // Degrees
-	SlideLimit = 1 // Seconds
+	SlideLimit = 1, // Seconds
+	EasyDampening = 0.5 -- Angle multiplier to use for Easy skill level
 }
 
 --- GSBase
@@ -75,21 +76,17 @@ function SWEP:Punch( bSecondary )
 	// Do this to get a hard discontinuity, clear out anything under 10 degrees punch
 	pPlayer:ViewPunchReset(10)
 	
-	-- Random seed is reset here
-	-- The "iSeed" var is actually incremented after the first RandomInt
-	-- But RandomSeed isn't called again. Probably an oversight
-	random.SetSeed( math.MD5Random( pPlayer:GetCurrentCommand():CommandNumber() ) % 0x100 )
-	
 	// Apply this to the view angles as well
 	local tPunch = self.PunchAngle
 	local vKick = tPunch.Min
 	local flSlide = tPunch.SlideLimit
 	local flKick = (self.dt.FireDuration > flSlide and flSlide or self.dt.FireDuration) / flSlide * tPunch.VerticalKick
-	local aPunch = Angle( -(vKick[1] + flKick),
+	local iMultiplier = game.GetSkillLevel() == 1 and self.PunchAngle.EasyDampening or 1
+	local aPunch = Angle( -(vKick[1] + flKick) * iMultiplier,
 		// Wobble left and right
-		(vKick[2] + flKick) * (random.RandomInt(-1, 1) == -1 and -1 or 1) / 3,
+		(vKick[2] + flKick) * (random.RandomInt(-1, 1) == -1 and -iMultiplier or iMultiplier) / 3,
 		// Wobble up and down
-		(vKick[3] + flKick) * (random.RandomInt(-1, 1) == -1 and -1 or 1) / 8 )
+		(vKick[3] + flKick) * (random.RandomInt(-1, 1) == -1 and -iMultiplier or iMultiplier) / 8 )
 	
 	// Clip this to out desired min/max
 	aPunch:ClipPunchAngleOffset( pPlayer:GetPunchAngle(), tPunch.Clip )

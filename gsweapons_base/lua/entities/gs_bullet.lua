@@ -3,12 +3,7 @@ AddCSLuaFile()
 DEFINE_BASECLASS( "gs_baseentity" )
 
 ENT.PrintName = "Bullet"
-ENT.Spawnable = false
 ENT.Model = "models/props_c17/oildrum001.mdl"
-
-if ( CLIENT ) then
-	ENT.Category = "Source"
-end
 
 local vHullMax = Vector( 3, 3, 3 )
 local vHullMin = -vHullMax
