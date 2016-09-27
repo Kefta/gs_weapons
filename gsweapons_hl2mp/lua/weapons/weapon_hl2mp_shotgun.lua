@@ -28,12 +28,11 @@ SWEP.Primary = {
 	DefaultClip = 14,
 	Bullets = 7,
 	Damage = 9,
-	ReloadOnEmptyFire = true,
 	Spread = VECTOR_CONE_10DEGREES
 }
 
 SWEP.Secondary = {
-	Bullets = 14,
+	Bullets = 12,
 	FireUnderwater = false,
 	Cooldown = 0.15
 }
@@ -56,8 +55,8 @@ function SWEP:SharedDeploy( bDelayed )
 end
 
 -- StartReload
-function SWEP:CanReload()
-	if ( BaseClass.CanReload( self )) then
+function SWEP:Reload()
+	if ( BaseClass.Reload( self )) then
 		// Make shotgun shell visible
 		self:SetBodygroup(0, 1)
 		

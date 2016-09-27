@@ -1,39 +1,41 @@
--- Handles weapon switching
-hook.Add( "StartCommand", "GSWeapons-Shared SelectWeapon", function( pPlayer, cmd )
-	if ( pPlayer.m_pNewWeapon ) then
-		if ( pPlayer.m_pNewWeapon == NULL or pPlayer.m_pNewWeapon == pPlayer:GetActiveWeapon() ) then
-			pPlayer.m_pNewWeapon = nil
-		else
-			-- Sometimes does not work the first time
-			cmd:SelectWeapon( pPlayer.m_pNewWeapon )
+if ( SERVER or not game.SinglePlayer() ) then
+	-- Handles weapon switching
+	hook.Add( "StartCommand", "GSWeapons-Shared SelectWeapon", function( pPlayer, cmd )
+		if ( pPlayer.m_pNewWeapon ) then
+			if ( pPlayer.m_pNewWeapon == NULL or pPlayer.m_pNewWeapon == pPlayer:GetActiveWeapon() ) then
+				pPlayer.m_pNewWeapon = nil
+			else
+				-- Sometimes does not work the first time
+				cmd:SelectWeapon( pPlayer.m_pNewWeapon )
+			end
 		end
-	end
-end )
-
--- Scales the player's movement speeds based on their weapon
-hook.Add( "Move", "GSWeapons-Punch decay and Move speed", function( pPlayer, mv )
-	local pActiveWeapon = pPlayer:GetActiveWeapon()
+	end )
 	
-	if ( pActiveWeapon.PunchDecayFunction ) then
-		pPlayer.dt.LastPunchAngle = pPlayer:GetViewPunchAngles()
-	end
-	
-	if ( pActiveWeapon.GetWalkSpeed ) then
-		local flOldSpeed = mv:GetMaxSpeed() *
-			(pPlayer:KeyDown( IN_SPEED ) and pActiveWeapon:GetRunSpeed() or pActiveWeapon:GetWalkSpeed())
+	-- Scales the player's movement speeds based on their weapon
+	hook.Add( "Move", "GSWeapons-Punch decay and Move speed", function( pPlayer, mv )
+		local pActiveWeapon = pPlayer:GetActiveWeapon()
 		
-		mv:SetMaxSpeed( flOldSpeed )
-		mv:SetMaxClientSpeed( flOldSpeed )
-	end
-end )
+		if ( pActiveWeapon.PunchDecayFunction ) then
+			pPlayer.dt.LastPunchAngle = pPlayer:GetViewPunchAngles()
+		end
+		
+		if ( pActiveWeapon.GetWalkSpeed ) then
+			local flOldSpeed = mv:GetMaxSpeed() *
+				(pPlayer:KeyDown( IN_SPEED ) and pActiveWeapon:GetRunSpeed() or pActiveWeapon:GetWalkSpeed())
+			
+			mv:SetMaxSpeed( flOldSpeed )
+			mv:SetMaxClientSpeed( flOldSpeed )
+		end
+	end )
 
-hook.Add( "FinishMove", "GSWeapons-Punch decay", function( pPlayer )
-	local fPunchDecay = pPlayer:GetActiveWeapon().PunchDecayFunction
-	
-	if ( fPunchDecay ) then
-		pPlayer:SetViewPunchAngles( fPunchDecay( pPlayer, pPlayer.dt.LastPunchAngle ))
-	end
-end )
+	hook.Add( "FinishMove", "GSWeapons-Punch decay", function( pPlayer )
+		local fPunchDecay = pPlayer:GetActiveWeapon().PunchDecayFunction
+		
+		if ( fPunchDecay ) then
+			pPlayer:SetViewPunchAngles( fPunchDecay( pPlayer, pPlayer.dt.LastPunchAngle ))
+		end
+	end )
+end
 
 local PLAYER = _R.Player
 

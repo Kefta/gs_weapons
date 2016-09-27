@@ -4,7 +4,11 @@ DEFINE_BASECLASS( "weapon_gs_base" )
 SWEP.PrintName = "HL2MPBase"
 SWEP.Spawnable = false
 
-SWEP.Primary.Spread = vector_origin
+SWEP.Primary = {
+	ReloadOnEmptyFire = true,
+	Spread = vector_origin
+}
+
 SWEP.Secondary.Spread = NULL -- NULL = off
 SWEP.EmptyCooldown = 0.75
 

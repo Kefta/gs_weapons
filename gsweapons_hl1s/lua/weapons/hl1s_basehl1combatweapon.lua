@@ -14,13 +14,14 @@ SWEP.Sounds = {
 }
 
 SWEP.Primary = {
+	ReloadOnEmptyFire = true,
 	Spread = vector_origin,
 	PunchAngle = vector_origin
 }
 
 SWEP.Secondary = {
-	Spread = -1, -- -1 = off
-	PunchAngle = -1
+	Spread = NULL, -- NULL = off
+	PunchAngle = NULL
 }
 
 if ( CLIENT ) then
@@ -53,7 +54,7 @@ function SWEP:GetPunchAngle( bSecondary --[[= self:SpecialActive()]] )
 	if ( bSecondary or bSecondary == nil and self:SpecialActive() ) then
 		local flSpecial = self.Secondary.PunchAngle
 		
-		if ( flSpecial ~= -1 ) then
+		if ( flSpecial ~= NULL ) then
 			return flSpecial
 		end
 	end
@@ -65,7 +66,7 @@ function SWEP:GetSpread( bSecondary --[[= self:SpecialActive()]] )
 	if ( bSecondary or bSecondary == nil and self:SpecialActive() ) then
 		local flSpecial = self.Secondary.Spread
 		
-		if ( flSpecial ~= -1 ) then
+		if ( flSpecial ~= NULL ) then
 			return flSpecial
 		end
 	end

@@ -6,9 +6,13 @@ SWEP.Spawnable = false
 
 SWEP.ViewModelFOV = 75
 
-SWEP.Primary.Spread = vector_origin
+SWEP.Primary = {
+	ReloadOnEmptyFire = true,
+	Spread = vector_origin
+}
+
 SWEP.Secondary.Spread = NULL -- NULL = off
-SWEP.EmptyCooldown = 0.75
+SWEP.EmptyCooldown = 0.15
 SWEP.HolsterReloadTime = 3
 
 if ( CLIENT ) then

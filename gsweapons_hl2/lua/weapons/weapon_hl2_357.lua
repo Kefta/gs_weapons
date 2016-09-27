@@ -1,4 +1,5 @@
-DEFINE_BASECLASS( "weapon_hl2mp_base" )
+-- FIXME: Add anim events
+DEFINE_BASECLASS( "hl2_basehlcombatweapon" )
 
 --- GSBase
 SWEP.PrintName = "#HL2_357Handgun"
@@ -26,7 +27,7 @@ SWEP.Primary = {
 }
 
 if ( CLIENT ) then
-	SWEP.Category = "Half-Life 2 MP"
+	SWEP.Category = "Half-Life 2 SP"
 	SWEP.KillIcon = 'e'
 	SWEP.SelectionIcon = 'e'
 end

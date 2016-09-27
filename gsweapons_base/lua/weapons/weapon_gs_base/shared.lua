@@ -480,16 +480,13 @@ end
 function SWEP:HolsterAnim( pSwitchingTo )
 	DevMsg( 2, string.format( "%s (weapon_gs_base) Holster animation to %s", self:GetClass(), tostring( pSwitchingTo )))
 	
-	local bRun = not bSinglePlayer or SERVER
-	local bReload = self.HolsterReloadTime ~= -1 and self:EventActive( "reload" )
-	
 	-- https://github.com/Facepunch/garrysmod-requests/issues/739
 	table.Empty( self.m_tEvents )
 	table.Empty( self.m_tEventHoles )
 	self.m_bInHolsterAnim = true
 	
 	-- The client state is purged too early in single-player for the event to run on time
-	if ( bRun or bReload ) then
+	if ( not bSinglePlayer or SERVER ) then
 		local pPlayer = self:GetOwner()
 		
 		-- Wait for all viewmodels to holster
@@ -498,13 +495,13 @@ function SWEP:HolsterAnim( pSwitchingTo )
 		if ( self.ViewModel1 ~= "" and self:PlayActivity( "holster", 1 )) then
 			flSequenceDuration = math.max( self:SequenceLength(1), flSequenceDuration )
 		end
-			
+		
 		if ( self.ViewModel2 ~= "" and self:PlayActivity( "holster", 2 )) then
 			flSequenceDuration = math.max( self:SequenceLength(2), flSequenceDuration )
 		end
 		
 		-- We have to do this here since events are cleared here
-		if ( bReload ) then
+		if ( self.HolsterReloadTime ~= -1 and self:EventActive( "reload" )) then
 			local flReloadTime = flSequenceDuration + CurTime() + self.HolsterReloadTime
 			
 			-- If self is NULL in the hook, there's no way to retrieve what EntIndex it had
@@ -517,18 +514,11 @@ function SWEP:HolsterAnim( pSwitchingTo )
 					if ( not self:IsActiveWeapon() ) then
 						local iMaxClip = self:GetMaxClip1()
 						
-						// If I use primary clips, reload primary
 						if ( iMaxClip ~= -1 ) then
 							local iClip = self:Clip1()
 							local sAmmoType = self:GetPrimaryAmmoName()
-							
-							-- Only reload what is available
 							local iAmmo = math.min( iMaxClip - iClip, pPlayer:GetAmmoCount( sAmmoType ))
-							
-							-- Add to the clip
 							self:SetClip1( iClip + iAmmo )
-							
-							-- Take from the player's reserve
 							pPlayer:RemoveAmmo( iAmmo, sAmmoType )
 						end
 						
@@ -551,35 +541,33 @@ function SWEP:HolsterAnim( pSwitchingTo )
 			end )
 		end
 		
-		if ( bRun ) then
-			if ( self:GetZoomLevel() ~= 0 ) then
-				self:SetSpecialLevel(0)
+		if ( self:GetZoomLevel() ~= 0 ) then
+			self:SetSpecialLevel(0)
+		end
+		
+		-- Disable all events during Holster animation
+		self:SetNextPrimaryFire(-1)
+		self:SetNextSecondaryFire(-1)
+		self:SetNextReload(-1)
+		
+		self:PlaySound( "holster" )
+		
+		local bIsInvalid = pSwitchingTo == NULL
+		
+		self:AddEvent( "holster", flSequenceDuration, function()
+			self.m_bInHolsterAnim = false
+			self.m_bHolsterAnimDone = true
+			
+			if ( bIsInvalid ) then -- Switching to NULL to begin with
+				pPlayer.m_pNewWeapon = NULL
+			elseif ( pSwitchingTo == NULL ) then -- Weapon disappeared; find a new one or come back to the same weapon
+				pPlayer.m_pNewWeapon = pPlayer:GetNextBestWeapon( self.HighWeightPriority )
+			else -- Weapon being swapped to is still on the player
+				pPlayer.m_pNewWeapon = pSwitchingTo
 			end
 			
-			-- Disable all events during Holster animation
-			self:SetNextPrimaryFire(-1)
-			self:SetNextSecondaryFire(-1)
-			self:SetNextReload(-1)
-			
-			self:PlaySound( "holster" )
-			
-			local bIsInvalid = pSwitchingTo == NULL
-			
-			self:AddEvent( "holster", flSequenceDuration, function()
-				self.m_bInHolsterAnim = false
-				self.m_bHolsterAnimDone = true
-				
-				if ( bIsInvalid ) then -- Switching to NULL to begin with
-					pPlayer.m_pNewWeapon = NULL
-				elseif ( pSwitchingTo == NULL ) then -- Weapon disappeared; find a new one or come back to the same weapon
-					pPlayer.m_pNewWeapon = pPlayer:GetNextBestWeapon( self.HighWeightPriority )
-				else -- Weapon being swapped to is still on the player
-					pPlayer.m_pNewWeapon = pSwitchingTo
-				end
-				
-				return true
-			end )
-		end
+			return true
+		end )
 	end
 end
 
@@ -593,7 +581,7 @@ function SWEP:SharedHolster( pSwitchingTo )
 	
 	-- These are already set if there was a holster animation
 	if ( not self.HolsterAnimation ) then
-		if ( bIsValid and self.HolsterReloadTime ~= -1 and self:EventActive( "reload" )) then
+		if ( bRun and bIsValid and self.HolsterReloadTime ~= -1 and self:EventActive( "reload" )) then
 			local flReloadTime = flCurTime + self.HolsterReloadTime
 			local sName = "GSWeapons-Holster reload-" .. self:EntIndex()
 			
@@ -604,18 +592,11 @@ function SWEP:SharedHolster( pSwitchingTo )
 					if ( not self:IsActiveWeapon() ) then
 						local iMaxClip = self:GetMaxClip1()
 						
-						// If I use primary clips, reload primary
 						if ( iMaxClip ~= -1 ) then
 							local iClip = self:Clip1()
 							local sAmmoType = self:GetPrimaryAmmoName()
-							
-							-- Only reload what is available
 							local iAmmo = math.min( iMaxClip - iClip, pPlayer:GetAmmoCount( sAmmoType ))
-							
-							-- Add to the clip
 							self:SetClip1( iClip + iAmmo )
-							
-							-- Take from the player's reserve
 							pPlayer:RemoveAmmo( iAmmo, sAmmoType )
 						end
 						
@@ -683,6 +664,9 @@ function SWEP:SharedHolster( pSwitchingTo )
 		if ( bIsValid ) then
 			pPlayer:SetFOV(0, 0) // reset the default FOV
 		end
+	else
+		self.m_bInHolsterAnim = false
+		self.m_bHolsterAnimDone = true
 	end
 end
 
@@ -692,13 +676,18 @@ function SWEP:OnRemove()
 	if ( pPlayer == NULL ) then
 		DevMsg( 2, self:GetClass() .. " (weapon_gs_base) Remove invalid" )
 	else
-		if ( not bSinglePlayer or SERVER ) then
+		local bRun = not bSinglePlayer or SERVER
+		
+		if ( bRun ) then
 			pPlayer:SetFOV(0, 0) // reset the default FOV
 		end
 		
 		if ( pPlayer:Health() > 0 and pPlayer:Alive() and self:IsActiveWeapon() ) then
 			-- The weapon was removed while it was active and the player was alive, so find a new one
-			pPlayer.m_pNewWeapon = pPlayer:GetNextBestWeapon( self.HighWeightPriority, true )
+			if ( bRun ) then
+				pPlayer.m_pNewWeapon = pPlayer:GetNextBestWeapon( self.HighWeightPriority, true )
+			end
+			
 			DevMsg( 2, string.format( "%s (weapon_gs_base) Remove to %s", self:GetClass(), tostring( pPlayer.m_pNewWeapon )))
 		else
 			DevMsg( 2, self:GetClass() .. " (weapon_gs_base) Remove invalid" )
@@ -802,35 +791,36 @@ function SWEP:ItemFrame()
 end
 
 function SWEP:MouseLifted()
-	local pPlayer = self:GetOwner()
-	
-	-- Just ran out of ammo and the mouse has been lifted, so switch away
-	if ( self.AutoSwitchOnEmpty and not self.m_bDeployedNoAmmo and not self:HasAnyAmmo() ) then
-		pPlayer.m_pNewWeapon = pPlayer:GetNextBestWeapon( self.HighWeightPriority )
-	-- Reload is still called serverside only in single-player
-	elseif ( (self:Clip1() == 0 and self.Primary.AutoReloadOnEmpty or self:Clip2() == 0 and self.Secondary.AutoReloadOnEmpty)
-	and (not bSinglePlayer or SERVER) ) then
-		self:Reload()
-	end
-	
-	if ( not bSinglePlayer or SERVER and not self:EventActive( "burst" )) then
-		// The following code prevents the player from tapping the firebutton repeatedly 
-		// to simulate full auto and retaining the single shot accuracy of single fire
-		local iShotsFired = self:GetShotsFired()
-		local flShotTime = self:GetReduceShotTime()
+	if ( not bSinglePlayer or SERVER ) then
+		local pPlayer = self:GetOwner()
 		
-		if ( flShotTime == -1 ) then
-			if ( iShotsFired > 15 ) then
-				self:SetShotsFired(15)
-			end
+		-- Just ran out of ammo and the mouse has been lifted, so switch away
+		if ( self.AutoSwitchOnEmpty and not self.m_bDeployedNoAmmo and not self:HasAnyAmmo() ) then
+			pPlayer.m_pNewWeapon = pPlayer:GetNextBestWeapon( self.HighWeightPriority )
+		-- Reload is still called serverside only in single-player
+		elseif ( self:Clip1() == 0 and self.Primary.AutoReloadOnEmpty or self:Clip2() == 0 and self.Secondary.AutoReloadOnEmpty ) then
+			self:Reload()
+		end
+	
+		if ( not self:EventActive( "burst" )) then
+			// The following code prevents the player from tapping the firebutton repeatedly 
+			// to simulate full auto and retaining the single shot accuracy of single fire
+			local iShotsFired = self:GetShotsFired()
+			local flShotTime = self:GetReduceShotTime()
 			
-			self:SetReduceShotTime( CurTime() + self.ShotInitialDecreaseTime )
-		elseif ( iShotsFired > 0 ) then
-			local flCurTime = CurTime()
-			
-			if ( flShotTime < flCurTime ) then
-				self:SetShotsFired( iShotsFired - 1 )
-				self:SetReduceShotTime( flCurTime + self.ShotDecreaseTime )
+			if ( flShotTime == -1 ) then
+				if ( iShotsFired > 15 ) then
+					self:SetShotsFired(15)
+				end
+				
+				self:SetReduceShotTime( CurTime() + self.ShotInitialDecreaseTime )
+			elseif ( iShotsFired > 0 ) then
+				local flCurTime = CurTime()
+				
+				if ( flShotTime < flCurTime ) then
+					self:SetShotsFired( iShotsFired - 1 )
+					self:SetReduceShotTime( flCurTime + self.ShotDecreaseTime )
+				end
 			end
 		end
 	end
@@ -991,7 +981,7 @@ function SWEP:Shoot( bSecondary --[[= false]], iClipDeduction --[[= 1]] )
 		error( self:GetClass() .. " (weapon_gs_base) Clip overflowed in Shoot! Add check to CanPrimary/SecondaryAttack" )
 	end
 	
-	local tbl = self:GetShotTable()
+	local tbl = self:GetShotTable( bSecondary )
 	local bBurst = iClip >= iClipDeduction * 2 and self:BurstEnabled()
 	local flCooldown = bBurst and nil or self:GetCooldown( bSecondary )
 	local pPlayer = self:GetOwner()

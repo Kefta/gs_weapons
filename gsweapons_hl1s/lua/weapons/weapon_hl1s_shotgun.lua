@@ -30,7 +30,6 @@ SWEP.Primary = {
 	Bullets = game.SinglePlayer() and 6 or 4,
 	Cooldown = 0.75,
 	InterruptReload = true,
-	ReloadOnEmptyFire = true,
 	PunchAngle = Angle(-5, 0, 0),
 	Spread = game.SinglePlayer() and VECTOR_CONE_10DEGREES or Vector( 0.08716, 0.04362, 0 ) // 10 degrees by 5 degrees
 }

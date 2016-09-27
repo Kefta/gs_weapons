@@ -32,7 +32,6 @@ SWEP.Primary = {
 	ClipSize = 17,
 	DefaultClip = 34,
 	Cooldown = 0.3,
-	ReloadOnEmptyFire = true,
 	PunchAngle = Angle(-2, 0, 0),
 	Spread = Vector(0.01, 0.01, 0.01)
 }

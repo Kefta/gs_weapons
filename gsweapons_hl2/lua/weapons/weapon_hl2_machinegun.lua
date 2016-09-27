@@ -14,10 +14,7 @@ SWEP.Activities = {
 	primary4 = ACT_VM_RECOIL3
 }
 
-SWEP.Primary = {
-	ReloadOnEmptyFire = true,
-	Spread = VECTOR_CONE_3DEGREES
-}
+SWEP.Primary.Spread = VECTOR_CONE_3DEGREES
 
 --- HL2Base_MachineGun
 SWEP.PunchAngle = {
@@ -49,8 +46,8 @@ function SWEP:ItemFrame()
 end
 
 -- StartReload
-function SWEP:CanReload()
-	if ( BaseClass.CanReload( self )) then
+function SWEP:Reload()
+	if ( BaseClass.Reload( self )) then
 		self.dt.FireDuration = 0
 		
 		return true

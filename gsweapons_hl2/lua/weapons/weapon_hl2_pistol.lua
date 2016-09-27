@@ -1,4 +1,4 @@
-DEFINE_BASECLASS( "weapon_hl2mp_base" )
+DEFINE_BASECLASS( "hl2_basehlcombatweapon" )
 
 --- GSBase
 SWEP.PrintName = "#HL2_Pistol"
@@ -35,7 +35,7 @@ SWEP.Primary = {
 SWEP.Secondary.Spread = VECTOR_CONE_6DEGREES
 
 if ( CLIENT ) then
-	SWEP.Category = "Half-Life 2 MP"
+	SWEP.Category = "Half-Life 2 SP"
 	SWEP.KillIcon = 'd'
 	SWEP.SelectionIcon = 'd'
 end
@@ -44,6 +44,7 @@ end
 SWEP.Refire = 0.1
 SWEP.AccuracyPenalty = 0.2 // Applied amount of time each shot adds to the time we must recover from
 SWEP.MaxAccuracyPenalty = 1.5 // Maximum penalty to deal out
+SWEP.OldAccuracy = VECTOR_CONE_4DEGREES
 
 --- GSBase
 function SWEP:SetupDataTables()
@@ -118,8 +119,7 @@ function SWEP:Punch()
 	
 	// Add it to the view punch
 	pPlayer:ViewPunchReset()
-	pPlayer:ViewPunch( Angle( pPlayer:SharedRandomFloat( "pistolpax", 0.25, 0.5 ),
-		pPlayer:SharedRandomFloat( "pistolpay", -0.6, 0.6 ), 0 ))
+	pPlayer:ViewPunch( Angle( random.RandomFloat(0.25, 0.5), random.RandomFloat(-0.6, 0.6), 0 ))
 end
 
 function SWEP:HandleFireOnEmpty( bSecondary )
@@ -165,8 +165,12 @@ function SWEP:PlayActivity( sActivity, iIndex, flRate )
 	return BaseClass.PlayActivity( self, sActivity, iIndex, flRate )
 end
 
+local pistol_use_new_accuracy = GetConVar( "pistol_use_new_accuracy" )
+
 --- HL2MPBase
 function SWEP:GetSpread()
 	// We lerp from very accurate to inaccurate over time
-	return LerpVector( math.Remap( self.dt.AccuracyPenalty, 0, self.MaxAccuracyPenalty, 0, 1 ), BaseClass.GetSpread( self, false ), BaseClass.GetSpread( self, true ))
+	return pistol_use_new_accuracy:GetBool()
+		and LerpVector( math.Remap( self.dt.AccuracyPenalty, 0, self.MaxAccuracyPenalty, 0, 1 ), BaseClass.GetSpread( self, false ), BaseClass.GetSpread( self, true ))
+		or self.OldAccuracy
 end
