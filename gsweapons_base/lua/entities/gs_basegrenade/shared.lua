@@ -28,6 +28,7 @@ ENT.Shake = { -- Screen shake parameters for explosions. Set Amplitude to 0 to d
 	Radius = 750
 }
 
+--- GSBase
 function ENT:Initialize()
 	BaseClass.Initialize( self )
 	
@@ -42,12 +43,7 @@ function ENT:Initialize()
 	end
 end
 
-function ENT:StartDetonation( flTime )
-	self:AddEvent( "detonate", flTime, function()
-		return self:Detonate()
-	end )
-end
-
+--- BaseGrenade
 function ENT:Detonate()
 	return gsweapons.GetDetonationFunc( self.DetonationType )( self )
 end

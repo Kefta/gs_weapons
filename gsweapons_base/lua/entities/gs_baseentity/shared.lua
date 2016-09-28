@@ -20,11 +20,17 @@ ENT.Sounds = { -- Default sound events
 local sm_tPrecached = {} -- Persists through all entity instances -- acts like static keyword in C++
 
 function ENT:Initialize()
+	if ( self.m_bInitialized ) then
+		return
+	end
+	
 	local sClass = self:GetClass()
 	DevMsg( 2, sClass .. " (gs_baseentity) Initialize" )
 	
+	self.m_bInitialized = true
 	self.m_tEvents = {}
 	self.m_tEventHoles = {}
+	self.m_tRemovalQueue = {}
 	
 	if ( not sm_tPrecached[sClass] ) then
 		sm_tPrecached[sClass] = true
@@ -89,6 +95,23 @@ function ENT:OnRemove()
 end
 
 function ENT:Think()
+	-- Fixes clientside not initializing on occasion
+	if ( not self.m_bInitialized ) then
+		self:Initialize()
+	end
+	
+	-- We remove events one Think after they mark themselves as complete to maintain clientside prediction
+	if ( IsFirstTimePredicted() ) then
+		for key, _ in pairs( self.m_tRemovalQueue ) do
+			self.m_tRemovalQueue[key] = nil
+			self.m_tEvents[key] = nil
+			
+			if ( isnumber( key )) then
+				self.m_tEventHoles[key] = true
+			end
+		end
+	end
+	
 	-- Events have priority over main think function
 	local flCurTime = CurTime()
 	
@@ -129,6 +152,7 @@ function ENT:AddEvent( sName, iTime, fCall )
 	if ( IsFirstTimePredicted() ) then
 		if ( fCall ) then
 			self.m_tEvents[sName] = { iTime, CurTime() + iTime, fCall }
+			self.m_tRemovalQueue[sName] = nil -- Fixes edge case of event being added upon removal
 		else
 			self.m_tEvents[next( self.m_tEventHoles ) or #self.m_tEvents] = { sName, CurTime() + sName, iTime }
 		end

@@ -3,8 +3,8 @@ AddCSLuaFile( "shared.lua" )
 include( "shared.lua" )
 
 if ( game.SinglePlayer() ) then
-	util.AddNetworkString( "GSWeapons - Holster Animation" )
-	util.AddNetworkString( "GSWeapons - Holster" )
+	util.AddNetworkString( "GSWeapons-Holster animation" )
+	util.AddNetworkString( "GSWeapons-Holster" )
 end
 
 --- Weapon demeanour

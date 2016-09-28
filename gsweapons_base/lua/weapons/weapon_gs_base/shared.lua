@@ -231,6 +231,7 @@ function SWEP:Initialize()
 	self.m_flHolsterTime = 0
 	self.m_tEvents = {}
 	self.m_tEventHoles = {}
+	self.m_tRemovalQueue = {}
 	
 	self:SetHoldType( self.HoldType )
 	
@@ -451,7 +452,7 @@ function SWEP:Holster( pSwitchingTo )
 				
 				-- Run this clientside to reset the viewmodels and set the variables for a full holster
 				if ( bSinglePlayer ) then
-					net.Start( "GSWeapons - Holster Animation" )
+					net.Start( "GSWeapons-Holster animation" )
 						net.WriteEntity( self )
 						net.WriteEntity( pSwitchingTo )
 					net.Send( pPlayer )
@@ -461,7 +462,7 @@ function SWEP:Holster( pSwitchingTo )
 				
 				-- Clientside does not run Holster in single-player
 				if ( bSinglePlayer ) then
-					net.Start( "GSWeapons - Holster" )
+					net.Start( "GSWeapons-Holster" )
 						net.WriteEntity( self )
 						net.WriteEntity( pSwitchingTo )
 					net.Send( pPlayer )
@@ -483,6 +484,7 @@ function SWEP:HolsterAnim( pSwitchingTo )
 	-- https://github.com/Facepunch/garrysmod-requests/issues/739
 	table.Empty( self.m_tEvents )
 	table.Empty( self.m_tEventHoles )
+	table.Empty( self.m_tRemovalQueue )
 	self.m_bInHolsterAnim = true
 	
 	-- The client state is purged too early in single-player for the event to run on time
@@ -622,6 +624,7 @@ function SWEP:SharedHolster( pSwitchingTo )
 		-- https://github.com/Facepunch/garrysmod-requests/issues/739
 		table.Empty( self.m_tEvents )
 		table.Empty( self.m_tEventHoles )
+		table.Empty( self.m_tRemovalQueue )
 		
 		if ( bRun ) then
 			-- Disable all actions during holster
@@ -715,6 +718,18 @@ function SWEP:Think()
 		self.m_bDeployed = true
 	end
 	
+	-- We remove events one Think after they mark themselves as complete to maintain clientside prediction
+	if ( IsFirstTimePredicted() ) then
+		for key, _ in pairs( self.m_tRemovalQueue ) do
+			self.m_tRemovalQueue[key] = nil
+			self.m_tEvents[key] = nil
+			
+			if ( isnumber( key )) then
+				self.m_tEventHoles[key] = true
+			end
+		end
+	end
+	
 	-- Events have priority over main think function
 	local flCurTime = CurTime()
 	
@@ -723,11 +738,7 @@ function SWEP:Think()
 			local RetVal = tbl[3]()
 			
 			if ( RetVal == true ) then
-				self.m_tEvents[key] = nil
-				
-				if ( isnumber( key )) then
-					self.m_tEventHoles[key] = true
-				end
+				self.m_tRemovalQueue[key] = true
 			else
 				-- Update interval
 				if ( isnumber( RetVal )) then
@@ -1547,7 +1558,9 @@ function SWEP:AddEvent( sName, iTime, fCall )
 	-- Do not add to the event table multiple times
 	if ( IsFirstTimePredicted() ) then
 		if ( fCall ) then -- Added by name
-			self.m_tEvents[sName:lower()] = { iTime, CurTime() + iTime, fCall }
+			sName = sName:lower()
+			self.m_tEvents[sName] = { iTime, CurTime() + iTime, fCall }
+			self.m_tRemovalQueue[sName] = nil -- Fixes edge case of event being added upon removal
 		else
 			self.m_tEvents[next( self.m_tEventHoles ) or #self.m_tEvents] = { sName, CurTime() + sName, iTime }
 		end

@@ -43,6 +43,10 @@ function PLAYER:SetupWeaponDataTables()
 	-- For CS:S ViewPunching
 	self:DTVar( "Bool", 0, "PunchDirection" )
 	self:DTVar( "Angle", 0, "LastPunchAngle" )
+	
+	-- For CS:S flashing
+	self:DTVar( "Float", 0, "FlashDuration" )
+	self:DTVar( "Float", 1, "FlashMaxAlpha" )
 end
 
 -- Shared version of SelectWeapon
@@ -99,4 +103,58 @@ function PLAYER:SharedRandomColor( sName, flMin, flMax, iAdditionalSeed )
 	return Color( random.RandomFloat( flMin, flMax ), 
 			random.RandomFloat( flMin, flMax ), 
 			random.RandomFloat( flMin, flMax ))
+end
+
+if ( SERVER ) then
+	local mp_fadetoblack = GetConVar( "mp_fadetoblack" )
+	local colSpec = Color( 255, 255, 255, 150 )
+
+	function PLAYER:IsBlind()
+		return CurTime() < (self.m_flBlindUntilTime or 0)
+	end
+
+	function PLAYER:Blind( flHoldTime, flFadeTime, iAlpha )
+		// Don't flash a spectator
+		local flCurTime = CurTime()
+		local nMode = self:GetObserverMode()
+		
+		// estimate when we can see again
+		local flOldBlindStart = self.m_flBlindStartTime or 0
+		local flOldBlindUntil = self.m_flBlindUntilTime or 0
+		
+		// adjust the hold time to match the fade time.
+		local flHalfFade = flFadeTime * 0.5
+		local flNewBlindUntil = flCurTime + flHoldTime + flHalfFade
+		self.m_flBlindStartTime = flCurTime
+		self.m_flBlindUntilTime = flNewBlindUntil > flOldBlindUntil and flNewBlindUntil or flOldBlindUntil
+		
+		// Spectators get a lessened flash
+		if ( nMode == OBS_MODE_NONE or nMode == OBS_MODE_IN_EYE ) then
+			if ( flCurTime > flOldBlindUntil ) then
+				// The previous flashbang is wearing off, or completely gone
+				self.dt.FlashDuration = flFadeTime / 1.4
+				self.dt.FlashMaxAlpha = iAlpha
+			else
+				// The previous flashbang is still going strong - only extend the duration
+				local flRemaining = flOldBlindStart + self.dt.FlashDuration - flCurTime
+				self.dt.FlashDuration = flRemaining > flFadeTime and flRemaining or flFadeTime
+				
+				local iMaxAlpha = self.dt.FlashMaxAlpha or 0
+				self.dt.FlashMaxAlpha = iMaxAlpha > iAlpha and iMaxAlpha or iAlpha
+			end
+		elseif ( not mp_fadetoblack:GetBool() ) then
+			// make sure the spectator flashbang time is 1/2 second or less.
+			self:ScreenFade( SCREENFADE.IN, colSpec, flFadeTime < 0.5 and flFadeTime or 0.5, flHalfFade < flHoldTime and flHalfFade or flHoldTime )
+		end
+	end
+
+	function PLAYER:Deafen( flDistance )
+		// Spectators don't get deafened
+		local nMode = self:GetObserverMode()
+		
+		if ( (nMode == OBS_MODE_NONE or nMode == OBS_MODE_IN_EYE) and flDistance < 1000 ) then
+			// dsp presets are defined in hl2/scripts/dsp_presets.txt
+			self:SetDSP( flDistance < 600 and 37 or flDistance < 800 and 36 or 35, false ) -- 134, 135, 136
+		end
+	end
 end

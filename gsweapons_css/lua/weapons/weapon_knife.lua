@@ -184,6 +184,7 @@ function SWEP:PrimaryAttack( bStab )
 						data:SetEntity( tr.Entity )
 					util.Effect( "KnifeSlash", data )]]
 					
+					DevMsg( 1, self:GetClass() .. " (weapon_knife) Placing decal!" )
 					util.Decal( "ManhackCut", tr.HitPos - tr.HitNormal, tr.HitPos + tr.HitNormal, true )
 				end
 				

@@ -125,12 +125,20 @@ do
 	local Remove = function( pGrenade ) pGrenade:Remove() return true end
 	local tDetonationTypes = {}
 	
-	function gsweapons.RegisterDetonationFunc( sName, func )
-		tDetonationTypes[sName:lower()] = func
+	function gsweapons.RegisterDetonationFunc( sName, func, bNetworked )
+		tDetonationTypes[sName:lower()] = { func, bNetworked or false }
 	end
 	
 	function gsweapons.GetDetonationFunc( sName )
-		return tDetonationTypes[sName:lower()] or Remove
+		sName = sName:lower()
+		
+		return tDetonationTypes[sName] and tDetonationTypes[sName][1] or Remove
+	end
+	
+	function gsweapons.DetonationNetworked( sName )
+		sName = sName:lower()
+		
+		return tDetonationTypes[sName] and tDetonationTypes[sName][2] or false
 	end
 end
 
@@ -502,15 +510,15 @@ gsweapons.RegisterAnimEvent( {5003, 5013, 5023, 5033}, "css", function( pWeapon,
 			return true
 		end
 		
-		local light = DynamicLight( 0x40000000 + pPlayer:EntIndex() )
-		light.pos = pWeapon:GetAttachment( pWeapon:GetMuzzleAttachment( iEvent )).Pos
-		light.size = 70
-		light.decay = 1400 --light.size / 0.05
-		light.dietime = CurTime() + 0.05
-		light.r = 255
-		light.g = 192
-		light.b = 64
-		light.style = 5
+		local dlight = DynamicLight( 0x40000000 + pPlayer:EntIndex() )
+		dlight.pos = pWeapon:GetAttachment( pWeapon:GetMuzzleAttachment( iEvent )).Pos
+		dlight.size = 70
+		dlight.decay = 1400 --dlight.size / 0.05
+		dlight.dietime = CurTime() + 0.05
+		dlight.r = 255
+		dlight.g = 192
+		dlight.b = 64
+		dlight.style = 5
 	end
 	
 	return true
@@ -595,16 +603,13 @@ local function ExplosionEffects( pGrenade )
 	local bInvalid = pOwner == NULL
 	local flDamage = pGrenade.Damage
 	
-	if ( IsFirstTimePredicted() ) then
-		local data = EffectData()
-			data:SetOrigin( vAbsOrigin )
-			data:SetMagnitude( flDamage )
-			data:SetScale( pGrenade.DamageRadius * 0.03 )
-			data:SetFlags( TE_EXPLFLAG_NOSOUND )
-		util.Effect( "Explosion", data )
-		
-		util.Decal( "Scorch", tr.HitPos + tr.HitNormal, tr.HitPos - tr.HitNormal )
-	end
+	local data = EffectData()
+		data:SetOrigin( vAbsOrigin )
+		data:SetMagnitude( flDamage )
+		data:SetScale( pGrenade.DamageRadius * 0.03 )
+		data:SetFlags( TE_EXPLFLAG_NOSOUND )
+	util.Effect( "Explosion", data )
+	util.Decal( "Scorch", tr.HitPos + tr.HitNormal, tr.HitPos - tr.HitNormal )
 	
 	pGrenade:PlaySound( "detonate" )
 	
@@ -615,50 +620,37 @@ local function ExplosionEffects( pGrenade )
 		util.ScreenShake( vAbsOrigin, flAmplitude, tShake.Frequency, tShake.Duration, tShake.Radius )
 	end
 	
-	if ( SERVER ) then
-		local info = DamageInfo()
-			info:SetAttacker( bInvalid and pGrenade or pOwner )
-			info:SetDamage( flDamage )
-			info:SetDamageForce( pGrenade.Force )
-			info:SetDamagePosition( vAbsOrigin )
-			info:SetDamageType( DMG_BLAST )
-			info:SetInflictor( pGrenade )
-			
-			// Use the thrower's position as the reported position
-			info:SetReportedPosition( bInvalid and vAbsOrigin or pOwner:GetPos() )
+	local info = DamageInfo()
+		info:SetAttacker( bInvalid and pGrenade or pOwner )
+		info:SetDamage( flDamage )
+		info:SetDamageForce( pGrenade.Force )
+		info:SetDamagePosition( vAbsOrigin )
+		info:SetDamageType( DMG_BLAST )
+		info:SetInflictor( pGrenade )
 		
-		return info
-	end
+		// Use the thrower's position as the reported position
+		info:SetReportedPosition( bInvalid and vAbsOrigin or pOwner:GetPos() )
+	return info
 end
 
 gsweapons.RegisterDetonationFunc( "explode", function( pGrenade )
-	if ( SERVER ) then
-		local info = ExplosionEffects( pGrenade )
-		util.RadiusDamage( info, info:GetDamagePosition(), pGrenade.DamageRadius, pGrenade ) -- FIXME
-	else
-		ExplosionEffects( pGrenade )
-	end
-			
+	local info = ExplosionEffects( pGrenade )
+	util.RadiusDamage( info, info:GetDamagePosition(), pGrenade.DamageRadius, pGrenade ) -- FIXME
 	pGrenade:Remove()
 	
 	return true
 end )
 
 gsweapons.RegisterDetonationFunc( "explode_css", function( pGrenade )
-	if ( SERVER ) then
-		local info = ExplosionEffects( pGrenade )
-		util.CSRadiusDamage( info, info:GetDamagePosition(), pGrenade.DamageRadius, pGrenade )
-	else
-		ExplosionEffects( pGrenade )
-	end
-			
+	local info = ExplosionEffects( pGrenade )
+	util.CSRadiusDamage( info, info:GetDamagePosition(), pGrenade.DamageRadius, pGrenade )
 	pGrenade:Remove()
 	
 	return true
 end )
 
 gsweapons.RegisterDetonationFunc( "smoke", function( pGrenade )
-	if ( pGrenade:GetAbsVelocity():Length() > 0.1 ) then
+	if ( pGrenade:_GetAbsVelocity():LengthSqr() > 0.01 ) then
 		// Still moving. Don't detonate yet.
 		return 0.2
 	end
@@ -668,10 +660,11 @@ gsweapons.RegisterDetonationFunc( "smoke", function( pGrenade )
 	pSmoke:SetPos( pGrenade:GetPos() )
 	pSmoke:Spawn()
 	pSmoke:FillVolume()
-	pSmoke:SetFadeTime( 17, 22 ) -- Already the default values
+	pSmoke:SetFadeTime(17, 22)
 	
 	pGrenade.m_pSmokeEffect = pSmoke
 	pGrenade.m_bDidSmokeEffect = true
+	
 	pGrenade:PlaySound( "main" )
 	pGrenade:SetRenderMode( RENDERMODE_TRANSALPHA )
 	pGrenade:SetNextThink( CurTime() + 5 )
@@ -695,6 +688,8 @@ gsweapons.RegisterDetonationFunc( "smoke", function( pGrenade )
 				end
 				
 				pGrenade:Remove()
+				
+				return true
 			end )
 			
 			return true
@@ -711,154 +706,172 @@ local MASK_FLASHBANG = bit.bor( CONTENTS_SOLID, CONTENTS_MOVEABLE, CONTENTS_DEBR
 -- This one's a doozy; 7 traces, a point contents check, a FindInSphere loop, and a DynamicLight
 gsweapons.RegisterDetonationFunc( "flash", function( pGrenade )
 	local vSrc = pGrenade:GetPos()
-	vSrc.z = vSrc.z + 1 // in case grenade is lying on the ground
+	vSrc[3] = vSrc[3] + 1 // in case grenade is lying on the ground
 	
-	// iterate on all entities in the vicinity.
-	local pEnts = ents.FindInSphere( vSrc, pGrenade:GetDamageRadius() )
-	local bInWater = util.PointContents( vSrc ) == CONTENTS_WATER
-	local vEyePos
-	local pEntity
-	local flAdjustedDamage
-	local flDot
-	local startingAlpha
-	local fadeTime
-	local fadeHold
-	for i = 0, #pEnts do
-		pEntity = pEnts[i]
+	if ( SERVER ) then
+		local flDamage = pGrenade.Damage
+		local flRadius = pGrenade.DamageRadius
+		local tEnts = ents.FindInSphere( vSrc, flRadius )
+		local bInWater = util.PointContents( vSrc ) == CONTENTS_WATER
+		local flFalloff = flDamage / flRadius
 		
-		if ( not pEntity:IsPlayer() ) then return end
-		
-		vEyePos = pEntity:EyePos()
-		
-		// blasts don't travel into or out of water
-		if ( bInWater and pEntity:WaterLevel() == 0 or 
-			not bInWater and pEntity:WaterLevel() == 3 ) then
-			continue
-		end
-		
-		local percentageOfFlash = 0.0
-
-		local tempAngle = ( vEyePos - vSrc ):Angle()
-	
-		local vRight = tempAngle:Right()
-		local vUp = tempAngle:Up()
-
-		local tr = util.TraceLine( {
-			start = vSrc,
-			endpos = vEyePos,
-			mask = MASK_FLASHBANG,
-			filter = pGrenade
-		} )
-
-		if ( tr.Fraction == 1.0 or tr.Entity == pEntity ) then
-			percentageOfFlash = 1.0
-		else
-			// check the point straight up.
-			tr = util.TraceLine( {
-				start = vSrc,
-				endpos = vSrc + vUp * 50,
-				mask = MASK_FLASHBANG,
-				filter = pGrenade
-			} )
+		// iterate on all entities in the vicinity.
+		for i = 1, #tEnts do
+			local pPlayer = tEnts[i]
 			
-			tr = util.TraceLine( {
-				start = tr.HitPos,
-				endpos = vEyePos,
-				mask = MASK_FLASHBANG,
-				filter = pGrenade
-			} )
-			
-			if ( tr.Fraction == 1.0 or tr.Entity == pEntity ) then
-				percentageOfFlash = 0.167
+			if ( not pPlayer:IsPlayer() ) then
+				continue
 			end
 			
-			// check the point up and right
-			tr = util.TraceLine( {
-				start = vSrc,
-				endpos = flashPos + vRight * 75 + vUp * 10,
-				mask = MASK_FLASHBANG,
-				filter = pGrenade
-			} )
-			
-			tr = util.TraceLine( {
-				start = tr.HitPos,
-				endpos = vEyePos,
-				mask = MASK_FLASHBANG,
-				filter = pGrenade
-			} )
-			
-			if ( tr.Fraction == 1.0 or tr.Entity == pEntity ) then
-				percentageOfFlash = percentageOfFlash + 0.167
-			end
-			
-			tr = util.TraceLine( {
-				start = vSrc,
-				endpos = flashPos - vRight * 75 + vUp * 10,
-				mask = MASK_FLASHBANG,
-				filter = pGrenade
-			} )
-			
-			tr = util.TraceLine( {
-				start = tr.HitPos,
-				endpos = vEyePos,
-				mask = MASK_FLASHBANG,
-				filter = pGrenade
-			} )
-			
-			if ( tr.Fraction == 1.0 or tr.Entity == pEntity ) then
-				percentageOfFlash = percentageOfFlash + 0.167
-			end
-		end
-		
-		if ( percentageOfFlash > 0.0 ) then
-			// decrease damage for an ent that's farther from the grenade
-			flAdjustedDamage = pGrenade:GetDamage() - ( vSrc - vEyePos ):Length() * (pGrenade:GetDamage()/pGrenade:GetDamageRadius())
-			
-			if ( flAdjustedDamage > 0 ) then
-				// See if we were facing the flash
-				// Normalize both vectors so the dotproduct is in the range -1.0 <= x <= 1.0 
-				local vFaceDir = vSrc - vEyePos
-				local flDot = vFaceDir:GetNormal():Dot( pEntity:GetAimVector() )
-
-				startingAlpha = 255
-	
-				// if target is facing the bomb, the effect lasts longer
-				if( flDot >= 0.5 ) then
-					// looking at the flashba
-					fadeTime = flAdjustedDamage * 2.5
-					fadeHold = flAdjustedDamage * 1.25
-				elseif( flDot >= -0.5 ) then
-					// looking to the side
-					fadeTime = flAdjustedDamage * 1.75
-					fadeHold = flAdjustedDamage * 0.8
-				else
-					// facing away
-					fadeTime = flAdjustedDamage * 1.0
-					fadeHold = flAdjustedDamage * 0.75
-					startingAlpha = 200
+			// blasts don't travel into or out of water
+			if ( bInWater ) then
+				if ( pPlayer:WaterLevel() == 0 ) then
+					continue
 				end
+			elseif ( pPlayer:WaterLevel() == 3 ) then
+				continue
+			end
+			
+			local vEyePos = pPlayer:EyePos()
+			local flPercentage
 
-				// blind players and bots
-				pEntity:Blind( fadeHold * percentageOfFlash, fadeTime * percentageOfFlash, startingAlpha )
+			local tr = util.TraceLine({
+				start = vSrc,
+				endpos = vEyePos,
+				mask = MASK_FLASHBANG,
+				filter = pGrenade
+			})
 
-				// deafen players and bots
-				pEntity:Deafen( vFaceDir:Length() )
+			if ( tr.Fraction == 1 or tr.Entity == pPlayer ) then
+				flPercentage = 1
+			else
+				local aTemp = (vEyePos - vSrc):Angle()
+				local vRight = aTemp:Right()
+				local vUp = aTemp:Up()
+				
+				// check the point straight up.
+				util.TraceLine({
+					start = vSrc,
+					endpos = vSrc + vUp * 50,
+					mask = MASK_FLASHBANG,
+					filter = pGrenade,
+					output = tr
+				})
+				
+				util.TraceLine({
+					start = tr.HitPos,
+					endpos = vEyePos,
+					mask = MASK_FLASHBANG,
+					filter = pGrenade,
+					output = tr
+				})
+				
+				if ( tr.Fraction == 1 or tr.Entity == pPlayer ) then
+					flPercentage = 0.167
+				end
+				
+				// check the point up and right
+				util.TraceLine({
+					start = vSrc,
+					endpos = vSrc + vRight * 75 + vUp * 10,
+					mask = MASK_FLASHBANG,
+					filter = pGrenade,
+					output = tr
+				})
+				
+				util.TraceLine({
+					start = tr.HitPos,
+					endpos = vEyePos,
+					mask = MASK_FLASHBANG,
+					filter = pGrenade,
+					output = tr
+				})
+				
+				if ( tr.Fraction == 1 or tr.Entity == pPlayer ) then
+					flPercentage = flPercentage + 0.167
+				end
+				
+				-- Up and to the left
+				util.TraceLine({
+					start = vSrc,
+					endpos = vSrc - vRight * 75 + vUp * 10,
+					mask = MASK_FLASHBANG,
+					filter = pGrenade,
+					output = tr
+				})
+				
+				util.TraceLine({
+					start = tr.HitPos,
+					endpos = vEyePos,
+					mask = MASK_FLASHBANG,
+					filter = pGrenade,
+					output = tr
+				})
+				
+				if ( tr.Fraction == 1 or tr.Entity == pPlayer ) then
+					flPercentage = flPercentage + 0.167
+				end
+			end
+			
+			if ( flPercentage ) then
+				local vLOS = vSrc - vEyePos
+				local flDistance = vLOS:Length()
+				
+				// decrease damage for an ent that's farther from the grenade
+				local flAdjustedDamage = flDamage - flDistance * flFalloff
+				
+				if ( flAdjustedDamage > 0 ) then
+					vLOS:Normalize()
+					
+					// See if we were facing the flash
+					// Normalize both vectors so the dotproduct is in the range -1.0 <= x <= 1.0 
+					local flDot = vLOS:Dot( pPlayer:EyeAngles():Forward() )
+
+					local flAlpha
+					local flTime
+					local flHold
+		
+					// if target is facing the bomb, the effect lasts longer
+					if ( flDot >= 0.5 ) then
+						// looking at the flashbang
+						flTime = flAdjustedDamage * 2.5
+						flHold = flAdjustedDamage * 1.25
+						flAlpha = 255
+					elseif ( flDot >= -0.5 ) then
+						// looking to the side
+						flTime = flAdjustedDamage * 1.75
+						flHold = flAdjustedDamage * 0.8
+						flAlpha = 255
+					else
+						// facing away
+						flTime = flAdjustedDamage
+						flHold = flAdjustedDamage * 0.75
+						flAlpha = 200
+					end
+
+					// blind players and bots
+					pPlayer:Blind( flHold * flPercentage, flTime * flPercentage, flAlpha )
+
+					// deafen players and bots
+					pPlayer:Deafen( flDistance )
+				end
 			end
 		end
+		
+		pGrenade:PlaySound( "main" )
+		pGrenade:Remove()
+	else
+		-- Can't create DLights serverside from the Lua state
+		local dlight = DynamicLight( pGrenade:EntIndex() )
+		dlight.pos = vSrc
+		dlight.r = 255
+		dlight.g = 255
+		dlight.b = 255
+		dlight.brightness = 2
+		dlight.size = 400
+		dlight.dietime = CurTime() + 0.1
+		dlight.decay = 768
 	end
 	
-	local dlight = DynamicLight( pGrenade:EntIndex() )
-	dlight.pos = vSrc
-	dlight.r = 255
-	dlight.g = 255
-	dlight.b = 255
-	dlight.brightness = 2
-	dlight.size = 400
-	dlight.dietime = CurTime() + 0.1
-	dlight.decay = 768
-	
-	pGrenade:PlaySound( "main" )
-	pGrenade:Remove()
-	
 	return true
-end )
+end, true )
