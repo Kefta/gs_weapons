@@ -47,9 +47,8 @@ end
 function ENT:Detonate()
 	return gsweapons.GetDetonationFunc( self.DetonationType )( self )
 end
-
---[[
-function ENT:Touch_Bounce( pOther )
+-- FIXME: Fix physics
+--[[function ENT:Touch_Bounce( pOther )
 	if ( pOther:IsSolidFlagSet( bit.bor( FSOLID_TRIGGER, FSOLID_VOLUME_CONTENTS ) ) ) then
 		return
 	end

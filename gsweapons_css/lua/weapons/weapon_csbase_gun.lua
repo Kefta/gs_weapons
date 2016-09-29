@@ -35,7 +35,7 @@ end
 SWEP.Penetration = 1
 
 --- GSBase
-local PLAYER = _R.Player
+local PLAYER = FindMetaTable( "Player" )
 
 function SWEP:Initialize()
 	BaseClass.Initialize( self )

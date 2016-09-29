@@ -1,5 +1,6 @@
 -- http://wiki.garrysmod.com/page/Structures/ENT
-ENT.Base = "gs_baseentity" -- This is the superclass
+
+--ENT.Base = "gs_baseentity" -- This is NOT the superclass. Let base_anim/base_entity handle it's default implementation
 ENT.PrintName = "GSBase" -- Display name
 ENT.Author = "code_gs and Valve" -- Displayed on entity selection panel
 ENT.Spawnable = false -- Displays the entity in the spawn menu. This must be defined in every entity!

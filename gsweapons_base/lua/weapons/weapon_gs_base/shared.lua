@@ -205,7 +205,7 @@ SWEP.TracerName = "Tracer" -- Tracer effect to use
 SWEP.TriggerBoundSize = 36 -- Set to -1 to disable pickup. Trigger box size to pickup the weapon off the ground. // Bloat the box for player pickup
 
 --- Spawn/Constructor
-local PLAYER = _R.Player
+local PLAYER = FindMetaTable( "Player" )
 local sm_tPrecached = {} -- Persists through all weapon instances - acts like static keyword in C++
 
 function SWEP:Initialize()
@@ -362,7 +362,7 @@ function SWEP:Deploy()
 	local pPlayer = self:GetOwner()
 	
 	// Dead men deploy no weapons
-	if ( pPlayer == NULL or not pPlayer:Alive() or (self.BlockDeployOnEmpty and not self:HasAnyAmmo()) ) then
+	if ( pPlayer == NULL or not pPlayer:Alive() or (self.BlockDeployOnEmpty and not self:HasAmmo()) ) then
 		return false
 	end
 	
@@ -390,7 +390,7 @@ function SWEP:SharedDeploy( bDelayed )
 	self.m_bInHolsterAnim = false
 	self.m_bHolsterAnimDone = false
 	
-	if ( not self:HasAnyAmmo() ) then
+	if ( not self:HasAmmo() ) then
 		self.m_bDeployedNoAmmo = true
 	end
 	
@@ -806,7 +806,7 @@ function SWEP:MouseLifted()
 		local pPlayer = self:GetOwner()
 		
 		-- Just ran out of ammo and the mouse has been lifted, so switch away
-		if ( self.AutoSwitchOnEmpty and not self.m_bDeployedNoAmmo and not self:HasAnyAmmo() ) then
+		if ( self.AutoSwitchOnEmpty and not self.m_bDeployedNoAmmo and not self:HasAmmo() ) then
 			pPlayer.m_pNewWeapon = pPlayer:GetNextBestWeapon( self.HighWeightPriority )
 		-- Reload is still called serverside only in single-player
 		elseif ( self:Clip1() == 0 and self.Primary.AutoReloadOnEmpty or self:Clip2() == 0 and self.Secondary.AutoReloadOnEmpty ) then
@@ -1294,7 +1294,7 @@ function SWEP:HandleFireOnEmpty( bSecondary )
 		self:SetNextSecondaryFire( flNextTime )
 	end
 	
-	if ( self.SwitchOnEmptyFire and not self:HasAnyAmmo() ) then
+	if ( self.SwitchOnEmptyFire and not self:HasAmmo() ) then
 		pPlayer.m_pNewWeapon = pPlayer:GetNextBestWeapon( self.HighWeightPriority )
 	elseif ( bSecondary and self.Secondary.ReloadOnEmptyFire or not bSecondary and self.Primary.ReloadOnEmptyFire ) then
 		self:SetNextReload(0)
@@ -1923,7 +1923,11 @@ function SWEP:GetWalkSpeed( bSecondary --[[= self:SpecialActive()]] )
 	return self.Primary.WalkSpeed
 end
 
---[[function SWEP:GetWeaponWorldModel()
+--[[function SWEP:GetWeaponViewModel()
+	return self.ViewModel
+end
+
+function SWEP:GetWeaponWorldModel()
 	return self.WorldModel
 end
 

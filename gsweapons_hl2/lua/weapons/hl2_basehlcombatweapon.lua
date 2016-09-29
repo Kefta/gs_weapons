@@ -22,7 +22,7 @@ if ( CLIENT ) then
 	SWEP.CrosshairStyle = "hl2"
 end
 
-local PLAYER = _R.Player
+local PLAYER = FindMetaTable( "Player" )
 
 function SWEP:Initialize()
 	BaseClass.Initialize( self )

@@ -37,7 +37,7 @@ if ( SERVER or not game.SinglePlayer() ) then
 	end )
 end
 
-local PLAYER = _R.Player
+local PLAYER = FindMetaTable( "Player" )
 
 function PLAYER:SetupWeaponDataTables()
 	-- For CS:S ViewPunching

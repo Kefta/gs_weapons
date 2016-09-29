@@ -132,7 +132,7 @@ function SWEP:HandleFireOnEmpty( bSecondary )
 	elseif ( self.dt.DryFired or not self.dt.MouseHeld ) then
 		local pPlayer = self:GetOwner()
 		
-		if ( self.SwitchOnEmptyFire and not self:HasAnyAmmo() ) then
+		if ( self.SwitchOnEmptyFire and not self:HasAmmo() ) then
 			pPlayer.m_pNewWeapon = pPlayer:GetNextBestWeapon( self.HighWeightPriority )
 			
 			return

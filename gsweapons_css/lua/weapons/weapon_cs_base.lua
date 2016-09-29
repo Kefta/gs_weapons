@@ -33,7 +33,7 @@ if ( CLIENT ) then
 	surface.CreateFont( "CSSSelection", { font = "cs", size = ScreenScale(120), weight = 500, additive = true })
 end
 
-local PLAYER = _R.Player
+local PLAYER = FindMetaTable( "Player" )
 
 function SWEP:Initialize()
 	BaseClass.Initialize( self )
