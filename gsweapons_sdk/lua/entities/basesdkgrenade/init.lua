@@ -42,7 +42,7 @@ function ENT:Touch( pEnt )
 	// Don't bounce off of players with perfect elasticity
 	local pEntity = tr.Entity
 	local bValid = pEntity ~= NULL
-	local vAbsVelocity
+	local vAbsVelocity = self:_GetAbsVelocity()
 	
 	// if its breakable glass and we kill it, don't bounce.
 	// give some damage to the glass, and if it breaks, pass 
@@ -58,7 +58,6 @@ function ENT:Touch( pEnt )
 			local vPos = self:GetPos()
 			info:SetDamagePosition( vPos )
 			info:SetReportedPosition( vPos )
-			vAbsVelocity = self:_GetAbsVelocity()
 		pEntity:DispatchTraceAttack( info, tr, vAbsVelocity )
 		
 		if ( pEntity:Health() < 1 ) then
@@ -70,7 +69,7 @@ function ENT:Touch( pEnt )
 	end
 	
 	// NOTE: A backoff of 2.0f is a reflection
-	vAbsVelocity = self:PhysicsClipVelocity( (vAbsVelocity or self:_GetAbsVelocity()), tr.HitNormal, 2 ) * math.min( self:GetElasticity() * ((bValid and pEntity:IsPlayer() or pEntity:IsNPC()) and 0.3 or 1), 0.9 )
+	vAbsVelocity = self:PhysicsClipVelocity( vAbsVelocity, tr.HitNormal, 2 ) * math.min( self:GetElasticity() * ((bValid and pEntity:IsPlayer() or pEntity:IsNPC()) and 0.3 or 1), 0.9 )
 	local vBaseVelocity = self:_GetBaseVelocity()
 	local vVelocity = vAbsVelocity + vBaseVelocity
 	
@@ -92,7 +91,7 @@ function ENT:Touch( pEnt )
 			local ang = tr.HitNormal:Angle()
 			
 			// rotate randomly in yaw
-			ang.y = random.RandomFloat( 0, 360 )
+			ang.y = random.RandomFloat(0, 360)
 			
 			// TODO: rotate around trace.plane.normal
 			

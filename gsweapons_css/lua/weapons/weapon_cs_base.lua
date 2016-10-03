@@ -2,7 +2,6 @@ DEFINE_BASECLASS( "weapon_gs_base" )
 
 --- GSBase
 SWEP.PrintName = "CSBase"
-SWEP.Spawnable = false
 
 SWEP.ViewModelFlip = true
 SWEP.ViewModelFOV = 90
@@ -20,17 +19,12 @@ SWEP.UnderwaterCooldown = 0.15
 SWEP.TriggerBoundSize = 30
 
 if ( CLIENT ) then
-	SWEP.KillIcon = 'C'
 	SWEP.Category = "Counter-Strike: Source"
 	SWEP.KillIconFont = "CSSKillIcon"
-	SWEP.SelectionIcon = 'D'
 	SWEP.SelectionFont = "CSSSelection"
 	
 	SWEP.BobStyle = "css"
 	SWEP.CrosshairStyle = "css"
-	
-	surface.CreateFont( "CSSKillIcon", { font = "csd", size = ScreenScale(30), weight = 500, additive = true })
-	surface.CreateFont( "CSSSelection", { font = "cs", size = ScreenScale(120), weight = 500, additive = true })
 end
 
 local PLAYER = FindMetaTable( "Player" )
@@ -56,7 +50,7 @@ function SWEP:CanPrimaryAttack()
 	local iWaterLevel = pPlayer:WaterLevel()
 	
 	if ( self:EventActive( "reload" )) then
-		if ( self.SingleReload.Enabled and self.SingleReload.QueuedFire ) then
+		if ( self.SingleReload.Enable and self.SingleReload.QueuedFire ) then
 			local flNextTime = self:SequenceEnd()
 			self:RemoveEvent( "reload" )
 			
@@ -107,12 +101,12 @@ function SWEP:CanSecondaryAttack()
 		return false
 	end
 	
-	local iClip = self.CheckPrimaryClipForSecondary and self:Clip1() or self:Clip2()
+	local iClip = self.UseClip1ForSecondary and self:Clip1() or self:Clip2()
 	local iWaterLevel = pPlayer:WaterLevel()
-	local bEmpty = pPlayer:GetAmmoCount( self.CheckPrimaryClipForSecondary and self:GetPrimaryAmmoName() or self:GetSecondaryAmmoName() ) == 0
+	local bEmpty = pPlayer:GetAmmoCount( self.UseClip1ForSecondary and self:GetPrimaryAmmoName() or self:GetSecondaryAmmoName() ) == 0
 	
 	if ( self:EventActive( "reload" )) then
-		if ( self.SingleReload.Enabled and self.SingleReload.QueuedFire ) then
+		if ( self.SingleReload.Enable and self.SingleReload.QueuedFire ) then
 			local flNextTime = self:SequenceEnd()
 			self:RemoveEvent( "reload" )
 			
@@ -143,7 +137,7 @@ function SWEP:CanSecondaryAttack()
 		return false
 	end
 	
-	if ( iClip == 0 or iClip == -1 and self:GetDefaultClip2() ~= -1 and bEmpty ) then
+	if ( iClip == 0 or iClip == -1 and bEmpty and (self.UseClip1ForSecondary and self:GetDefaultClip1() or self:GetDefaultClip2()) ~= -1 ) then
 		self:HandleFireOnEmpty( true )
 		
 		return false

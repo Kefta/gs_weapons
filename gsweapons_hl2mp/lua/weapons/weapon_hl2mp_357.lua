@@ -1,7 +1,7 @@
 DEFINE_BASECLASS( "weapon_hl2mp_base" )
 
 --- GSBase
-SWEP.PrintName = "#HL2_357Handgun"
+SWEP.PrintName = "#HL2MP_357Handgun"
 SWEP.Spawnable = true
 SWEP.Slot = 1
 
@@ -27,7 +27,7 @@ SWEP.Primary = {
 
 if ( CLIENT ) then
 	SWEP.Category = "Half-Life 2 MP"
-	SWEP.KillIcon = 'e'
+	SWEP.KillIcon = '.'
 	SWEP.SelectionIcon = 'e'
 end
 

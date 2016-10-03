@@ -50,6 +50,11 @@ function ENT:Precache()
 	local tEnt = scripted_ents.GetStored( sClass )
 	DevMsg( 2, sClass .. " (gs_baseentity) Precache" )
 	
+	if ( CLIENT and self.KillIcon ~= '' ) then
+		-- Add KillIcon
+		killicon.AddFont( sClass, self.KillIconFont, self.KillIcon, self.KillIconColor )
+	end
+	
 	-- Precache entity model
 	util.PrecacheModel( self.Model )
 	
@@ -88,7 +93,7 @@ function ENT:Precache()
 end
 
 function ENT:SetupDataTables()
-	self:DTVar( "Float", 0, "NextThink" )
+	self:AddNWVar( "Float", "NextThink" )
 end
 
 function ENT:OnRemove()
@@ -166,6 +171,27 @@ end
 
 function ENT:RemoveEvent( sName )
 	self.m_tEvents[sName] = nil
+end
+
+function ENT:AddNWVar( sType, sName, bAddFunctions --[[= true]], DefaultVal --[[= nil]] )
+	-- Initialize could be skipped clientside
+	if ( not self.m_tNWVarSlots ) then
+		self.m_tNWVarSlots = {}
+	end
+	
+	local iSlot = self.m_tNWVarSlots[sType] or 0
+	self.m_tNWVarSlots[sType] = iSlot + 1
+	
+	self:DTVar( sType, iSlot, sName )
+	
+	if ( bAddFunctions or bAddFunctions == nil ) then
+		self["Get" .. sName] = function( self ) return self.dt[sName] end
+		self["Set" .. sName] = function( self, Val ) self.dt[sName] = Val end
+	end
+	
+	if ( DefaultVal ) then
+		self.dt[sName] = DefaultVal
+	end
 end
 
 function ENT:LookupSound( sName )

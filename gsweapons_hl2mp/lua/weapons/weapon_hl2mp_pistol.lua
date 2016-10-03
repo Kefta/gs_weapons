@@ -1,7 +1,7 @@
 DEFINE_BASECLASS( "weapon_hl2mp_base" )
 
 --- GSBase
-SWEP.PrintName = "#HL2_Pistol"
+SWEP.PrintName = "#HL2MP_Pistol"
 SWEP.Spawnable = true
 SWEP.Slot = 1
 
@@ -36,11 +36,11 @@ SWEP.Secondary.Spread = VECTOR_CONE_6DEGREES
 
 if ( CLIENT ) then
 	SWEP.Category = "Half-Life 2 MP"
-	SWEP.KillIcon = 'd'
+	SWEP.KillIcon = '-'
 	SWEP.SelectionIcon = 'd'
 end
 
---- HL2_Pistol
+--- HL2MP_Pistol
 SWEP.Refire = 0.1
 SWEP.AccuracyPenalty = 0.2 // Applied amount of time each shot adds to the time we must recover from
 SWEP.MaxAccuracyPenalty = 1.5 // Maximum penalty to deal out
@@ -49,11 +49,11 @@ SWEP.MaxAccuracyPenalty = 1.5 // Maximum penalty to deal out
 function SWEP:SetupDataTables()
 	BaseClass.SetupDataTables( self )
 	
-	self:DTVar( "Int", 2, "AnimLevel" )
-	self:DTVar( "Float", 7, "LastAttackTime" )
-	self:DTVar( "Float", 8, "AccuracyPenalty" )
-	self:DTVar( "Bool", 0, "DryFired" )
-	self:DTVar( "Bool", 1, "MouseHeld" )
+	self:AddNWVar( "Bool", "DryFired", false )
+	self:AddNWVar( "Bool", "MouseHeld", false )
+	self:AddNWVar( "Int", "AnimLevel", false )
+	self:AddNWVar( "Float", "AccuracyPenalty", false )
+	self:AddNWVar( "Float", "LastAttackTime", false )
 end
 
 local bSinglePlayer = game.SinglePlayer()

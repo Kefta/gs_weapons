@@ -1,7 +1,7 @@
 DEFINE_BASECLASS( "weapon_hl2mp_machinegun" )
 
 --- GSBase
-SWEP.PrintName = "#HL2_Pulse_Rifle"
+SWEP.PrintName = "#HL2MP_Pulse_Rifle"
 SWEP.Spawnable = true
 SWEP.Slot = 2
 
@@ -45,7 +45,7 @@ SWEP.TracerName = "AR2Tracer"
 
 if ( CLIENT ) then
 	SWEP.Category = "Half-Life 2 MP"
-	SWEP.KillIcon = 'l'
+	SWEP.KillIcon = '2'
 	SWEP.SelectionIcon = 'l'
 end
 
@@ -56,7 +56,7 @@ SWEP.PunchAngle = {
 }
 
 --- AR2
-SWEP.Entity = "prop_combine_ball"
+SWEP.SecondaryClass = "prop_combine_ball"
 
 function SWEP:ItemFrame()
 	BaseClass.ItemFrame( self )
@@ -102,17 +102,20 @@ function SWEP:SecondaryAttack()
 			pPlayer:ScreenFade( SCREENFADE.IN, color_white, 0.1, 0 )
 			
 			// Create the grenade
-			local pBall = ents.Create( self.Entity )
-			pBall:SetPos( self:GetShootSrc() )
-			pBall:_SetAbsVelocity( self:GetShootAngles():Forward() * 1000 )
-			pBall:SetOwner( pPlayer )
-			pBall:Spawn()
-			pBall:EmitSound( "NPC_CombineBall.Launch" )
+			local pBall = ents.Create( self.SecondaryClass )
 			
-			local pPhysObj = pBall:GetPhysicsObject()
-			
-			if ( pPhysObj ~= NULL ) then
-				pPhysObj:AddGameFlag( FVPHYSICS_WAS_THROWN )
+			if ( pBall ~= NULL ) then
+				pBall:SetPos( self:GetShootSrc() )
+				pBall:_SetAbsVelocity( self:GetShootAngles():Forward() * 1000 )
+				pBall:SetOwner( pPlayer )
+				pBall:Spawn()
+				pBall:EmitSound( "NPC_CombineBall.Launch" )
+				
+				local pPhysObj = pBall:GetPhysicsObject()
+				
+				if ( pPhysObj ~= NULL ) then
+					pPhysObj:AddGameFlag( FVPHYSICS_WAS_THROWN )
+				end
 			end
 		end
 		

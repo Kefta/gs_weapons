@@ -2,7 +2,6 @@ DEFINE_BASECLASS( "weapon_csbase_gun" )
 
 --- GSBase
 SWEP.PrintName = "CSBase_Rifle"
-SWEP.Spawnable = false
 SWEP.Slot = 2
 
 SWEP.HoldType = "ar2"

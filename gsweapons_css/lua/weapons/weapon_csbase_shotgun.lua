@@ -2,7 +2,6 @@ DEFINE_BASECLASS( "weapon_csbase_gun" )
 
 --- GSBase
 SWEP.PrintName = "CSBase_Shotgun"
-SWEP.Spawnable = false
 SWEP.Slot = 3
 
 SWEP.HoldType = "shotgun"
@@ -17,7 +16,7 @@ SWEP.Primary = {
 }
 
 SWEP.SingleReload = {
-	Enabled = true,
+	Enable = true,
 	QueuedFire = false,
 	InitialRound = false
 }

@@ -12,11 +12,11 @@ SWEP.Primary = {
 	WalkSpeed = 245/250
 }
 
-if ( CLIENT ) then
+if ( SERVER ) then
+	SWEP.Grenade = {
+		Class = "smokegrenade_projectile"
+	}
+else
 	SWEP.Category = "Counter-Strike: Source"
-	SWEP.KillIcon = 'p'
 	SWEP.SelectionIcon = 'p'
 end
-
---- CSBase_Grenade
-SWEP.Entity = "smokegrenade_projectile"

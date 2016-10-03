@@ -2,6 +2,7 @@ local function BulletImpulse( flGrains, flFtPerSec, flImpulse )
 	return flFtPerSec * flGrains * flImpulse * 0.00077897727272727
 end
 
+-- Episodic ammo types
 game.AddAmmoType({
 	name = "StriderMinigun_Episodic",
 	dmgtype = DMG_BULLET,
@@ -202,7 +203,7 @@ game.AddAmmoType({
 })
 
 game.AddAmmoType({
-	name = "Bullets",
+	name = "Bullets_SDK",
 	dmgtype = DMG_BULLET,
 	tracer = TRACER_LINE,
 	plydmg = 0,

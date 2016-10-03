@@ -2,20 +2,16 @@ DEFINE_BASECLASS( "hl1s_basehl1combatweapon" )
 
 --- GSBase
 SWEP.PrintName = "#HL1_HandGrenade"
-SWEP.Spawnable = false
 SWEP.Slot = 4
 
 SWEP.HoldType = "grenade"
 SWEP.Weight = 2
 
-if ( CLIENT ) then
-	SWEP.Category = "Counter-Strike: Source"
-end
-
 SWEP.Activities = {
 	idle2 = ACT_VM_FIDGET,
-	pull = ACT_VM_PRIMARYATTACK,
-	throw = ACT_HANDGRENADE_THROW1,
+	pullback = ACT_VM_PRIMARYATTACK,
+	throw = ACT_INVALID, -- Disable default throw anim
+	throw1 = ACT_HANDGRENADE_THROW1,
 	throw2 = ACT_HANDGRENADE_THROW2,
 	throw3 = ACT_HANDGRENADE_THROW3
 }
@@ -25,82 +21,19 @@ SWEP.Primary = {
 	Automatic = false
 }
 
-SWEP.EmptyCooldown = 0 -- Prevent MouseLifted from interfering with fire times
-
---- HL1_HandGrenade
-SWEP.ThrowDelay = 0.5
-SWEP.Entity = "grenade_hand"
-SWEP.DetonationTime = 1.5
-
---- GSBase
-function SWEP:SetupDataTables()
-	BaseClass.SetupDataTables( self )
-	
-	self:DTVar( "Bool", 0, "ShouldThrow" )
-end
-
-function SWEP:Holster()
-	-- No escape
-	local bCanHolster = BaseClass.Holster( self )
-	local pPlayer = self:GetOwner()
-	self:SetShouldThrow( false )
-	
-	if ( pPlayer == NULL or pPlayer:GetAmmoCount( self:GetPrimaryAmmoName() ) == 0 ) then
-		if ( SERVER ) then
-			self:Remove()
-		end
-		
-		return true
-	end
-	
-	return bCanHolster
-end
-
-function SWEP:MouseLifted()
-	if ( self:GetShouldThrow() ) then
-		self:SetShouldThrow( false )
-		
-		local pPlayer = self:GetOwner()
-		
-		self:AddEvent( "throw", self.ThrowDelay, function()
-			local flVel = self:Throw()
-			pPlayer:SetAnimation( PLAYER_ATTACK1 )
-			pPlayer:RemoveAmmo( 1, self:GetPrimaryAmmoName() )
-			self:PlaySound( "primary" )
-			
-			if ( flVel < 500 ) then
-				self:PlayActivity( "throw" )
-			elseif ( flVel < 1000 ) then
-				self:PlayActivity( "throw2" )
-			else
-				self:PlayActivity( "throw3" )
-			end
-			
-			return true
-		end )
-		
-		self:AddEvent( "reload", self:SequenceLength(), function()
-			if ( self:EventActive( "throw" )) then
-				return 0
-			end
-			
-			if ( pPlayer:GetAmmoCount( self:GetPrimaryAmmoName() ) == 0 ) then
-				if ( SERVER ) then
-					self:Remove()
-				end
-			else
-				self:PlayActivity( "deploy" )
-				
-				local flNewTime = CurTime() + self:SequenceLength()
-				self:SetNextPrimaryFire( flNewTime )
-				self:SetNextSecondaryFire( flNewTime )
-				self:SetNextReload( flNewTime )
-				self:SetNextIdle( flNewTime )
-			end
-			
-			return true
-		end )
-	end
+if ( SERVER ) then
+	SWEP.Grenade = {
+		--Delay = 0.5,
+		Class = "grenade_hand",
+		Timer = 1.5,
+		Damage = 150,
+		Radius = 375,
+		Angle = Angle(0, 0, 60),
+		Gravity = 400,
+		Friction = 0.8
+	}
+else
+	SWEP.Category = "Half-Life 1"
 end
 
 function SWEP:PrimaryAttack()
@@ -108,13 +41,7 @@ function SWEP:PrimaryAttack()
 		return false
 	end
 	
-	self:SetShouldThrow( true )
-	self:PlayActivity( "pull" )
-	
-	self:SetNextPrimaryFire(-1)
-	self:SetNextSecondaryFire(-1)
-	self:SetNextReload(-1)
-	self:SetNextIdle(-1)
+	self:Throw()
 	
 	return true
 end
@@ -142,10 +69,9 @@ end
 local flThrowUp = 8/9
 local flThrowDown = 10/9
 
---- Hand Grenade
 function SWEP:Throw()
 	local pPlayer = self:GetOwner()
-	local aThrow = pPlayer:GetShootAngles()
+	local aThrow = pPlayer:EyeAngles()
 	
 	// player is pitching up
 	aThrow.p = aThrow.p > 180 and -15 - (360 - aThrow.p) * flThrowUp
@@ -154,25 +80,29 @@ function SWEP:Throw()
 	
 	local flVel = (90 - aThrow.p) * 4
 	
+	-- Set activity based on the throw velocity
+	-- HL1 actually clamped the velocity before checking here
+	-- So the other animations were never played
+	if ( flVel < 500 ) then
+		self:PlayActivity( "throw1" )
+	elseif ( flVel < 1000 ) then
+		self:PlayActivity( "throw2" )
+	else
+		self:PlayActivity( "throw3" )
+	end
+	
 	if ( SERVER ) then
-		local vForward = aThrow:Forward()
+		--[[local vForward = aThrow:Forward()
 		-- Fix
 		local pGrenade = ents.Create( self.Entity )
 		pGrenade:SetPos( pPlayer:EyePos() + vForward * 16 )
 		pGrenade:_SetAbsVelocity( vForward * (flVel > 500 and 500 or flVel) + pPlayer:_GetAbsVelocity() )
-		--[[pGrenade:ApplyLocalAngularVelocityImpulse( Vector( random.RandomInt(-1200, 1200), 0, 600 ))
+		pGrenade:ApplyLocalAngularVelocityImpulse( Vector( random.RandomInt(-1200, 1200), 0, 600 ))
 		pGrenade:Spawn()
 		pGrenade:SetOwner( pPlayer )
-		pGrenade:StartDetonation( self.DetonationTime )]]
+		pGrenade:StartDetonation( tGrenade.Timer )]]
+		
+		return NULL
 	end
-	
-	return flVel
 end
 
-function SWEP:GetShouldThrow()
-	return self.dt.ShouldThrow
-end
-
-function SWEP:SetShouldThrow( bThrow )
-	self.dt.ShouldThrow = bThrow
-end

@@ -7,11 +7,11 @@ setfenv( 1, tLang )
 
 --- General
 language = "Español"
-GS_LanguageLoaded = "Idioma %q inicializado!"
 
---- GSWeaponBase
-GSWeaponBase_ToBurstFire = "Se ha cambiado al modo ráfaga"
-GSWeaponBase_FromBurstFire = "Se ha cambiado al modo semiautomático"
+--- GSWeapons
+GSWeapons_Loaded = "[GSWeapons] Inicializado con idioma %q"
+GSWeapons_ToBurstFire = "Se ha cambiado al modo ráfaga"
+GSWeapons_FromBurstFire = "Se ha cambiado al modo semiautomático"
 
 --- Counter-Strike: Source
 -- Pistols

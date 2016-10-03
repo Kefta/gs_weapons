@@ -4,7 +4,7 @@ include( "shared.lua" )
 SWEP.Category = "Source" -- Category in the spawn menu the weapon should appear in. This must be defined in every weapon!
 SWEP.DrawAmmo = true -- Draw HL2 ammo HUD when the weapon is out
 
-SWEP.KillIcon = 'v' -- Letter from the KillIconFont file to draw for killicon notifications
+SWEP.KillIcon = '' -- '' = no killicon. Letter from the KillIconFont file to draw for killicon notifications
 SWEP.KillIconFont = "HL2KillIcon" -- Font defined by surface.CreateFont to use for killicons
 SWEP.KillIconColor = Color(255, 80, 0, 255) -- Color of the font for killicons
 SWEP.SelectionIcon = 'V' -- Letter from the SelectionFont file to draw on the weapon selection panel
@@ -17,7 +17,7 @@ SWEP.BobSpeed = 320/250 -- Speed at which the bob is clamped at. Only affects cs
 
 SWEP.CrosshairStyle = "default" -- Style defined by gsweapons.RegisterCrosshair. Set to "" to disable crosshair drawing
 SWEP.ScopeStyle = "css" -- Style defined by gsweapons.RegsiterScope. Set to "" to disable scope drawing. Scope style to show if the weapon is zoomed and SWEP.Zoom.DrawOverlay is true
-SWEP.DrawCrosshair = true -- Call DoDrawCrosshair or not
+SWEP.DrawCrosshair = true -- Call DoDrawCrosshair or not. This will disable crosshair and scope drawing
 SWEP.AccurateCrosshair = false -- Moves crosshair with actual shooting position
 
 SWEP.CSSCrosshair = {
@@ -36,6 +36,19 @@ SWEP.EventStyle = {
 	-- HL2 muzzle flashes
 	[21] = "default", -- First-person
 	[22] = "default", -- Third-person
+	
+	-- Grenades
+	-- Throw events are handled by Think events
+	[3005] = "",
+	[3013] = "",
+	[3016] = "",
+	
+	-- Reload
+	[3015] = "default",
+	
+	-- Sequence end
+	-- Sequence lengths are managed by network vars
+	[3900] = "",
 	
 	-- CS:S muzzle flash
 	[5001] = "css", -- First-person, Attachment 0
@@ -93,30 +106,15 @@ function SWEP:FireAnimationEvent( vPos, ang, iEvent, sOptions )
 end
 
 function SWEP:DrawWeaponSelection( x, y, flWide, flTall )
-	draw.SimpleText( self.SelectionIcon, self.SelectionFont, x + flWide / 2, y + flTall * 0.2, self.SelectionColor, TEXT_ALIGN_CENTER )
+	draw.SimpleText( self.SelectionIcon, self.SelectionFont, x + flWide / 2, y + flTall * 0.1, self.SelectionColor, TEXT_ALIGN_CENTER )
 end
 
 --- Utilities
-surface.CreateFont( "HL2KillIcon", { font = "HL2MP", size = ScreenScale(30), weight = 500, additive = true })
-surface.CreateFont( "HL2Selection", { font = "HALFLIFE2", size = ScreenScale(120), weight = 500, additive = true })
-
 function SWEP:DrawWorldModel()
-	if ( self.SilencerModel ~= "" and self:Silenced() ) then
-		self.WorldModel = self.SilencerModel
-	else
-		self.WorldModel = self.m_sWorldModel
-	end
-	
 	self:DrawModel()
 end
 
 function SWEP:DrawWorldModelTranslucent()
-	if ( self.SilencerModel ~= "" and self:Silenced() ) then
-		self.WorldModel = self.SilencerModel
-	else
-		self.WorldModel = self.m_sWorldModel
-	end
-	
 	self:DrawModel()
 end
 

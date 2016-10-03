@@ -66,3 +66,10 @@ function DevMsg( iLevel, ... )
 		print( ... )
 	end
 end
+
+if ( CLIENT ) then
+	surface.CreateFont( "HL2KillIcon", { font = "HL2MP", size = ScreenScale(30), weight = 500, additive = true })
+	surface.CreateFont( "HL2Selection", { font = "HalfLife2", size = ScreenScale(120), weight = 500, additive = true })
+	surface.CreateFont( "CSSKillIcon", { font = "csd", size = ScreenScale(30), weight = 500, additive = true })
+	surface.CreateFont( "CSSSelection", { font = "cs", size = ScreenScale(120), weight = 500, additive = true })
+end

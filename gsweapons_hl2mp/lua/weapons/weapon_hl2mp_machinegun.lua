@@ -2,7 +2,6 @@ DEFINE_BASECLASS( "weapon_hl2mp_base" )
 
 --- GSBase
 SWEP.PrintName = "HL2MPBase_MachineGun"
-SWEP.Spawnable = false
 
 if ( CLIENT ) then
 	SWEP.Category = "Half-Life 2 MP"
@@ -29,8 +28,8 @@ SWEP.PunchAngle = {
 function SWEP:SetupDataTables()
 	BaseClass.SetupDataTables( self )
 	
-	self:DTVar( "Int", 2, "AnimLevel" ) // Number of consecutive shots fired
-	self:DTVar( "Float", 7, "FireDuration" )
+	self:AddNWVar( "Int", "AnimLevel" ) // Number of consecutive shots fired
+	self:AddNWVar( "Float", "FireDuration" )
 end
 
 function SWEP:ItemFrame()

@@ -2,7 +2,6 @@ DEFINE_BASECLASS( "weapon_csbase_gun" )
 
 --- GSBase
 SWEP.PrintName = "CSBase_AutoSniper"
-SWEP.Spawnable = false
 SWEP.Slot = 3
 
 SWEP.HoldType = "ar2"

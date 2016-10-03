@@ -37,6 +37,8 @@ if ( CLIENT ) then
 end
 
 --- MP5
+SWEP.SecondaryClass = "grenade_mp5"
+
 SWEP.PunchBounds = {
 	Min = -2,
 	Max = 2
@@ -70,7 +72,7 @@ function SWEP:SecondaryAttack()
 		self:SetNextReload( flNextTime )
 		
 		if ( SERVER ) then
-			local pGrenade = ents.Create( "grenade_mp5" )
+			local pGrenade = ents.Create( self.SecondaryClass )
 			pGrenade:SetPos( self:GetShootSrc() )
 			local vThrow = self:GetShootAngles():Forward() * 800
 			pGrenade:SetAngles( vThrow:Angle() )

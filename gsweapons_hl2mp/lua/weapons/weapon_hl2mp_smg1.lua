@@ -1,7 +1,7 @@
 DEFINE_BASECLASS( "weapon_hl2mp_machinegun" )
 
 --- GSBase
-SWEP.PrintName = "#HL2_SMG1"
+SWEP.PrintName = "#HL2MP_SMG1"
 SWEP.Spawnable = true
 SWEP.Slot = 2
 
@@ -42,7 +42,7 @@ SWEP.Secondary = {
 
 if ( CLIENT ) then
 	SWEP.Category = "Half-Life 2 MP"
-	SWEP.KillIcon = 'a'
+	SWEP.KillIcon = '/'
 	SWEP.SelectionIcon = 'a'
 end
 
@@ -55,7 +55,7 @@ SWEP.PunchAngle = {
 }
 
 --- SMG1
-SWEP.Entity = "grenade_ar2"
+SWEP.SecondaryClass = "grenade_ar2"
 
 function SWEP:SecondaryAttack()
 	if ( self:CanSecondaryAttack() ) then
@@ -73,14 +73,17 @@ function SWEP:SecondaryAttack()
 		
 		if ( SERVER ) then
 			// Create the grenade
-			local pGrenade = ents.Create( self.Entity )
-			pGrenade:SetPos( self:GetShootSrc() )
-			pGrenade:_SetAbsVelocity( self:GetShootAngles():Forward() * 1000 )
-			pGrenade:SetOwner( pPlayer )
-			pGrenade:SetLocalAngularVelocity( AngleRand( -400, 400 ))
-			pGrenade:Spawn()
-			pGrenade:SetMoveType( MOVETYPE_FLYGRAVITY )
-			pGrenade:SetMoveCollide( MOVECOLLIDE_FLY_BOUNCE )
+			local pGrenade = ents.Create( self.SecondaryClass )
+			
+			if ( pGrenade ~= NULL ) then
+				pGrenade:SetPos( self:GetShootSrc() )
+				pGrenade:_SetAbsVelocity( self:GetShootAngles():Forward() * 1000 )
+				pGrenade:SetOwner( pPlayer )
+				pGrenade:SetLocalAngularVelocity( AngleRand( -400, 400 ))
+				pGrenade:Spawn()
+				pGrenade:SetMoveType( MOVETYPE_FLYGRAVITY )
+				pGrenade:SetMoveCollide( MOVECOLLIDE_FLY_BOUNCE )
+			end
 		end
 	end
 end

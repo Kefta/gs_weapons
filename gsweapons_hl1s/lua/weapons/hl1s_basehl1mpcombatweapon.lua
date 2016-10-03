@@ -3,7 +3,6 @@
 DEFINE_BASECLASS( "hl1s_basehl1combatweapon" )
 
 SWEP.PrintName = "HLMPBase"
-SWEP.Spawnable = false
 
 if ( CLIENT ) then
 	SWEP.Category = "Half-Life: Source"

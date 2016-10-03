@@ -2,7 +2,6 @@ DEFINE_BASECLASS( "weapon_gs_base" )
 
 --- GSBase
 SWEP.PrintName = "HLBase"
-SWEP.Spawnable = false
 
 SWEP.ViewModelFOV = 90
 
@@ -14,13 +13,14 @@ SWEP.Sounds = {
 }
 
 SWEP.Primary = {
+	Damage = 0, -- HL1 uses ammo damage
 	ReloadOnEmptyFire = true,
 	Spread = vector_origin,
 	PunchAngle = vector_origin
 }
 
 SWEP.Secondary = {
-	Spread = NULL, -- NULL = off
+	Spread = NULL, -- Set to NULL to disable
 	PunchAngle = NULL
 }
 
@@ -35,7 +35,7 @@ local PLAYER = FindMetaTable( "Player" )
 function SWEP:Initialize()
 	BaseClass.Initialize( self )
 	
-	self.FireFunction = PLAYER.LuaFireBullets
+	self.FireFunction = PLAYER.FireLuaBullets
 end
 
 function SWEP:Punch( bSecondary )

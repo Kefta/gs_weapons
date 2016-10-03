@@ -16,7 +16,7 @@ do
 			return tHoldType
 		end
 		
-		DevMsg( 2, string.format( "[GSWeapons] (GetHoldType) HoldType %q not found. Sending back table for 'normal'." ))
+		DevMsg( 2, string.format( "[GSWeapons] (GetHoldType) HoldType %q not found. Sending back table for \"normal\".", sName ))
 		
 		return tHoldTypes["normal"] or {}
 	end
@@ -338,7 +338,6 @@ gsweapons.RegisterCrosshair( "css", function( pWeapon, x, y )
 	local iShotsFired = pWeapon:GetShotsFired()
 	
 	if ( iShotsFired > pWeapon.m_iAmmoLastCheck ) then
-		-- FIXME: Doesn't look right in-game
 		local flNewDist = pWeapon.m_flCrosshairDistance + pWeapon.CSSCrosshair.Delta
 		pWeapon.m_flCrosshairDistance = flNewDist > 15 and 15 or flNewDist
 	elseif ( pWeapon.m_flCrosshairDistance > iDistance ) then
@@ -454,6 +453,29 @@ gsweapons.RegisterScope( "css", function()
 	return true
 end )
 
+gsweapons.RegisterAnimEvent( 3015, "hl2_357", function( pWeapon )
+	local pPlayer = pWeapon:GetOwner()
+	
+	if ( pPlayer == NULL ) then
+		return true
+	end
+	
+	local vWorld = pPlayer:WorldSpaceCenter()
+	local aRand = Angle(90, 0, 0)
+	local data = EffectData()
+	data:SetEntIndex( pWeapon:EntIndex() )
+	
+	// Emit six spent shells
+	for i = 1, 6 do
+		data:SetOrigin( vWorld + VectorRand( -4, 4 ))
+		aRand[2] = random.RandomInt(0, 360)
+		data:SetAngles( aRand )
+		util.Effect( "ShellEject", data )
+	end	
+	
+	return true
+end )
+
 gsweapons.RegisterAnimEvent( {5001, 5011, 5021, 5031}, "css", function( pWeapon, _, _, iEvent )
 	if ( not pWeapon:Silenced() ) then
 		local pPlayer = pWeapon:GetOwner()
@@ -469,9 +491,9 @@ gsweapons.RegisterAnimEvent( {5001, 5011, 5021, 5031}, "css", function( pWeapon,
 		end
 		
 		local data = EffectData()
-			data:SetEntity( pViewModel )
-			data:SetAttachment( pWeapon:GetMuzzleAttachment( iEvent ))
-			data:SetScale( pWeapon:GetMuzzleFlashScale() )
+		data:SetEntity( pViewModel )
+		data:SetAttachment( pWeapon:GetMuzzleAttachment( iEvent ))
+		data:SetScale( pWeapon:GetMuzzleFlashScale() )
 		util.Effect( "CS_MuzzleFlash", data )
 	end
 	
@@ -548,7 +570,7 @@ gsweapons.RegisterAnimEvent( 20, "css", function( pWeapon, _, _, _, sOptions )
 		local iReplace = sEffect:find( cRep, 1, true )
 		
 		if ( iReplace ) then
-			sEffect = sEffect:SetChar( iReplace, "_" )
+			sEffect = sEffect:sub( 1, iReplace - 1 ) .. "_" .. sEffect:sub( iReplace + 1 )
 		end
 	else
 		sEffect = "EjectBrass_9mm"
@@ -601,12 +623,12 @@ local function ExplosionEffects( pGrenade )
 	
 	local pOwner = pGrenade:GetOwner()
 	local bInvalid = pOwner == NULL
-	local flDamage = pGrenade.Damage
+	local iDamage = pGrenade:GetDamage()
 	
 	local data = EffectData()
 		data:SetOrigin( vAbsOrigin )
-		data:SetMagnitude( flDamage )
-		data:SetScale( pGrenade.DamageRadius * 0.03 )
+		data:SetMagnitude( iDamage )
+		data:SetScale( pGrenade:GetDamageRadius() * 0.03 )
 		data:SetFlags( TE_EXPLFLAG_NOSOUND )
 	util.Effect( "Explosion", data )
 	util.Decal( "Scorch", tr.HitPos + tr.HitNormal, tr.HitPos - tr.HitNormal )
@@ -622,7 +644,7 @@ local function ExplosionEffects( pGrenade )
 	
 	local info = DamageInfo()
 		info:SetAttacker( bInvalid and pGrenade or pOwner )
-		info:SetDamage( flDamage )
+		info:SetDamage( iDamage )
 		info:SetDamageForce( pGrenade.Force )
 		info:SetDamagePosition( vAbsOrigin )
 		info:SetDamageType( DMG_BLAST )
@@ -635,7 +657,7 @@ end
 
 gsweapons.RegisterDetonationFunc( "explode", function( pGrenade )
 	local info = ExplosionEffects( pGrenade )
-	util.RadiusDamage( info, info:GetDamagePosition(), pGrenade.DamageRadius, pGrenade ) -- FIXME
+	util.RadiusDamage( info, info:GetDamagePosition(), pGrenade:GetDamageRadius(), pGrenade ) -- FIXME
 	pGrenade:Remove()
 	
 	return true
@@ -643,7 +665,15 @@ end )
 
 gsweapons.RegisterDetonationFunc( "explode_css", function( pGrenade )
 	local info = ExplosionEffects( pGrenade )
-	util.CSRadiusDamage( info, info:GetDamagePosition(), pGrenade.DamageRadius, pGrenade )
+	util.CSRadiusDamage( info, info:GetDamagePosition(), pGrenade:GetDamageRadius(), pGrenade )
+	pGrenade:Remove()
+	
+	return true
+end )
+
+gsweapons.RegisterDetonationFunc( "explode_sdk", function( pGrenade )
+	local info = ExplosionEffects( pGrenade )
+	util.SDKRadiusDamage( info, info:GetDamagePosition(), pGrenade:GetDamageRadius(), pGrenade )
 	pGrenade:Remove()
 	
 	return true
@@ -709,11 +739,11 @@ gsweapons.RegisterDetonationFunc( "flash", function( pGrenade )
 	vSrc[3] = vSrc[3] + 1 // in case grenade is lying on the ground
 	
 	if ( SERVER ) then
-		local flDamage = pGrenade.Damage
-		local flRadius = pGrenade.DamageRadius
+		local iDamage = pGrenade:GetDamage()
+		local flRadius = pGrenade:GetDamageRadius()
 		local tEnts = ents.FindInSphere( vSrc, flRadius )
 		local bInWater = util.PointContents( vSrc ) == CONTENTS_WATER
-		local flFalloff = flDamage / flRadius
+		local flFalloff = iDamage / flRadius
 		
 		// iterate on all entities in the vicinity.
 		for i = 1, #tEnts do
@@ -818,7 +848,7 @@ gsweapons.RegisterDetonationFunc( "flash", function( pGrenade )
 				local flDistance = vLOS:Length()
 				
 				// decrease damage for an ent that's farther from the grenade
-				local flAdjustedDamage = flDamage - flDistance * flFalloff
+				local flAdjustedDamage = iDamage - flDistance * flFalloff
 				
 				if ( flAdjustedDamage > 0 ) then
 					vLOS:Normalize()

@@ -43,16 +43,20 @@ function game.AddAmmoType( tAmmo )
 		MsgN( string.format( "BuildAmmoTypes already called! Ammo type %q will not be registered", tAmmo.name or "No Name" ))
 	elseif ( not tAmmo.name ) then
 		MsgN( "Ammo attempted to be registered with no name!" )
-	elseif ( tAmmoNames[tAmmo.name] ) then
-		MsgN( string.format( "Ammo %q registered twice; giving priority to later registration", tAmmo.name ))
-		tAmmo.num = tAmmoNames[tAmmo.name].num or #tAmmoTypes + 1
-		tAmmoTypes[tAmmo.num] = tAmmo
-		tAmmoNames[tAmmo.name] = tAmmo
 	else
-		local i = #tAmmoTypes + 1
-		tAmmo.num = i
-		tAmmoTypes[i] = tAmmo
-		tAmmoNames[tAmmo.name] = tAmmo
+		local sAmmo = tAmmo.name:lower()
+		
+		if ( tAmmoNames[sAmmo] ) then
+			MsgN( string.format( "Ammo %q registered twice; giving priority to later registration", tAmmo.name ))
+			tAmmo.num = tAmmoNames[sAmmo].num or #tAmmoTypes + 1
+			tAmmoTypes[tAmmo.num] = tAmmo
+			tAmmoNames[sAmmo] = tAmmo
+		else
+			local i = #tAmmoTypes + 1
+			tAmmo.num = i
+			tAmmoTypes[i] = tAmmo
+			tAmmoNames[sAmmo] = tAmmo
+		end
 	end
 end
 
@@ -68,48 +72,58 @@ function game.BuildAmmoTypes()
 end
 
 function game.GetAmmoDamageType( sAmmo )
+	sAmmo = sAmmo:lower()
 	return tAmmoNames[sAmmo] and (tAmmoNames[sAmmo].dmgtype or DMG_BULLET) or 0
 end
 
 function game.GetAmmoFlags( sAmmo )
+	sAmmo = sAmmo:lower()
 	return tAmmoNames[sAmmo] and tAmmoNames[sAmmo].flags or 0
 end
 
 function game.GetAmmoForce( sAmmo )
+	sAmmo = sAmmo:lower()
 	return tAmmoNames[sAmmo] and (tAmmoNames[sAmmo].force or 1000) or 0
 end
 
 function game.GetAmmoMaxCarry( sAmmo )
+	sAmmo = sAmmo:lower()
 	return tAmmoNames[sAmmo] and (tAmmoNames[sAmmo].maxcarry or 9999) or 0
 end
 
 function game.GetAmmoMaxSplash( sAmmo )
+	sAmmo = sAmmo:lower()
 	return tAmmoNames[sAmmo] and tAmmoNames[sAmmo].maxsplash or 0
 end
 
 function game.GetAmmoMinSplash( sAmmo )
+	sAmmo = sAmmo:lower()
 	return tAmmoNames[sAmmo] and tAmmoNames[sAmmo].minsplash or 0
 end
 
 function game.GetAmmoNPCDamage( sAmmo )
+	sAmmo = sAmmo:lower()
 	return tAmmoNames[sAmmo] and (tAmmoNames[sAmmo].npcdmg or 10) or 0
 end
 
 function game.GetAmmoPlayerDamage( sAmmo )
+	sAmmo = sAmmo:lower()
 	return tAmmoNames[sAmmo] and (tAmmoNames[sAmmo].plydmg or 10) or 0
 end
 
 function game.GetAmmoTracerType( sAmmo )
+	sAmmo = sAmmo:lower()
 	return tAmmoNames[sAmmo] and tAmmoNames[sAmmo].tracer or TRACER_NONE
 end
 
 -- For custom ammo keys!
 function game.GetAmmoKey( sAmmo, sKey, Default --[[= 0]] )
+	sAmmo = sAmmo:lower()
 	return tAmmoNames[sAmmo] and tAmmoNames[sAmmo][sKey] or Default or 0
 end
 
-local function AddDefaultAmmoType( sName, iDamageType, iTracer, iPlayerDamage, iNPCDamage, iMaxCarry, flForce, iFlags, iMinSplash, iMaxSplash )
-	tAmmoNames[sName] = {
+local function AddDefaultAmmoType( sAmmo, iDamageType, iTracer, iPlayerDamage, iNPCDamage, iMaxCarry, flForce, iFlags, iMinSplash, iMaxSplash )
+	tAmmoNames[sAmmo:lower()] = {
 		dmgtype = iDamageType,
 		tracer = iTracer,
 		plydmg = iPlayerDamage,

@@ -1,24 +1,22 @@
-DEFINE_BASECLASS( "weapon_basecsgrenade" )
+DEFINE_BASECLASS( "weapon_basesdkgrenade" )
 
 --- GSBase
-SWEP.PrintName = "#CStrike_HEGrenade"
+SWEP.PrintName = "#SDK_Grenade"
 SWEP.Spawnable = true
+SWEP.AdminOnly = true
 
 SWEP.ViewModel = "models/weapons/v_eq_fraggrenade.mdl"
 SWEP.WorldModel = "models/weapons/w_eq_fraggrenade.mdl"
 
-SWEP.Primary.Ammo = "HEGrenade"
+SWEP.Primary.Ammo = "Grenade_SDK"
+SWEP.Weight = 1
 
 if ( SERVER ) then
 	SWEP.Grenade = {
-		Class = "hegrenade_projectile",
+		Class = "grenade_sdk_projectile",
 		Radius = 350
 	}
 else
-	SWEP.Category = "Counter-Strike: Source"
+	SWEP.Category = "Source"
 	SWEP.SelectionIcon = 'h'
-	
-	SWEP.CSSCrosshair = {
-		Min = 8
-	}
 end

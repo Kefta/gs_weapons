@@ -1,45 +1,73 @@
-DEFINE_BASECLASS( "weapon_cs_base" )
+DEFINE_BASECLASS( "weapon_gs_base" )
 
 --- GSBase
-SWEP.PrintName = "CSBase_Gun"
+SWEP.PrintName = "SDKBase"
 
 SWEP.Sounds = {
-	secondary = "Default.Zoom",
 	empty = "Default.ClipEmpty_Rifle"
 }
 
 SWEP.Primary = {
-	RangeModifier = 0.98,
+	Ammo = "Bullets_SDK",
+	Range = 8000,
 	Spread = {
 		Base = 0,
 		Bias = 0.5
-	}
+	},
+	RangeModifier = 0.85
 }
 
-SWEP.Secondary = {
-	RangeModifier = -1,
-	Spread = {
-		Base = -1,
-		Bias = -1
-	}
+SWEP.Secondary.Spread = {
+	Base = -1,
+	Bias = -1
 }
 
 SWEP.TracerFreq = 0
 
 if ( CLIENT ) then
-	SWEP.Category = "Counter-Strike: Source"
+	SWEP.Category = "Source"
+	SWEP.KillIconFont = "CSSKillIcon"
+	SWEP.SelectionFont = "CSSSelection"
+	
+	-- No additions!
+	SWEP.BobStyle = ""
+	SWEP.CrosshairStyle = ""
+	SWEP.ScopeStyle = ""
+	SWEP.DrawCrosshair = false
+	
+	-- No events!
+	SWEP.EventStyle = {
+		-- CS:S bullet ejection
+		[20] = "",
+		
+		-- HL2 muzzle flashes
+		[21] = "", -- First-person
+		[22] = "", -- Third-person
+		
+		-- Reload
+		[3015] = "",
+		
+		-- CS:S muzzle flash
+		[5001] = "", -- First-person, Attachment 0
+		[5003] = "", -- Third-person, Attachment 0
+		[5011] = "", -- First-person, Attachment 1
+		[5013] = "", -- Third-person, Attachment 1
+		[5021] = "", -- First-person, Attachment 2
+		[5023] = "", -- Third-person, Attachment 2
+		[5031] = "", -- First-person, Attachment 3
+		[5033] = "", -- Third-person, Attachment 3
+		
+		-- HL2 bullet ejection
+		[6001] = ""
+	}
 end
 
---- CSBase_Gun
-SWEP.Penetration = 1
-
---- GSBase
 local PLAYER = FindMetaTable( "Player" )
 
 function SWEP:Initialize()
 	BaseClass.Initialize( self )
 	
-	self.FireFunction = PLAYER.FireCSSBullets
+	self.FireFunction = PLAYER.FireSDKBullets
 end
 
 function SWEP:UpdateBurstShotTable( tbl )
@@ -79,7 +107,6 @@ function SWEP:GetShotTable( bSecondary )
 		Distance = self:GetRange( bSecondary ),
 		--Flags = FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS,
 		Num = self:GetBulletCount( bSecondary ),
-		Penetration = self.Penetration,
 		RangeModifier = flRangeModifier,
 		ShootAngles = self:GetShootAngles(),
 		Spread = self:GetSpread( bSecondary ),
@@ -90,7 +117,10 @@ function SWEP:GetShotTable( bSecondary )
 	}
 end
 
---- CSBase_Gun
+function SWEP:DoMuzzleFlash()
+end
+
+--- SDKBase
 function SWEP:GetSpread( bSecondary --[[= self:SpecialActive()]] )
 	if ( bSecondary or bSecondary == nil and self:SpecialActive() ) then
 		local flSpecial = self.Secondary.Spread.Base

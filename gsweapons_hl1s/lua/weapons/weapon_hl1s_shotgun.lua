@@ -43,10 +43,10 @@ SWEP.Secondary = {
 }
 
 SWEP.SingleReload = {
-	Enabled = true
+	Enable = true
 }
 
-SWEP.CheckPrimaryClipForSecondary = true
+SWEP.UseClip1ForSecondary = true
 SWEP.EmptyCooldown = 0.75
 
 if ( CLIENT ) then

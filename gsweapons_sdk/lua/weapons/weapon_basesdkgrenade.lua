@@ -1,19 +1,11 @@
 DEFINE_BASECLASS( "weapon_cs_base" )
 
 --- GSBase
-SWEP.PrintName = "CSBase_Grenade"
+SWEP.PrintName = "SDKBase_Grenade"
 SWEP.Slot = 4
 
 SWEP.HoldType = "grenade"
 SWEP.Weight = 2
-
-SWEP.Activities = {
-	pullback = ACT_VM_PULLPIN
-}
-
-SWEP.Sounds = {
-	primary = "Radio.FireInTheHole"
-}
 
 SWEP.Primary = {
 	DefaultClip = 1,
@@ -24,14 +16,14 @@ SWEP.Grenade = {
 	Delay = 0.1,
 	Damage = SERVER and 100 or nil,
 	Radius = SERVER and 100 or nil,
-	Class = SERVER and "basecsgrenade" or nil,
+	Class = SERVER and "basesdkgrenade" or nil,
 	Timer = SERVER and 1.5 or nil
 }
 
 SWEP.RemoveOnEmpty = true
 
 if ( CLIENT ) then
-	SWEP.Category = "Counter-Strike: Source"
+	SWEP.Category = "Source"
 end
 
 function SWEP:PrimaryAttack()
@@ -47,8 +39,6 @@ end
 if ( SERVER ) then
 	local flThrowDown = 10/9
 	local flThrowUp = -8/9
-	local vHullMax = Vector(2, 2, 2)
-	local vHullMin = -vHullMax
 
 	function SWEP:EmitGrenade()
 		local tGrenade = self.Grenade
@@ -62,22 +52,12 @@ if ( SERVER ) then
 			
 			local flVel = (90 - aThrow.p) * 6
 			local vForward = aThrow:Forward()
-			local vSrc = pPlayer:GetPos() + pPlayer:GetViewOffset()
 			
-			pGrenade:SetPos( util.TraceHull( {
-					start = vSrc,
-					endpos = vSrc + vForward * 16,
-					mins = vHullMin,
-					maxs = vHullMax,
-					mask = MASK_SOLID,
-					filter = pPlayer
-				}).HitPos )
+			pGrenade:SetPos( pPlayer:GetPos() + pPlayer:GetViewOffset() + vForward * 16 )
 			pGrenade:SetOwner( pPlayer )
 			pGrenade:_SetAbsVelocity( vForward * (flVel > 750 and 750 or flVel) + pPlayer:_GetAbsVelocity() )
 			pGrenade:ApplyLocalAngularVelocityImpulse( Vector( 600, random.RandomInt(-1200, 1200), 0 ))
 			pGrenade:Spawn()
-			pGrenade:SetDamage( tGrenade.Damage )
-			pGrenade:SetDamageRadius( tGrenade.Radius )
 			pGrenade:StartDetonation( tGrenade.Timer )
 		end
 		

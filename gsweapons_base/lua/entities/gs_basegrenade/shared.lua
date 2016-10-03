@@ -10,9 +10,7 @@ ENT.Sounds = {
 
 --- BaseGrenade
 ENT.Force = vector_origin
-ENT.ThrowDamage = 1
-ENT.Damage = 100
-ENT.DamageRadius = 100
+--ENT.ThrowDamage = 1
 ENT.DetonationType = "explode"
 
 // smaller, cube bounding box so we rest on the ground
@@ -21,8 +19,8 @@ ENT.Size = {
 	Max = vector_origin
 }
 
-ENT.Shake = { -- Screen shake parameters for explosions. Set Amplitude to 0 to disable
-	Amplitude = 25,
+ENT.Shake = { -- Screen shake parameters for explosions
+	Amplitude = 25, -- Set Amplitude to 0 to disable shaking
 	Frequency = 150,
 	Duration = 1,
 	Radius = 750
@@ -43,10 +41,18 @@ function ENT:Initialize()
 	end
 end
 
+function ENT:SetupDataTables()
+	BaseClass.SetupDataTables( self )
+	
+	self:AddNWVar( "Int", "Damage", true, 100 )
+	self:AddNWVar( "Int", "DamageRadius", true, 100 )
+end
+
 --- BaseGrenade
 function ENT:Detonate()
 	return gsweapons.GetDetonationFunc( self.DetonationType )( self )
 end
+
 -- FIXME: Fix physics
 --[[function ENT:Touch_Bounce( pOther )
 	if ( pOther:IsSolidFlagSet( bit.bor( FSOLID_TRIGGER, FSOLID_VOLUME_CONTENTS ) ) ) then

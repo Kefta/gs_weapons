@@ -41,7 +41,7 @@ SWEP.Secondary = {
 	Spread = Vector(0.1, 0.1, 0.1)
 }
 
-SWEP.CheckPrimaryClipForSecondary = true
+SWEP.UseClip1ForSecondary = true
 
 if ( CLIENT ) then
 	SWEP.Category = "Half-Life: Source"

@@ -25,7 +25,7 @@ if ( CLIENT ) then
 		include( "code_gs/gsweapons_noplib.lua" )
 	end
 	
-	DevMsg( 1, string.format( "[GSWeapons] " .. language.GetPhrase( "GS_LanguageLoaded" ), language.GetPhrase( "language" )))
+	DevMsg( 1, string.format( language.GetPhrase( "GSWeapons_Loaded" ), language.GetPhrase( "language" )))
 else
 	local sLang = "code_gs/lang/"
 	local tFiles = file.Find( sLang .. "gsweapons_*.lua", "LUA" )
@@ -48,5 +48,5 @@ else
 		include( "code_gs/gsweapons_noplib.lua" )
 	end
 	
-	-- FIXME: Add message
+	MsgN( "[GSWeapons] Loaded!" )
 end

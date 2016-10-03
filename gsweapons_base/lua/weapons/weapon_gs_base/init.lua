@@ -9,7 +9,59 @@ end
 
 --- Weapon demeanour
 SWEP.DisableDuplicator = false -- Block spawning weapon with the duplicator
-SWEP.DropOnDie = false -- Drop the weapon on death. Player:ShouldDropWeapon() must be set to true
+
+--- Attack
+local vHullMax = Vector(6, 6, 6)
+local vHullMin = -vHullMax
+
+-- From the HL2 frag
+function SWEP:EmitGrenade()
+	local tGrenade = self.Grenade
+	local pGrenade = ents.Create( tGrenade.Class )
+	
+	if ( pGrenade ~= NULL ) then
+		local pPlayer = self:GetOwner()
+		local vEye = pPlayer:EyePos()
+		local aEye = pPlayer:ActualEyeAngles()
+		local vForward = aEye:Forward()
+		local vSrc = vEye + vForward * 18 + aEye:Right() * 8
+		vForward[3] = vForward[3] + 0.1
+		
+		local tr = util.TraceHull({
+			start = vEye,
+			endpos = vSrc,
+			mins = vHullMins,
+			maxs = vHullMaxs,
+			mask = MASK_PLAYERSOLID,
+			filter = pPlayer,
+			collisiongroup = pPlayer:GetCollisionGroup()
+		})
+		
+		if ( tr.Fraction ~= 1 or tr.AllSolid or tr.StartSolid ) then
+			vSrc = tr.HitPos
+		end
+		
+		pGrenade:SetPos( vSrc )
+		pGrenade:SetOwner( pPlayer )
+		pGrenade:Spawn()
+		
+		pGrenade:SetSaveValue( "m_takedamage", 1 )
+		pGrenade:SetSaveValue( "m_flDamage", tGrenade.Damage )
+		pGrenade:SetSaveValue( "m_DmgRadius", tGrenade.Radius )
+		pGrenade:SetSaveValue( "m_hThrower", pPlayer )
+		--pGrenade:SetSaveValue( "m_hOriginalThrower", pPlayer )
+		pGrenade:Fire( "SetTimer", tostring( tGrenade.Timer ))
+		
+		local pPhysObj = pGrenade:GetPhysicsObject()
+		
+		if ( pPhysObj ~= NULL ) then
+			pPhysObj:AddVelocity( pPlayer:_GetVelocity() + vForward * 1200 )
+			pPhysObj:AddAngleVelocity( Vector( 600, random.RandomInt(-1200, 1200), 0 ))
+		end
+	end
+	
+	return pGrenade 
+end
 
 --- Utilities
 SWEP.KeyValues = {} -- key = function( pWeapon, sValue ) end
@@ -53,7 +105,7 @@ end
 
 --- Accessors/Modifiers
 function SWEP:ShouldDropOnDie()
-	return self.DropOnDie
+	return false
 end
 
 --- Player functions

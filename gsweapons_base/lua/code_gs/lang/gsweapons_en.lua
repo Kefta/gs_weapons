@@ -7,11 +7,11 @@ setfenv( 1, tLang )
 
 --- General
 language = "English"
-GS_LanguageLoaded = "Language %q loaded!"
 
---- GSWeaponBase
-GSWeaponBase_ToBurstFire = "Switched to burst-fire mode"
-GSWeaponBase_FromBurstFire = "Switched to semi-automatic"
+--- GSWeapons
+GSWeapons_Loaded = "[GSWeapons] Loaded with language %q"
+GSWeapons_ToBurstFire = "Switched to burst-fire mode"
+GSWeapons_FromBurstFire = "Switched to semi-automatic"
 
 --- Counter-Strike: Source
 -- Pistols

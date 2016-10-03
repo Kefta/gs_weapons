@@ -10,15 +10,17 @@ SWEP.Weight = 1
 
 SWEP.Primary.Ammo = "Flashbang"
 
-if ( CLIENT ) then
+if ( SERVER ) then
+	SWEP.Grenade = {
+		Class = "flashbang_projectile",
+		Damage = 4,
+		Radius = 1500
+	}
+else
 	SWEP.Category = "Counter-Strike: Source"
-	SWEP.KillIcon = 'g'
 	SWEP.SelectionIcon = 'g'
 	
 	SWEP.CSSCrosshair = {
 		Min = 7
 	}
 end
-
---- CSBase_Grenade
-SWEP.Entity = "flashbang_projectile"

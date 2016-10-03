@@ -1,8 +1,7 @@
--- FIXME: Add anim events
 DEFINE_BASECLASS( "hl2_basehlcombatweapon" )
 
 --- GSBase
-SWEP.PrintName = "#HL2_357Handgun"
+SWEP.PrintName = "#HL2SP_357Handgun"
 SWEP.Spawnable = true
 SWEP.Slot = 1
 
@@ -10,6 +9,11 @@ SWEP.ViewModel = "models/weapons/v_357.mdl"
 SWEP.WorldModel = "models/weapons/w_357.mdl"
 
 SWEP.Weight = 7
+
+-- https://github.com/Facepunch/garrysmod-issues/issues/2847
+SWEP.Activities = {
+	[3015] = "hl2_357"
+}
 
 SWEP.Sounds = {
 	empty = "Weapon_Pistol.Empty",
@@ -21,14 +25,13 @@ SWEP.Primary = {
 	ClipSize = 6,
 	DefaultClip = 12,
 	Cooldown = 0.75,
-	Damage = 75,
 	FireUnderwater = false,
 	Spread = vector_origin
 }
 
 if ( CLIENT ) then
 	SWEP.Category = "Half-Life 2 SP"
-	SWEP.KillIcon = 'e'
+	SWEP.KillIcon = '.'
 	SWEP.SelectionIcon = 'e'
 end
 

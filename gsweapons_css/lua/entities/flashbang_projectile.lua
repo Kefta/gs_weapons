@@ -1,10 +1,13 @@
 AddCSLuaFile()
 DEFINE_BASECLASS( "basecsgrenade" )
 
---- GS_BaseEntity
+--- GSBase
+ENT.PrintName = "#CStrike_Flashbang"
 ENT.Model = "models/weapons/w_eq_flashbang_thrown.mdl"
 
---- GS_BaseGrenade
-ENT.Damage = 4
-ENT.DamageRadius = 1500
+if ( CLIENT ) then
+	ENT.KillIcon = 'g'
+end
+
+--- BaseGrenade
 ENT.DetonationType = "flash"

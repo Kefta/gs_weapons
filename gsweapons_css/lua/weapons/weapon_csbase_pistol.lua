@@ -2,7 +2,6 @@ DEFINE_BASECLASS( "weapon_csbase_gun" )
 
 --- GSBase
 SWEP.PrintName = "CSBase_Pistol"
-SWEP.Spawnable = false
 SWEP.Slot = 1
 
 SWEP.Weight = 5

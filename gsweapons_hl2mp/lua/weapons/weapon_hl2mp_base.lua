@@ -2,14 +2,13 @@ DEFINE_BASECLASS( "weapon_gs_base" )
 
 --- GSBase
 SWEP.PrintName = "HL2MPBase"
-SWEP.Spawnable = false
 
 SWEP.Primary = {
 	ReloadOnEmptyFire = true,
 	Spread = vector_origin
 }
 
-SWEP.Secondary.Spread = NULL -- NULL = off
+SWEP.Secondary.Spread = NULL -- Set to NULL to disable
 SWEP.EmptyCooldown = 0.75
 
 if ( CLIENT ) then
@@ -24,7 +23,7 @@ local PLAYER = FindMetaTable( "Player" )
 function SWEP:Initialize()
 	BaseClass.Initialize( self )
 	
-	self.FireFunction = PLAYER.LuaFireBullets
+	self.FireFunction = PLAYER.FireLuaBullets
 end
 
 function SWEP:GetShotTable( bSecondary )
