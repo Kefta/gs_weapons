@@ -67,20 +67,23 @@ SWEP.EventStyle = {
 --SWEP.RenderGroup = RENDERGROUP_OPAQUE -- April 2016: "RenderGroup of SENTs and SWEPs is now defaulted to engine default unless overridden ( instead of defaulting to RG_OPAQUE )"
 
 --- Holster
+net.Receive( "GSWeapons-Holster", function()
+	local pWeapon = net.ReadEntity()
+	
+	if ( pWeapon.SharedHolster and pWeapon.m_bDeployed ) then
+		local pSwitchingTo = net.ReadEntity()
+		local iIndex = pSwitchingTo:EntIndex()
+		pWeapon.dt.SwitchWeapon = iIndex
+		pWeapon:SharedHolster( iIndex == 0 and NULL or pSwitchingTo )
+	end
+end )
+
 if ( game.SinglePlayer() ) then
 	net.Receive( "GSWeapons-Holster animation", function()
 		local pWeapon = net.ReadEntity()
 		
 		if ( pWeapon.HolsterAnim ) then
 			pWeapon:HolsterAnim( net.ReadEntity() )
-		end
-	end )
-	
-	net.Receive( "GSWeapons-Holster", function()
-		local pWeapon = net.ReadEntity()
-		
-		if ( pWeapon.SharedHolster ) then
-			pWeapon:SharedHolster( net.ReadEntity() )
 		end
 	end )
 end

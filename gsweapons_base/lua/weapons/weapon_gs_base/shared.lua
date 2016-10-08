@@ -237,14 +237,11 @@ function SWEP:Initialize()
 	}
 	
 	self.m_bInitialized = true
-	self.m_bDeployed = false
 	self.m_bDeployedNoAmmo = false
-	self.m_bHolstered = false
 	self.m_bInHolsterAnim = false
 	self.m_bHolsterAnimDone = false
 	self.m_bAutoSwitchFrom = self.AutoSwitchFrom
 	self.m_iDoUpdate = 0
-	self.m_flHolsterTime = 0
 	self.m_sWorldModel = self.WorldModel
 	self.m_sHoldType = self.HoldType
 	self.m_tEvents = {}
@@ -263,6 +260,8 @@ function SWEP:Initialize()
 	end
 	
 	if ( CLIENT ) then
+		self.m_bDeployed = false
+		
 		self.BobScale = self.Primary.BobScale
 		self.SwayScale = self.Primary.SwaScale
 		
@@ -299,12 +298,20 @@ function SWEP:Precache()
 		if ( k ~= "BaseClass" ) then -- Stupid pseudo-inheritance
 			-- Register sound table
 			if ( istable( s )) then
-				if ( not s.name ) then
-					s.name = sClass .. "." .. k
-				end
-				
-				if ( not s.channel ) then
-					s.channel = CHAN_WEAPON
+				if ( s.sound ) then
+					if ( not s.name ) then
+						s.name = sClass .. "." .. k
+					end
+					
+					if ( not s.channel ) then
+						s.channel = CHAN_WEAPON
+					end
+				else
+					s = {
+						name = sClass .. "." .. k,
+						channel = CHAN_WEAPON,
+						sound = s
+					}
 				end
 				
 				sound.Add( s )
@@ -346,27 +353,27 @@ function SWEP:SetupDataTables()
 	self:AddNWVar( "Int", "ShotsFired" )
 	self:AddNWVar( "Int", "ShouldThrow" )
 	self:AddNWVar( "Int", "SpecialLevel", false ) -- We need to manage this with ZoomActiveTime
+	self:AddNWVar( "Int", "SwitchWeapon", false ) -- To manage clientside deploying
+	self:AddNWVar( "Float", "LastShootTime" )
+	self:AddNWVar( "Float", "NextIdle" )
+	self:AddNWVar( "Float", "NextIdle1" )
+	self:AddNWVar( "Float", "NextIdle2" )
 	self:AddNWVar( "Float", "NextThink" )
 	self:AddNWVar( "Float", "NextReload" )
 	self:AddNWVar( "Float", "ReduceShotTime" )
 	self:AddNWVar( "Float", "ZoomActiveTime" )
 	
-	-- These could be removed with https://github.com/Facepunch/garrysmod-requests/issues/704
-	self:AddNWVar( "Float", "NextIdle" )
-	self:AddNWVar( "Float", "NextIdle1" )
-	self:AddNWVar( "Float", "NextIdle2" )
-	
 	-- Below are the default CNetworkVars in the engine for reference
-	--self:DTVar( "Entity", 0, "Owner" )
-	--self:DTVar( "Float", 7, "NextPrimaryAttack" )
-	--self:DTVar( "Float", 8, "NextSecondaryAttack" )
-	--self:DTVar( "Int", 2, "ViewModelIndex" )
-	--self:DTVar( "Int", 3, "WorldModelIndex" )
-	--self:DTVar( "Int", 4, "State" )
-	--self:DTVar( "Int", 5, "PrimaryAmmoType" )
-	--self:DTVar( "Int", 6, "SecondaryAmmoType" )
-	--self:DTVar( "Int", 7, "Clip1" )
-	--self:DTVar( "Int", 8, "Clip2" )
+	--self:AddNWVar( "Entity", "Owner" )
+	--self:AddNWVar( "Float", "NextPrimaryAttack" )
+	--self:AddNWVar( "Float", "NextSecondaryAttack" )
+	--self:AddNWVar( "Int", "ViewModelIndex" )
+	--self:AddNWVar( "Int", "WorldModelIndex" )
+	--self:AddNWVar( "Int", "State" )
+	--self:AddNWVar( "Int", "PrimaryAmmoType" )
+	--self:AddNWVar( "Int", "SecondaryAmmoType" )
+	--self:AddNWVar( "Int", "Clip1" )
+	--self:AddNWVar( "Int", "Clip2" )
 end
 
 --- Deploy
@@ -376,7 +383,7 @@ end
 
 function SWEP:Deploy()
 	-- Do not deploy again
-	if ( self.m_bDeployed ) then
+	if ( self.dt.SwitchWeapon == -1 and (not CLIENT or self.m_bDeployed) ) then
 		return true
 	end
 	
@@ -404,12 +411,16 @@ function SWEP:SharedDeploy( bDelayed )
 		self:Initialize()
 	end
 	
-	DevMsg( 2, string.format( "%s (weapon_gs_base) Deployed %s", self:GetClass(), bDelayed and "late" or "on time" ))
+	DevMsg( 2, self:GetClass() .. " (weapon_gs_base) Deploy" )
 	
-	self.m_bDeployed = true
-	self.m_bHolstered = false
 	self.m_bInHolsterAnim = false
 	self.m_bHolsterAnimDone = false
+	
+	if ( SERVER ) then
+		self.dt.SwitchWeapon = -1
+	else
+		self.m_bDeployed = true
+	end
 	
 	if ( not self:HasAmmo() ) then
 		self.m_bDeployedNoAmmo = true
@@ -452,7 +463,9 @@ function SWEP:CanHolster()
 end
 
 function SWEP:Holster( pSwitchingTo )
-	if ( self.m_bHolstered ) then
+	-- Do not holster again
+	-- https://github.com/Facepunch/garrysmod-issues/issues/2854
+	if ( pSwitchingTo == self or self.dt.SwitchWeapon ~= -1 and not (CLIENT and self.m_bDeployed) ) then
 		return true
 	end
 	
@@ -487,12 +500,23 @@ function SWEP:Holster( pSwitchingTo )
 			else
 				self:SharedHolster( pSwitchingTo )
 				
-				-- Clientside does not run Holster in single-player
-				if ( bSinglePlayer ) then
-					net.Start( "GSWeapons-Holster" )
-						net.WriteEntity( self )
-						net.WriteEntity( pSwitchingTo )
-					net.Send( pPlayer )
+				if ( SERVER ) then
+					-- Clientside does not run Holster in single-player
+					if ( bSinglePlayer or pSwitchingTo == NULL ) then
+						net.Start( "GSWeapons-Holster" )
+							net.WriteEntity( self )
+							net.WriteEntity( pSwitchingTo )
+						net.Broadcast()
+					else
+						timer.Create( "GSWeapons-Select holster-" .. self:EntIndex(), 0, 1, function()
+							if ( self ~= NULL ) then
+								net.Start( "GSWeapons-Holster" )
+									net.WriteEntity( self )
+									net.WriteEntity( pSwitchingTo )
+								net.Broadcast()
+							end
+						end )
+					end
 				end
 				
 				return true
@@ -601,17 +625,37 @@ function SWEP:HolsterAnim( pSwitchingTo )
 end
 
 function SWEP:SharedHolster( pSwitchingTo )
+	if ( SERVER ) then
+		self.dt.SwitchWeapon = pSwitchingTo:EntIndex()
+		bRun = true
+	else
+		self.m_bDeployed = false
+		bRun = not bSinglePlayer
+		
+		if ( pSwitchingTo:EntIndex() == 0 ) then
+			pSwitchingTo = NULL
+		end
+	end
+	
 	DevMsg( 2, string.format( "%s (weapon_gs_base) Holster to %s", self:GetClass(), tostring( pSwitchingTo )))
 	
-	local bRun = not bSinglePlayer or SERVER
+	self.m_bDeployedNoAmmo = false
 	local pPlayer = self:GetOwner()
-	local bIsValid = pPlayer ~= NULL
-	local flCurTime = CurTime()
+	local bIsValid = pPlayewr ~= NULL
+	local bRun
+	
+	if ( SERVER ) then
+		self.dt.SwitchWeapon = pSwitchingTo:EntIndex()
+		bRun = true
+	else
+		self.m_bDeployed = false
+		bRun = not bSinglePlayer
+	end
 	
 	-- These are already set if there was a holster animation
 	if ( not self.HolsterAnimation ) then
 		if ( bRun and bIsValid and self.HolsterReloadTime ~= -1 and self:EventActive( "reload" )) then
-			local flReloadTime = flCurTime + self.HolsterReloadTime
+			local flReloadTime = CurTime() + self.HolsterReloadTime
 			local sName = "GSWeapons-Holster reload-" .. self:EntIndex()
 			
 			hook.Add( "Think", sName, function()
@@ -670,17 +714,6 @@ function SWEP:SharedHolster( pSwitchingTo )
 		end
 	end
 	
-	self.m_bHolstered = true
-	self.m_flHolsterTime = flCurTime
-	
-	-- Don't let Think re-deploy after Holster
-	timer.Simple( 0, function()
-		if ( self ~= NULL ) then
-			self.m_bDeployed = false
-			self.m_bDeployedNoAmmo = false
-		end
-	end )
-	
 	if ( bRun ) then
 		-- Hide the extra viewmodels
 		if ( self.ViewModel1 ~= "" ) then
@@ -735,14 +768,30 @@ function SWEP:Think()
 	end
 	
 	-- For clientside deployment in single-player or by use of Player:SelectWeapon()
-	if ( not self.m_bDeployed ) then
-		if ( self:CanDeploy() ) then
-			self:SharedDeploy( true )
+	if ( CLIENT ) then
+		if ( timer.Exists( "GSWeapons-Think deploy-" .. self:EntIndex() )) then
+			return
 		end
 		
-		-- Weapon is already deployed; CanDeploy should not return differently per realm
-		-- But in-case it does, do not check every Think
-		self.m_bDeployed = true
+		-- The default bobbing algorithm calls upon the set variables BobScale and SwayScale
+		-- So instead of using a conditional accessor, these have to be set as soon as SpecialActive changes
+		local bSecondary = self:SpecialActive()
+		self.BobScale = bSecondary and self.Secondary.BobScale ~= -1 and self.Secondary.BobScale or self.Primary.BobScale
+		self.SwayScale = bSecondary and self.Secondary.SwayScale ~= -1 and self.Secondary.SwayScale or self.Primary.SwayScale
+		
+		if ( not self.m_bDeployed and self.dt.SwitchWeapon == -1 ) then
+			timer.Create( "GSWeapons-Think deploy-" .. self:EntIndex(), 0, 1, function()
+				if ( self ~= NULL and pPlayer ~= NULL and not self.m_bDeployed and self.dt.SwitchWeapon == -1 ) then
+					if ( self:CanDeploy() ) then
+						self:SharedDeploy( true )
+					end
+					
+					self.m_bDeployed = true
+				end
+			end )
+			
+			return
+		end
 	end
 	
 	self:UpdateWorldModel()
@@ -787,14 +836,6 @@ function SWEP:Think()
 	
 	if ( flNextThink ~= -1 and flNextThink <= flCurTime ) then
 		self:ItemFrame()
-	end
-	
-	-- The default bobbing algorithm calls upon the set variables BobScale and SwayScale
-	-- So instead of using a conditional accessor, these have to be set as soon as SpecialActive changes
-	if ( CLIENT ) then
-		local bSecondary = self:SpecialActive()
-		self.BobScale = bSecondary and self.Secondary.BobScale ~= -1 and self.Secondary.BobScale or self.Primary.BobScale
-		self.SwayScale = bSecondary and self.Secondary.SwayScale ~= -1 and self.Secondary.SwayScale or self.Primary.SwayScale
 	end
 	
 	if ( (SERVER or not bSinglePlayer) and (self:Clip1() ~= 0 or self:LookupActivity( "dryfire" ) == ACT_INVALID) and (not self:Silenced() or self:LookupActivity( "s_idle" ) ~= ACT_INVALID) ) then 
@@ -848,12 +889,14 @@ function SWEP:MouseLifted()
 		local flDelay = self.Grenade.Delay
 		
 		if ( flDelay == -1 ) then
+			self:SetLastShootTime( CurTime() )
 			self:EmitGrenade( iThrow == 2 )
 			self:PlaySound( "primary" )
 			pPlayer:RemoveAmmo( 1, self:GetPrimaryAmmoName() )
 			self.AutoSwitchFrom = self.m_bAutoSwitchFrom
 		else
 			self:AddEvent( "throw", flDelay, function()
+				self:SetLastShootTime( CurTime() )
 				self:EmitGrenade( iThrow == 2 )
 				self:PlaySound( "primary" )
 				pPlayer:RemoveAmmo( 1, self:GetPrimaryAmmoName() )
@@ -1152,10 +1195,14 @@ function SWEP:Shoot( bSecondary --[[= false]], iClipDeduction --[[= 1]] )
 			end
 			
 			pPlayer:SetAnimation( PLAYER_ATTACK1 )
+			self:SetShotsFired( self:GetShotsFired() + 1 )
 			self:DoMuzzleFlash()
 			self:PlaySound( bSecondary and "secondary" or "primary" )
 			self:PlayActivity( "burst" )
 			self:UpdateBurstShotTable( tbl )
+			
+			local flCurTime = CurTime()
+			self:SetLastShootTime( flCurTime )
 			
 			if ( tPhysicalBullets.Enable ) then
 				if ( SERVER ) then
@@ -1175,7 +1222,7 @@ function SWEP:Shoot( bSecondary --[[= false]], iClipDeduction --[[= 1]] )
 			end
 			
 			if ( iCurCount == iCount or bDeductClip and iClip < iClipDeduction ) then
-				local flNewTime = CurTime() + self:GetCooldown( true )
+				local flNewTime = flCurTime + self:GetCooldown( true )
 				self:SetNextPrimaryFire( flNewTime )
 				self:SetNextSecondaryFire( flNewTime )
 				self:SetNextReload( flNewTime )
@@ -1254,6 +1301,9 @@ function SWEP:Shoot( bSecondary --[[= false]], iClipDeduction --[[= 1]] )
 	self:PlaySound( bSecondary and "secondary" or "primary" )
 	self:PlayActivity( bSecondary and "secondary" or "primary" )
 	
+	local flCurTime = CurTime()
+	self:SetLastShootTime( flCurTime )
+	
 	-- The zoom level needs to be set before PlayActivity but the times need to be set after
 	-- So do two seperate burst blocks
 	if ( bBurst ) then
@@ -1261,7 +1311,7 @@ function SWEP:Shoot( bSecondary --[[= false]], iClipDeduction --[[= 1]] )
 		self:SetNextSecondaryFire(-1)
 		self:SetNextReload(-1)
 	else
-		local flNextTime = CurTime() + flCooldown
+		local flNextTime = flCurTime + flCooldown
 		self:SetNextPrimaryFire( flNextTime )
 		self:SetNextSecondaryFire( flNextTime )
 		self:SetNextReload( flNextTime )

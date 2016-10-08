@@ -2488,6 +2488,17 @@ function util.SeedFileLineHash( iSeed, sName, iAdditionalSeed /*=0*/ )
 	return tonumber( util.CRC(( "%i%i%s" ):format( iSeed, iAdditionalSeed or 0, sName )))
 end
 
+local fLastShootTime = WEAPON.LastShootTime
+
+-- https://github.com/Facepunch/garrysmod-requests/issues/825
+function WEAPON:LastShootTime()
+	if ( self.GetLastShootTime ) then
+		return self:GetLastShootTime()
+	end
+	
+	return fLastShootTime( self )
+end
+
 -- https://github.com/Facepunch/garrysmod-issues/issues/2543
 function WEAPON:GetActivityBySequence( iIndex )
 	if ( not iIndex ) then
