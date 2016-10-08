@@ -35,6 +35,12 @@ SPECIAL_BURST = 2
 SPECIAL_ZOOM = 3
 SPECIAL_IRONSIGHTS = 4
 
+-- Grenade throw type enums
+GRENADE_THROW = 1
+GRENADE_TOSS = 2
+GRENADE_LOB = 3
+GRENADE_COUNT = 4 -- Number of throw types
+
 // -----------------------------------------
 //	Vector cones
 // -----------------------------------------
@@ -65,6 +71,18 @@ function DevMsg( iLevel, ... )
 	if ( developer:GetInt() >= iLevel ) then
 		print( ... )
 	end
+end
+
+local WEAPON = FindMetaTable( "Weapon" )
+local fLastShootTime = WEAPON.LastShootTime
+
+-- https://github.com/Facepunch/garrysmod-requests/issues/825
+function WEAPON:LastShootTime()
+	if ( self.GetLastShootTime ) then
+		return self:GetLastShootTime()
+	end
+	
+	return fLastShootTime( self )
 end
 
 if ( CLIENT ) then

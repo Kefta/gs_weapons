@@ -10,10 +10,6 @@ SWEP.WorldModel = "models/weapons/w_shotgun.mdl"
 SWEP.HoldType = "shotgun"
 SWEP.Weight = 4
 
-SWEP.Activities = {
-	pump = ACT_SHOTGUN_PUMP
-}
-
 SWEP.Sounds = {
 	empty = "Weapon_Shotgun.Empty",
 	reload = "Weapon_Shotgun.Reload",
@@ -41,6 +37,7 @@ SWEP.SingleReload = {
 	Enable = true
 }
 
+SWEP.DoPump = true
 SWEP.UseClip1ForSecondary = true
 
 if ( CLIENT ) then
@@ -56,16 +53,11 @@ function SWEP:SharedDeploy( bDelayed )
 	self:SetBodygroup(1, 1)
 end
 
--- StartReload
-function SWEP:Reload()
-	if ( BaseClass.Reload( self )) then
-		// Make shotgun shell visible
-		self:SetBodygroup(0, 1)
-		
-		return true
-	end
+function SWEP:ReloadClips( iIndex --[[= nil]] )
+	BaseClass.ReloadClips( self, iIndex )
 	
-	return false
+	// Make shotgun shell visible
+	self:SetBodygroup(0, 1)
 end
 
 function SWEP:FinishReload()
@@ -75,7 +67,7 @@ end
 
 function SWEP:SecondaryAttack()
 	if ( self:Clip1() == 1 ) then
-		self:PrimaryAttack()
+		self:Shoot()
 		
 		return false
 	end
@@ -91,24 +83,6 @@ end
 
 function SWEP:Shoot( bSecondary --[[= false]], iClipDeduction --[[= 1]] )
 	BaseClass.Shoot( self, bSecondary, iClipDeduction )
-	
-	self:SetNextPrimaryFire(-1)
-	self:SetNextSecondaryFire(-1)
-	self:SetNextReload(-1)
-	
-	-- Pump it up
-	self:AddEvent( "pump", self:SequenceLength(), function() 
-		self:PlaySound( "pump" )
-		self:PlayActivity( "pump" )
-		
-		-- Cooldown is sequence based
-		local flNextTime = CurTime() + self:SequenceLength()
-		self:SetNextPrimaryFire( flNextTime )
-		self:SetNextSecondaryFire( flNextTime )
-		self:SetNextReload( flNextTime )
-		
-		return true
-	end )
 	
 	-- If the reload was interrupted
 	self:SetBodygroup(1, 1)

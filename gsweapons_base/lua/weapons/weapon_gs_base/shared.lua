@@ -51,6 +51,7 @@ SWEP.Activities = { -- Default activity events
 	holster = ACT_VM_HOLSTER,
 	idle = ACT_VM_IDLE,
 	burst = ACT_VM_PRIMARYATTACK,
+	pump = ACT_SHOTGUN_PUMP,
 	-- For silencers. If a silenced activity isn't available, the weapon will fallback to the non-silenced version
 	s_primary = ACT_VM_PRIMARYATTACK_SILENCED,
 	--s_dryfire = ACT_VM_DRYFIRE_SILENCED, -- Silenced dryfire. Implement activity to use; defaults to "s_primary"
@@ -81,6 +82,7 @@ SWEP.Sounds = {
 	--reload = "",
 	--empty = "",
 	--holster = "",
+	--pump = "",
 	-- For silencers
 	--s_deploy = "",
 	--s_primary = "",
@@ -88,9 +90,12 @@ SWEP.Sounds = {
 	--s_reload = "",
 	--s_empty = "",
 	--s_holster = "",
+	--s_pump = "",
 	-- For single reloading
 	--reload_start = "",
 	--reload_finish = "",
+	--s_reload_start = "",
+	--s_reload_finish = "",
 	-- For grenades
 	--pullback = "",
 	--throw = ""
@@ -199,6 +204,8 @@ SWEP.SpecialType = 0 -- Sets what the secondary fire should do. Uses SPECIAL enu
 -- SPECIAL_ZOOM: Zooms in the weapon by setting the player's FOV. Can have multiple levels
 -- SPECIAL_IRONSIGHTS: "Zooms" in the weapon by moving the viewmodel
 
+SWEP.DoPump = false -- Do a pump animation after shooting
+
 SWEP.AutoSwitchOnEmpty = false -- Automatically switch away if the weapon is completely empty and the mouse is not being held. Ignores AutoSwitchFrom
 SWEP.SwitchOnEmptyFire = false -- Switch away if the weapon is fired with no ammo
 SWEP.RemoveOnEmpty = false -- Remove the weapon when it runs out of ammo
@@ -241,7 +248,7 @@ function SWEP:Initialize()
 	self.m_bInHolsterAnim = false
 	self.m_bHolsterAnimDone = false
 	self.m_bAutoSwitchFrom = self.AutoSwitchFrom
-	self.m_iDoUpdate = 0
+	self.m_iWorldModelUpdate = 0
 	self.m_sWorldModel = self.WorldModel
 	self.m_sHoldType = self.HoldType
 	self.m_tEvents = {}
@@ -881,23 +888,28 @@ function SWEP:MouseLifted()
 	
 	if ( iThrow ~= 0 ) then
 		self:SetShouldThrow(0)
+		local iIndex
+		
+		if ( iThrow > GRENADE_COUNT ) then
+			iIndex = math.floor( iThrow / GRENADE_COUNT ) - 1
+		end
 		
 		pPlayer:SetAnimation( PLAYER_ATTACK1 )
 		self:PlaySound( "throw" )
-		self:PlayActivity( "throw" )
+		self:PlayActivity( "throw", iIndex )
 		
 		local flDelay = self.Grenade.Delay
 		
 		if ( flDelay == -1 ) then
 			self:SetLastShootTime( CurTime() )
-			self:EmitGrenade( iThrow == 2 )
+			self:EmitGrenade( iThrow % GRENADE_COUNT )
 			self:PlaySound( "primary" )
 			pPlayer:RemoveAmmo( 1, self:GetPrimaryAmmoName() )
 			self.AutoSwitchFrom = self.m_bAutoSwitchFrom
 		else
 			self:AddEvent( "throw", flDelay, function()
 				self:SetLastShootTime( CurTime() )
-				self:EmitGrenade( iThrow == 2 )
+				self:EmitGrenade( iThrow % GRENADE_COUNT )
 				self:PlaySound( "primary" )
 				pPlayer:RemoveAmmo( 1, self:GetPrimaryAmmoName() )
 				self.AutoSwitchFrom = self.m_bAutoSwitchFrom
@@ -906,7 +918,7 @@ function SWEP:MouseLifted()
 			end )
 		end
 		
-		self:AddEvent( "reload", self:SequenceLength(), function()
+		self:AddEvent( "reload", self:SequenceLength( iIndex ), function()
 			if ( self:EventActive( "throw" )) then
 				return 0
 			end
@@ -920,9 +932,9 @@ function SWEP:MouseLifted()
 					self:SetNextReload(0)
 				end
 			else
-				self:PlayActivity( "deploy" )
+				self:PlayActivity( "deploy", iIndex )
 				
-				local flNewTime = CurTime() + self:SequenceLength()
+				local flNewTime = CurTime() + self:SequenceLength( iIndex )
 				self:SetNextPrimaryFire( flNewTime )
 				self:SetNextSecondaryFire( flNewTime )
 				self:SetNextReload( flNewTime )
@@ -969,19 +981,19 @@ function SWEP:UpdateWorldModel()
 	-- Silenced weapon
 	if ( self:Silenced() and self.SilencerModel ~= "" ) then
 		-- Only set once
-		if ( self.m_iDoUpdate ~= 1 ) then
+		if ( self.m_iWorldModelUpdate ~= 1 ) then
 			self.WorldModel = self.SilencerModel
-			self.m_iDoUpdate = 1 -- Update world model only
+			self.m_iWorldModelUpdate = 1 -- Update world model only
 		end
 	-- Empty grenade
 	elseif ( pPlayer ~= NULL ) then
 		local iAmmoType = self:GetPrimaryAmmoType()
 		
 		if ( not self.RemoveOnEmpty and self:Clip1() == -1 and iAmmoType ~= -1 and pPlayer:GetAmmoCount( iAmmoType ) == 0 ) then
-			if ( self.m_iDoUpdate ~= 2 ) then
+			if ( self.m_iWorldModelUpdate ~= 2 ) then
 				self:SetHoldType( "normal" )
 				self.WorldModel = ""
-				self.m_iDoUpdate = 2 -- Update view model, world model and hold type
+				self.m_iWorldModelUpdate = 2 -- Update view model, world model and hold type
 			
 				local pViewModel = pPlayer:GetViewModel()
 				
@@ -989,13 +1001,13 @@ function SWEP:UpdateWorldModel()
 					pViewModel:SetVisible( false )
 				end
 			end
-		elseif ( self.m_iDoUpdate == 1 ) then
+		elseif ( self.m_iWorldModelUpdate == 1 ) then
 			self.WorldModel = self.m_sWorldModel
-			self.m_iDoUpdate = 0
-		elseif ( self.m_iDoUpdate == 2 ) then
+			self.m_iWorldModelUpdate = 0
+		elseif ( self.m_iWorldModelUpdate == 2 ) then
 			self:SetHoldType( self.m_sHoldType )
 			self.WorldModel = self.m_sWorldModel
-			self.m_iDoUpdate = 0
+			self.m_iWorldModelUpdate = 0
 			
 			local pViewModel = pPlayer:GetViewModel()
 			
@@ -1012,7 +1024,8 @@ function SWEP:UpdateWorldModel()
 		end
 	end
 end
-
+-- FIXME: Add queued reloading and check out secondary fire behaviour
+-- Also finish supporting multiple view models
 --- Attack
 function SWEP:CanPrimaryAttack()
 	if ( self:GetNextPrimaryFire() == -1 ) then
@@ -1031,27 +1044,32 @@ function SWEP:CanPrimaryAttack()
 	
 	-- In the middle of a reload
 	if ( self:EventActive( "reload" )) then
-		if ( self.SingleReload.Enable and self.SingleReload.QueuedFire ) then
-			local flNextTime = self:SequenceEnd()
-			self:RemoveEvent( "reload" )
-			
-			self:AddEvent( "fire", flNextTime, function()
-				self:PrimaryAttack()
+		if ( iClip ~= 0 ) then
+			if ( self.SingleReload.Enable and self.SingleReload.QueuedFire ) then
+				local flNextTime = self:SequenceEnd(0)
+				self:RemoveEvent( "reload" )
 				
-				return true
-			end )
-			
-			flNextTime = CurTime() + flNextTime + 0.1
-			self:SetNextPrimaryFire( flNextTime )
-			self:SetNextSecondaryFire( flNextTime )
-			self:SetNextReload( flNextTime )
-			
-			return false
-		-- Interrupt the reload to fire
-		elseif ( self.Primary.InterruptReload and iClip ~= 0 and (self.Primary.FireUnderwater or iWaterLevel ~= 3) ) then
-			-- Stop the reload
-			self:SetNextReload( CurTime() - 0.1 )
-			self:RemoveEvent( "reload" )
+				self:AddEvent( "fire", flNextTime, function()
+					self:PrimaryAttack()
+					
+					return true
+				end )
+				
+				-- PrimaryAttack is called before Think
+				flNextTime = CurTime() + flNextTime + 0.1
+				self:SetNextPrimaryFire( flNextTime )
+				self:SetNextSecondaryFire( flNextTime )
+				self:SetNextReload( flNextTime )
+				
+				return false
+			-- Interrupt the reload to fire
+			elseif ( self.Primary.InterruptReload and (self.Primary.FireUnderwater or iWaterLevel ~= 3) ) then
+				-- Stop the reload
+				self:SetNextReload( CurTime() - 0.1 )
+				self:RemoveEvent( "reload" )
+			else
+				return false
+			end
 		else
 			return false
 		end
@@ -1101,7 +1119,7 @@ function SWEP:CanSecondaryAttack()
 	
 	if ( self:EventActive( "reload" )) then
 		if ( self.SingleReload.Enable and self.SingleReload.QueuedFire ) then
-			local flNextTime = self:SequenceEnd()
+			local flNextTime = self:SequenceEnd(0)
 			self:RemoveEvent( "reload" )
 			
 			self:AddEvent( "fire", flNextTime, function()
@@ -1155,7 +1173,7 @@ function SWEP:SecondaryAttack()
 	return false
 end
 
-function SWEP:Shoot( bSecondary --[[= false]], iClipDeduction --[[= 1]] )
+function SWEP:Shoot( bSecondary --[[= false]], iClipDeduction --[[= 1]], iIndex --[[= nil]] )
 	if ( not iClipDeduction ) then
 		iClipDeduction = 1
 	end
@@ -1195,10 +1213,12 @@ function SWEP:Shoot( bSecondary --[[= false]], iClipDeduction --[[= 1]] )
 			end
 			
 			pPlayer:SetAnimation( PLAYER_ATTACK1 )
+			
 			self:SetShotsFired( self:GetShotsFired() + 1 )
-			self:DoMuzzleFlash()
+			self:DoMuzzleFlash( iIndex )
 			self:PlaySound( bSecondary and "secondary" or "primary" )
-			self:PlayActivity( "burst" )
+			self:PlayActivity( "burst", iIndex )
+			
 			self:UpdateBurstShotTable( tbl )
 			
 			local flCurTime = CurTime()
@@ -1296,17 +1316,17 @@ function SWEP:Shoot( bSecondary --[[= false]], iClipDeduction --[[= 1]] )
 	pPlayer:SetAnimation( PLAYER_ATTACK1 )
 	
 	self:SetShotsFired( self:GetShotsFired() + 1 )
-	self:DoMuzzleFlash()
+	self:DoMuzzleFlash( iIndex )
 	self:Punch( bSecondary )
 	self:PlaySound( bSecondary and "secondary" or "primary" )
-	self:PlayActivity( bSecondary and "secondary" or "primary" )
+	self:PlayActivity( bSecondary and "secondary" or "primary", iIndex )
 	
 	local flCurTime = CurTime()
 	self:SetLastShootTime( flCurTime )
 	
 	-- The zoom level needs to be set before PlayActivity but the times need to be set after
 	-- So do two seperate burst blocks
-	if ( bBurst ) then
+	if ( bBurst or self.DoPump ) then
 		self:SetNextPrimaryFire(-1)
 		self:SetNextSecondaryFire(-1)
 		self:SetNextReload(-1)
@@ -1336,6 +1356,21 @@ function SWEP:Shoot( bSecondary --[[= false]], iClipDeduction --[[= 1]] )
 	else
 		pPlayer:FireBullets( tbl )
 	end
+	
+	if ( self.DoPump ) then
+		self:AddEvent( "pump", self:SequenceLength(), function() 
+			self:PlaySound( "pump" )
+			self:PlayActivity( "pump", iIndex )
+			
+			-- Cooldown is sequence based
+			local flNextTime = CurTime() + self:SequenceLength( iIndex )
+			self:SetNextPrimaryFire( flNextTime )
+			self:SetNextSecondaryFire( flNextTime )
+			self:SetNextReload( flNextTime )
+			
+			return true
+		end )
+	end
 end
 
 function SWEP:UpdateBurstShotTable( tbl )
@@ -1343,8 +1378,14 @@ function SWEP:UpdateBurstShotTable( tbl )
 	tbl.Src = self:GetShootSrc()
 end
 
-function SWEP:Throw( bSecondary --[[= false]] )
-	self:SetShouldThrow( bSecondary and 2 or 1 )
+function SWEP:Throw( iType --[[= GRENADE_THROW]], iIndex --[[= nil]] )
+	-- Complicated way to condense the throw data into one DTVar
+	if ( iIndex ) then
+		self:SetShouldThrow( (iType or GRENADE_THROW) + GRENADE_COUNT * (iIndex + 1) )
+	else
+		self:SetShouldThrow( iType or GRENADE_THROW )
+	end
+	
 	self:PlaySound( "pullback" )
 	self:PlayActivity( "pullback" )
 	
@@ -1358,7 +1399,7 @@ function SWEP:Throw( bSecondary --[[= false]] )
 end
 
 -- Shared for the HL1 grenade
-function SWEP:EmitGrenade( bSecondary )
+function SWEP:EmitGrenade()
 end
 
 function SWEP:Silence()
@@ -1586,10 +1627,16 @@ end
 
 -- Will only be called serverside in single-player
 function SWEP:Reload()
-	if ( not self:CanReload() ) then
-		return false
+	if ( self:CanReload() ) then
+		self:ReloadClips()
+		
+		return true
 	end
 	
+	return false
+end
+
+function SWEP:ReloadClips( iIndex --[[= nil]] )
 	local pPlayer = self:GetOwner()
 	
 	if ( self:GetZoomLevel() ~= 0 ) then
@@ -1708,10 +1755,6 @@ function SWEP:Reload()
 			-- Start anim times are different than mid reload
 			return self:SequenceLength()
 		end )
-		
-		self:SetNextPrimaryFire(-1)
-		self:SetNextSecondaryFire(-1)
-		self:SetNextReload(-1)
 	else
 		// Play the player's reload animation
 		pPlayer:SetAnimation( PLAYER_RELOAD )
@@ -1757,8 +1800,6 @@ function SWEP:Reload()
 			return true
 		end )
 	end
-	
-	return true
 end
 
 function SWEP:FinishReload()

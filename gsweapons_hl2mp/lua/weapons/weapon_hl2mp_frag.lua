@@ -36,8 +36,8 @@ function SWEP:PrimaryAttack()
 end
 
 if ( SERVER ) then
-	function SWEP:EmitGrenade()
-		local pGrenade = BaseClass.EmitGrenade( self )
+	function SWEP:EmitGrenade( iLevel )
+		local pGrenade = BaseClass.EmitGrenade( self, iLevel )
 		
 		if ( pGrenade ~= NULL ) then
 			local tGrenade = self.Grenade

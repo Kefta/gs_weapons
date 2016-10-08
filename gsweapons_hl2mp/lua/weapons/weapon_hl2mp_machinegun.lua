@@ -43,15 +43,10 @@ function SWEP:ItemFrame()
 	end
 end
 
--- StartReload
-function SWEP:Reload()
-	if ( BaseClass.Reload( self )) then
-		self.dt.FireDuration = 0
-		
-		return true
-	end
+function SWEP:ReloadClips( iIndex --[[= nil]] )
+	BaseClass.ReloadClips( self, iIndex )
 	
-	return false
+	self.dt.FireDuration = 0
 end
 
 function SWEP:Shoot( bSecondary --[[= false]], iClipDeduction --[[= 1]] )

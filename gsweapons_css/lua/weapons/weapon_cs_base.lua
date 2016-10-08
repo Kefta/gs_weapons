@@ -51,7 +51,7 @@ function SWEP:CanPrimaryAttack()
 	
 	if ( self:EventActive( "reload" )) then
 		if ( self.SingleReload.Enable and self.SingleReload.QueuedFire ) then
-			local flNextTime = self:SequenceEnd()
+			local flNextTime = self:SequenceEnd(0)
 			self:RemoveEvent( "reload" )
 			
 			self:AddEvent( "fire", flNextTime, function()
@@ -107,7 +107,7 @@ function SWEP:CanSecondaryAttack()
 	
 	if ( self:EventActive( "reload" )) then
 		if ( self.SingleReload.Enable and self.SingleReload.QueuedFire ) then
-			local flNextTime = self:SequenceEnd()
+			local flNextTime = self:SequenceEnd(0)
 			self:RemoveEvent( "reload" )
 			
 			self:AddEvent( "fire", flNextTime, function()

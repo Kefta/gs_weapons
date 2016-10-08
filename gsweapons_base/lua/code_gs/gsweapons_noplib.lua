@@ -2618,6 +2618,54 @@ function WEAPON:IsVisible( iIndex )
 	end
 end
 
+-- https://github.com/Facepunch/garrysmod-issues/issues/2856
+function WEAPON:SequenceEnd( iIndex )
+	if ( iIndex ) then
+		local pPlayer = self:GetOwner()
+		
+		if ( pPlayer ~= NULL ) then
+			local pViewModel = pPlayer:GetViewModel( iIndex )
+			
+			if ( pViewModel ~= NULL ) then
+				return (1 - pViewModel:GetCycle()) * pViewModel:SequenceDuration()
+			end
+		end
+		
+		return 0
+	end
+	
+	return (1 - self:GetCycle()) * self:SequenceDuration()
+end
+
+-- Add multiple viewmodel support to SequenceDuration
+-- https://github.com/Facepunch/garrysmod-issues/issues/2783
+function WEAPON:SequenceLength( iIndex, iSeq )
+	if ( iIndex ) then
+		local pPlayer = self:GetOwner()
+		
+		if ( pPlayer ~= NULL ) then
+			local pViewModel = pPlayer:GetViewModel( iIndex )
+			
+			if ( pViewModel ~= NULL ) then
+				-- Workaround for "CBaseAnimating::SequenceDuration( 0 ) NULL pstudiohdr on predicted_viewmodel!"
+				if ( iSeq ) then
+					return pViewModel:SequenceDuration( iSeq )
+				else
+					return pViewModel:SequenceDuration()
+				end
+			end
+		end
+		
+		return 0
+	end
+	
+	if ( iSeq ) then
+		return self:SequenceDuration( iSeq )
+	else
+		return self:SequenceDuration()
+	end
+end
+
 function WEAPON:SetVisible( bVisible, iIndex )
 	local pPlayer = self:GetOwner()
 	
@@ -2648,15 +2696,15 @@ function WEAPON:SetIdealActivity( iActivity, iIndex, flRate )
 	end
 	
 	local pPlayer = self:GetOwner()
-	local vm = pPlayer:GetViewModel( iIndex )
+	local pViewModel = pPlayer:GetViewModel( iIndex )
 	
 	-- Do not give animations to something that does not exist or is invisible
-	if ( vm == NULL or vm:IsEffectActive( EF_NODRAW )) then
+	if ( pViewModel == NULL or pViewModel:IsEffectActive( EF_NODRAW )) then
 		return false
 	end
 	
 	-- If an index was specified, even if 0, use the view model
-	local pWep = iIndex and vm or self
+	local pWep = iIndex and pViewModel or self
 	local idealSequence = pWep:SelectWeightedSequence( iActivity )
 	
 	if ( idealSequence == -1 ) then
@@ -2694,39 +2742,10 @@ function WEAPON:SetIdealActivity( iActivity, iIndex, flRate )
 	
 	if ( SERVER or self:GetPredictable() ) then
 		-- Enable the view-model if an animation is sent to it
-		vm:SetWeaponModel( self:GetViewModel( iIndex ), self )
-		vm:SendViewModelMatchingSequence( idealSequence )
-		vm:SetPlaybackRate( flRate )
+		pViewModel:SetWeaponModel( self:GetViewModel( iIndex ), self )
+		pViewModel:SendViewModelMatchingSequence( idealSequence )
+		pViewModel:SetPlaybackRate( flRate )
 	end
 	
 	return true
-end
-
--- Add multiple viewmodel support to SequenceDuration
--- https://github.com/Facepunch/garrysmod-issues/issues/2783
-function WEAPON:SequenceLength( iIndex, iSeq )
-	if ( iIndex ) then
-		local pPlayer = self:GetOwner()
-		
-		if ( pPlayer ~= NULL ) then
-			local vm = pPlayer:GetViewModel( iIndex )
-			
-			if ( vm ~= NULL ) then
-				-- Workaround for "CBaseAnimating::SequenceDuration( 0 ) NULL pstudiohdr on predicted_viewmodel!"
-				if ( iSeq ) then
-					return vm:SequenceDuration( iSeq )
-				else
-					return vm:SequenceDuration()
-				end
-			end
-		end
-		
-		return 0
-	end
-	
-	if ( iSeq ) then
-		return self:SequenceDuration( iSeq )
-	else
-		return self:SequenceDuration()
-	end
 end
