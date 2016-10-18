@@ -12,6 +12,7 @@ SWEP.HoldType = "ar2"
 SWEP.Weight = 5
 
 SWEP.Activities = {
+	primary_empty = ACT_INVALID,
 	empty = ACT_VM_DRYFIRE,
 	charge = ACT_VM_FIDGET
 }
@@ -35,7 +36,7 @@ SWEP.Primary = {
 
 SWEP.Secondary = {
 	Ammo = "AR2AltFire",
-	DefaultClip = 2, -- Fix
+	DefaultClip = 2,
 	Cooldown = 1,
 	FireUnderwater = false
 }
@@ -60,7 +61,7 @@ SWEP.SecondaryClass = "prop_combine_ball"
 function SWEP:ItemFrame()
 	BaseClass.ItemFrame( self )
 	
-	local pViewModel = self:GetOwner():GetViewModel()
+	local pViewModel = self:GetOwner():GetViewModel(0)
 	
 	if ( pViewModel ~= NULL ) then
 		-- Fix; replace all Lerps, Remaps, Clamps, maxs, and mins

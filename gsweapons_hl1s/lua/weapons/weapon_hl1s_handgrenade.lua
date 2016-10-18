@@ -8,7 +8,11 @@ SWEP.HoldType = "grenade"
 SWEP.Weight = 2
 
 SWEP.Activities = {
-	idle2 = ACT_VM_FIDGET,
+	idle = {
+		ACT_VM_IDLE,
+		idle = {10, 15}
+	},
+	idle_alt = ACT_VM_FIDGET,
 	pullback = ACT_VM_PRIMARYATTACK,
 	throw = ACT_INVALID, -- Disable default throw anim
 	throw1 = ACT_HANDGRENADE_THROW1,
@@ -41,35 +45,27 @@ function SWEP:PrimaryAttack()
 		return false
 	end
 	
-	self:Throw()
+	self:Throw( GRENADE_THROW, 0 )
 	
 	return true
 end
 
-function SWEP:PlayActivity( sActivity, iIndex, flRate )
+function SWEP:GetActivitySuffix( sActivity, iIndex )
 	if ( sActivity == "idle" ) then
-		random.SetSeed( math.MD5Random( self:GetOwner():GetCurrentCommand():CommandNumber() ) % 0x100 )
+		random.SetSeed( pPlayer:GetMD5Seed() % 0x100 )
 		
 		if ( random.RandomFloat(0, 1) > 0.75 ) then
-			return BaseClass.PlayActivity( self, "idle2", iIndex, flRate )
-		else
-			local bRet = BaseClass.PlayActivity( self, sActivity, iIndex, flRate )
-			
-			if ( bRet ) then
-				self:SetNextIdle( CurTime() + random.RandomFloat(10, 15) ) // how long till we do this again.
-			end
-			
-			return bRet
+			return "alt"
 		end
 	end
 	
-	return BaseClass.PlayActivity( self, sActivity, iIndex, flRate )
+	return BaseClass.GetActivitySuffix( sActivity, iIndex )
 end
 
 local flThrowUp = 8/9
 local flThrowDown = 10/9
 
-function SWEP:Throw()
+function SWEP:EmitGrenade()
 	local pPlayer = self:GetOwner()
 	local aThrow = pPlayer:EyeAngles()
 	

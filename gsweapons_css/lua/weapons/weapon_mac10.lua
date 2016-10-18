@@ -7,10 +7,6 @@ SWEP.Spawnable = true
 SWEP.ViewModel = "models/weapons/v_smg_mac10.mdl"
 SWEP.WorldModel = "models/weapons/w_smg_mac10.mdl"
 
-SWEP.Activities = {
-	dryfire = ACT_VM_DRYFIRE
-}
-
 SWEP.Sounds = {
 	primary = "Weapon_MAC10.Single"
 }

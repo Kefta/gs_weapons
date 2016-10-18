@@ -48,7 +48,6 @@ function SWEP:UpdateBurstShotTable( tbl )
 end
 
 function SWEP:GetShotTable( bSecondary )
-	bSecondary = self:SpecialActive()
 	local flRangeModifier
 	local flSpreadBias
 	
@@ -91,8 +90,8 @@ function SWEP:GetShotTable( bSecondary )
 end
 
 --- CSBase_Gun
-function SWEP:GetSpread( bSecondary --[[= self:SpecialActive()]] )
-	if ( bSecondary or bSecondary == nil and self:SpecialActive() ) then
+function SWEP:GetSpread( bSecondary )
+	if ( bSecondary ) then
 		local flSpecial = self.Secondary.Spread.Base
 		
 		if ( flSpecial ~= -1 ) then

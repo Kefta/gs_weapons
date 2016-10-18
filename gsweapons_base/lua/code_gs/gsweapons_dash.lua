@@ -1,8 +1,12 @@
 local ENTITY = FindMetaTable( "Entity" )
 local PLAYER = FindMetaTable( "Player" )
+local WEAPON = FindMetaTable( "Weapon" )
 local ANGLE = FindMetaTable( "Angle" )
 local VECTOR = FindMetaTable( "Vector" )
 local PHYSOBJ = FindMetaTable( "PhysObj" )
+
+FLT_EPSILON = 1.19209290e-07
+DEBUG_LENGTH = 3
 
 --- BasePlayer
 -- Equivalent of CBasePlayer::EyeVectors() before AngleVecotrs
@@ -28,6 +32,13 @@ function PLAYER:ActualEyeAngles()
 	end
 	
 	return self.m_aVehicleViewAngles
+end
+
+function PLAYER:ComputeTracerStartPosition( vSrc )
+	// adjust tracer position for player
+	local aEyes = self:ActualEyeAngles()
+	
+	return vSrc + vPlayerOffset + aEyes:Right() * 2 + aEyes:Forward() * 16
 end
 
 --- GameRules
@@ -162,7 +173,7 @@ function PLAYER:FireLuaBullets( bullets )
 	local flShotBias, flFlatness, flSpreadX, flSpreadY, vFireBulletMax, vFireBulletMin, vSpreadRight, vSpreadUp
 	
 	// Wrap it for network traffic so it's the same between client and server
-	local iSeed = math.MD5Random( self:GetCurrentCommand():CommandNumber() ) % 0x100 - 1
+	local iSeed = self:GetMD5Seed() % 0x100 - 1
 	
 	-- Don't calculate stuff we won't end up using
 	if ( bFirstShotInaccurate or iNum ~= 1 ) then
@@ -503,6 +514,19 @@ function PLAYER:FireLuaBullets( bullets )
 	self:LagCompensation( false )
 end
 
+BULLET_CLASS = "gs_bullet"
+
+function PLAYER:FireEntityBullets( bullets )
+	if ( SERVER ) then
+		local pBullet = ents.Create( BULLET_CLASS )
+		
+		if ( pBullet ~= NULL ) then
+			pBullet:SetupBullet( bullets )
+			pBullet:Spawn()
+		end
+	end
+end
+
 local tMaterialParameters = {
 	[MAT_METAL] = {
 		Penetration = 0.5,
@@ -639,7 +663,7 @@ function PLAYER:FireCSSBullets( bullets )
 	local vShootRight, vShootUp
 	
 	// Wrap it for network traffic so it's the same between client and server
-	local iSeed = math.MD5Random( self:GetCurrentCommand():CommandNumber() ) % 0x100
+	local iSeed = self:GetMD5Seed() % 0x100
 	
 	-- Don't calculate stuff we won't end up using
 	if ( bFirstShotInaccurate or iNum ~= 1 ) then
@@ -866,7 +890,7 @@ function PLAYER:FireCSSBullets( bullets )
 				})
 				
 				if ( bShowPenetration ) then
-					debugoverlay.Line( vPenetrationEnd, vHitPos, DEBUG_LENGTH, color_red )
+					debugoverlay.Line( vPenetrationEnd, vHitPos, DEBUG_LENGTH, color_altdebug )
 				end
 			else
 				local tEnts = ents.GetAll()
@@ -1060,7 +1084,7 @@ function PLAYER:FireSDKBullets( bullets )
 	local vShootRight, vShootUp
 	
 	// Wrap it for network traffic so it's the same between client and server
-	local iSeed = math.MD5Random( self:GetCurrentCommand():CommandNumber() ) % 0x100
+	local iSeed = self:GetMD5Seed() % 0x100
 	
 	-- Don't calculate stuff we won't end up using
 	if ( bFirstShotInaccurate or iNum ~= 1 ) then
@@ -1251,6 +1275,17 @@ function PLAYER:FireSDKBullets( bullets )
 	self:LagCompensation( false )
 end
 
+function PLAYER:GetMD5Seed()
+	local iFrameCount = CurTime()
+	
+	if ( self.m_iMD5SeedSavedFrame ~= iFrameCount ) then
+		self.m_iMD5SeedSavedFrame = iFrameCount
+		self.m_iMD5Seed = math.MD5Random( self:GetCurrentCommand():CommandNumber() )
+	end
+	
+	return self.m_iMD5Seed
+end
+
 function AngleRand( flMin, flMax )	
 	return Angle( math.Rand( flMin or -90, flMax or 90 ),
 		math.Rand( flMin or -180, flMax or 180 ),
@@ -1371,19 +1406,9 @@ end
 color_debug = SERVER and Color( 0, 0, 255, 100 ) or Color( 255, 0, 0, 100 )
 color_altdebug = SERVER and Color( 0, 255, 0, 100 ) or Color( 255, 255, 0, 100 )
 
-// Following values should be +16384, -16384, +15/16, -15/16
-// NOTE THAT IF THIS GOES ANY BIGGER THEN DISK NODES/LEAVES CANNOT USE SHORTS TO STORE THE BOUNDS
-MAX_COORD = 16384
-MIN_COORD = -MAX_COORD
-MAX_COORD_FRACTION = 1 - 1/16
-MIN_COORD_FRACTION = 1/16 - 1
-
-// Width of the coord system, which is TOO BIG to send as a client/server coordinate value
-COORD_EXTENT = 2 * MAX_COORD
-
 // Maximum traceable distance ( assumes cubic world and trace from one corner to opposite )
 // COORD_EXTENT * sqrt(3)
-MAX_TRACE_LENGTH = math.sqrt(3) * COORD_EXTENT
+MAX_TRACE_LENGTH = math.sqrt(3) * 2 * 16384
 
 // entity capabilities
 // These are caps bits to indicate what an object's capabilities (currently used for +USE, save/restore and level transitions)
@@ -1447,17 +1472,10 @@ function ENTITY:ApplyLocalAngularVelocityImpulse( vImpulse )
 end
 
 function ENTITY:ComputeTracerStartPosition( vSrc )
-	if ( self:IsPlayer() ) then
-		// adjust tracer position for player
-		local aEyes = self:ActualEyeAngles()
-		
-		return vSrc + vPlayerOffset + aEyes:Right() * 2 + aEyes:Forward() * 16
-	end
+	local tAttachment = self:GetAttachment(1)
 	
-	local attachment = self:GetAttachment(1)
-	
-	if ( attachment ) then
-		return attachment.Pos
+	if ( tAttachment ) then
+		return tAttachment.Pos
 	end
 	
 	return self:EyePos()
@@ -1537,8 +1555,12 @@ function ENTITY:IsBSPModel()
 	return self:GetSolid() == SOLID_BSP -- or self:GetSolid() == SOLID_VPHYSICS
 end
 
+function ENTITY:SolidFlagSet( iFlag )
+	return bit.band( self:GetSolidFlags(), iFlag ) ~= 0
+end
+
 function ENTITY:Standable()
-	if ( self:IsSolidFlagSet( FSOLID_NOT_STANDABLE )) then
+	if ( self:SolidFlagSet( FSOLID_NOT_STANDABLE )) then
 		return false
 	end
 	
@@ -1637,7 +1659,7 @@ if ( SERVER ) then
 		local iMask = MASK_SOLID -- FIXME: Support custom ent masks
 		
 		// Set collision type
-		if ( not self:IsSolid() or self:IsSolidFlagSet( FSOLID_VOLUME_CONTENTS )) then
+		if ( not self:IsSolid() or self:SolidFlagSet( FSOLID_VOLUME_CONTENTS )) then
 			if ( self:GetMoveParent() ~= NULL ) then
 				return util.ClearTrace()
 			end
@@ -2081,7 +2103,7 @@ else
 		local iMask = MASK_SOLID -- FIXME: Support custom ent masks
 		
 		// Set collision type
-		if ( not self:IsSolid() or self:IsSolidFlagSet( FSOLID_VOLUME_CONTENTS )) then
+		if ( not self:IsSolid() or self:SolidFlagSet( FSOLID_VOLUME_CONTENTS )) then
 			// don't collide with monsters
 			iMask = bit.band( iMask, bit.bnot( CONTENTS_MONSTER ))
 		end
@@ -2501,13 +2523,9 @@ end
 
 -- https://github.com/Facepunch/garrysmod-issues/issues/2543
 function WEAPON:GetActivityBySequence( iIndex )
-	if ( not iIndex ) then
-		return self:GetSequenceActivity( self:GetSequence() )
-	end
-	
 	local vm = self:GetOwner():GetViewModel( iIndex )
 	
-	return vm:GetSequenceActivity( vm:GetSequence() )
+	return vm == NULL and ACT_INVALID or vm:GetSequenceActivity( vm:GetSequence() )
 end
 
 -- https://github.com/Facepunch/garrysmod-requests/issues/703
@@ -2603,70 +2621,54 @@ function WEAPON:IsViewModelSequenceFinished( iIndex )
 end
 
 function WEAPON:IsVisible( iIndex )
-	if ( iIndex ) then
-		local pPlayer = self:GetOwner()
-		
-		if ( pPlayer == NULL ) then 
-			return false 
-		end
-		
-		local vm = pPlayer:GetViewModel( iIndex )
-		
-		return vm ~= NULL and ENTITY.IsVisible( vm )
-	else
-		return ENTITY.IsVisible( self )
+	local pPlayer = self:GetOwner()
+	
+	if ( pPlayer == NULL ) then 
+		return false 
 	end
+	
+	local vm = pPlayer:GetViewModel( iIndex )
+	
+	return vm ~= NULL and vm:IsVisible()
 end
 
 -- https://github.com/Facepunch/garrysmod-issues/issues/2856
 function WEAPON:SequenceEnd( iIndex )
-	if ( iIndex ) then
-		local pPlayer = self:GetOwner()
+	local pPlayer = self:GetOwner()
+	
+	if ( pPlayer ~= NULL ) then
+		local pViewModel = pPlayer:GetViewModel( iIndex )
 		
-		if ( pPlayer ~= NULL ) then
-			local pViewModel = pPlayer:GetViewModel( iIndex )
-			
-			if ( pViewModel ~= NULL ) then
-				return (1 - pViewModel:GetCycle()) * pViewModel:SequenceDuration()
-			end
+		if ( pViewModel ~= NULL ) then
+			return (1 - pViewModel:GetCycle()) * pViewModel:SequenceDuration()
 		end
-		
-		return 0
 	end
 	
-	return (1 - self:GetCycle()) * self:SequenceDuration()
+	return 0
 end
 
 -- Add multiple viewmodel support to SequenceDuration
 -- https://github.com/Facepunch/garrysmod-issues/issues/2783
-function WEAPON:SequenceLength( iIndex, iSeq )
-	if ( iIndex ) then
-		local pPlayer = self:GetOwner()
+function WEAPON:SequenceLength( iIndex, iSequence )
+	local pPlayer = self:GetOwner()
+	
+	if ( pPlayer ~= NULL ) then
+		local pViewModel = pPlayer:GetViewModel( iIndex )
 		
-		if ( pPlayer ~= NULL ) then
-			local pViewModel = pPlayer:GetViewModel( iIndex )
-			
-			if ( pViewModel ~= NULL ) then
-				-- Workaround for "CBaseAnimating::SequenceDuration( 0 ) NULL pstudiohdr on predicted_viewmodel!"
-				if ( iSeq ) then
-					return pViewModel:SequenceDuration( iSeq )
-				else
-					return pViewModel:SequenceDuration()
-				end
+		if ( pViewModel ~= NULL ) then
+			-- Workaround for "CBaseAnimating::SequenceDuration( 0 ) NULL pstudiohdr on predicted_viewmodel!"
+			if ( iSequence ) then
+				return pViewModel:SequenceDuration( iSequence )
+			else
+				return pViewModel:SequenceDuration()
 			end
 		end
-		
-		return 0
 	end
 	
-	if ( iSeq ) then
-		return self:SequenceDuration( iSeq )
-	else
-		return self:SequenceDuration()
-	end
+	return 0
 end
 
-function WEAPON:SetVisible( bVisible, iIndex )
+function WEAPON:SetVisible( bVisible, iIndex --[[= 0]] )
 	local pPlayer = self:GetOwner()
 	
 	if ( pPlayer ~= NULL ) then
@@ -2676,76 +2678,4 @@ function WEAPON:SetVisible( bVisible, iIndex )
 			vm:SetVisible( bVisible )
 		end
 	end
-	
-	-- BaseClass
-	ENTITY.SetVisible( self, bVisible )
-end
-
--- Not going to fully replace SendWeaponAnim since this has a lot more overhead
--- This is a version of SendWeaponAnim that works for all viewmodels
--- It also supports custom playback rates and transition sequences
-function WEAPON:SetIdealActivity( iActivity, iIndex, flRate )
-	-- Sending this into Entity:SelectWeightedSequence() will error
-	if ( iActivity == ACT_INVALID ) then
-		return false
-	end
-	
-	-- Do not play an animation if the weapon is invisible
-	if ( not self:IsVisible() ) then
-		return false
-	end
-	
-	local pPlayer = self:GetOwner()
-	local pViewModel = pPlayer:GetViewModel( iIndex )
-	
-	-- Do not give animations to something that does not exist or is invisible
-	if ( pViewModel == NULL or pViewModel:IsEffectActive( EF_NODRAW )) then
-		return false
-	end
-	
-	-- If an index was specified, even if 0, use the view model
-	local pWep = iIndex and pViewModel or self
-	local idealSequence = pWep:SelectWeightedSequence( iActivity )
-	
-	if ( idealSequence == -1 ) then
-		return false
-	end
-	
-	iIndex = iIndex or 0
-	
-	if ( iIndex == 0 ) then
-		// Take the new activity
-		self:SetSaveValue( "m_IdealActivity", iActivity )
-		self:SetSaveValue( "m_nIdealSequence", idealSequence )
-	end
-	
-	// Don't use transitions when we're deploying
-	if ( iActivity ~= self:LookupActivity( "deploy" )) then
-		// Find the next sequence in the potential chain of sequences leading to our ideal one
-		local nextSequence = pWep:FindTransitionSequence( pWep:GetSequence(), idealSequence )
-		
-		if ( nextSequence ~= idealSequence ) then
-			// Set our activity to the next transitional animation
-			iActivity = ACT_TRANSITION
-			idealSequence = nextSequence
-		end
-	end
-	
-	flRate = flRate or 1
-	
-	if ( iIndex == 0 ) then
-		-- Since m_Activity in not avaliable in the save table, run Weapon:Weapon_SetActivity() and override everything afterward
-		self:Weapon_SetActivity( iActivity )
-		self:SetSequence( idealSequence )
-		self:SetPlaybackRate( flRate )
-	end
-	
-	if ( SERVER or self:GetPredictable() ) then
-		-- Enable the view-model if an animation is sent to it
-		pViewModel:SetWeaponModel( self:GetViewModel( iIndex ), self )
-		pViewModel:SendViewModelMatchingSequence( idealSequence )
-		pViewModel:SetPlaybackRate( flRate )
-	end
-	
-	return true
 end

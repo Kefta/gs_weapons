@@ -50,8 +50,8 @@ function SWEP:GetShotTable( bSecondary )
 end
 
 --- HLBase
-function SWEP:GetPunchAngle( bSecondary --[[= self:SpecialActive()]] )
-	if ( bSecondary or bSecondary == nil and self:SpecialActive() ) then
+function SWEP:GetPunchAngle( bSecondary )
+	if ( bSecondary ) then
 		local flSpecial = self.Secondary.PunchAngle
 		
 		if ( flSpecial ~= NULL ) then
@@ -62,8 +62,8 @@ function SWEP:GetPunchAngle( bSecondary --[[= self:SpecialActive()]] )
 	return self.Primary.PunchAngle
 end
 
-function SWEP:GetSpread( bSecondary --[[= self:SpecialActive()]] )
-	if ( bSecondary or bSecondary == nil and self:SpecialActive() ) then
+function SWEP:GetSpread( bSecondary )
+	if ( bSecondary ) then
 		local flSpecial = self.Secondary.Spread
 		
 		if ( flSpecial ~= NULL ) then

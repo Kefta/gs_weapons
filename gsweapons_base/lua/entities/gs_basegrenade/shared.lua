@@ -55,7 +55,7 @@ end
 
 -- FIXME: Fix physics
 --[[function ENT:Touch_Bounce( pOther )
-	if ( pOther:IsSolidFlagSet( bit.bor( FSOLID_TRIGGER, FSOLID_VOLUME_CONTENTS ) ) ) then
+	if ( pOther:SolidFlagSet( bit.bor( FSOLID_TRIGGER, FSOLID_VOLUME_CONTENTS ) ) ) then
 		return
 	end
 	

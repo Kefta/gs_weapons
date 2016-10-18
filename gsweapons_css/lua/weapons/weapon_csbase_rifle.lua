@@ -105,8 +105,8 @@ function SWEP:FinishReload()
 	self.m_flAccuracy = self.Accuracy.Base
 end
 
-function SWEP:Shoot( bSecondary, iClipDeduction )
-	BaseClass.Shoot( self, bSecondary, iClipDeduction )
+function SWEP:Shoot( bSecondary, iIndex, iClipDeduction )
+	BaseClass.Shoot( self, bSecondary, iIndex, iClipDeduction )
 	
 	// These modifications feed back into flSpread eventually.
 	if ( self.Accuracy.Divisor ~= 0 ) then
@@ -183,12 +183,12 @@ function SWEP:Punch()
 end
 
 --- CSBase_Gun
-function SWEP:GetSpread( bSecondary --[[= self:SpecialActive()]] )
+function SWEP:GetSpread( bSecondary )
 	local pPlayer = self:GetOwner()
 	
 	-- We're jumping; takes accuracy priority
 	if ( not pPlayer:OnGround() ) then
-		if ( bSecondary or bSecondary == nil and self:SpecialActive() ) then
+		if ( bSecondary ) then
 			local flSpecial = self.Secondary.Spread.Air
 			
 			if ( flSpecial ~= -1 ) then
@@ -200,7 +200,7 @@ function SWEP:GetSpread( bSecondary --[[= self:SpecialActive()]] )
 	end
 	
 	if ( pPlayer:_GetAbsVelocity():Length2DSqr() > (pPlayer:GetWalkSpeed() * self.Accuracy.Speed) ^ 2 ) then
-		if ( bSecondary or bSecondary == nil and self:SpecialActive() ) then
+		if ( bSecondary ) then
 			local flSpecial = self.Secondary.Spread.Move
 			
 			if ( flSpecial ~= -1 ) then

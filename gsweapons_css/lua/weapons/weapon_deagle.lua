@@ -8,10 +8,6 @@ SWEP.ViewModel = "models/weapons/v_pist_deagle.mdl"
 SWEP.WorldModel = "models/weapons/w_pist_deagle.mdl"
 SWEP.Weight = 7
 
-SWEP.Activities = {
-	dryfire = ACT_VM_DRYFIRE
-}
-
 SWEP.Sounds = {
 	primary = "Weapon_DEagle.Single"
 }

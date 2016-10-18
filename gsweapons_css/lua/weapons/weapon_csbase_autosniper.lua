@@ -93,8 +93,18 @@ function SWEP:FinishReload()
 	self.m_flAccuracy = self.Accuracy.Base
 end
 
-function SWEP:Shoot( bSecondary, iClipDeduction )
-	BaseClass.Shoot( self, bSecondary, iClipDeduction )
+function SWEP:SecondaryAttack()
+	if ( self:CanSecondaryAttack(0) ) then
+		self:AdvanceZoom()
+		
+		return true
+	end
+	
+	return false
+end
+
+function SWEP:Shoot( bSecondary, iIndex, iClipDeduction )
+	BaseClass.Shoot( self, bSecondary, iIndex, iClipDeduction )
 	
 	// Mark the time of this shot and determine the accuracy modifier based on the last shot fired...
 	local flCurTime = CurTime()
@@ -120,8 +130,7 @@ function SWEP:Punch()
 end
 
 --- CSBase_Gun
-function SWEP:GetSpread( bSecondary --[[= self:SpecialActive()]] )
-	bSecondary = bSecondary or bSecondary == nil and self:SpecialActive()
+function SWEP:GetSpread( bSecondary )
 	local flAdditive = bSecondary and self.Secondary.Spread.Additive or self.Primary.Spread.Additive
 	local pPlayer = self:GetOwner()
 	

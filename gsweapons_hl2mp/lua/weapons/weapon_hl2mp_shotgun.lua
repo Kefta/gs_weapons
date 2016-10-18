@@ -67,13 +67,13 @@ end
 
 function SWEP:SecondaryAttack()
 	if ( self:Clip1() == 1 ) then
-		self:Shoot()
+		self:Shoot( false, 1, 0 )
 		
 		return false
 	end
 	
 	if ( self:CanSecondaryAttack() ) then
-		self:Shoot( true, 2 )
+		self:Shoot( true, 2, 0 )
 		
 		return true
 	end
@@ -81,8 +81,8 @@ function SWEP:SecondaryAttack()
 	return false
 end
 
-function SWEP:Shoot( bSecondary --[[= false]], iClipDeduction --[[= 1]] )
-	BaseClass.Shoot( self, bSecondary, iClipDeduction )
+function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], iClipDeduction --[[= 1]] )
+	BaseClass.Shoot( self, bSecondary, iIndex, iClipDeduction )
 	
 	-- If the reload was interrupted
 	self:SetBodygroup(1, 1)

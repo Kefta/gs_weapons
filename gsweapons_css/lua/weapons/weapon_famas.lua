@@ -44,8 +44,6 @@ SWEP.Burst = {
 	}
 }
 
-SWEP.SpecialType = SPECIAL_BURST
-
 if ( CLIENT ) then
 	SWEP.Category = "Counter-Strike: Source"
 	SWEP.KillIcon = 't'
@@ -109,10 +107,20 @@ SWEP.Kick = {
 	}
 }
 
+function SWEP:SecondaryAttack()
+	if ( self:CanSecondaryAttack(0) ) then
+		self:ToggleBurst(0)
+		
+		return true
+	end
+	
+	return false
+end
+
 --- CSBase_Gun
 -- Famas is the only weapon that adds extra spread if the secondary is off. No idea why
-function SWEP:GetSpread( bSecondary --[[= self:SpecialActive()]] )
-	if ( bSecondary or bSecondary == nil and self:SpecialActive() ) then
+function SWEP:GetSpread( bSecondary )
+	if ( bSecondary ) then
 		local flSpecial = self.Secondary.Spread.Additive
 		
 		if ( flSpecial ~= -1 ) then

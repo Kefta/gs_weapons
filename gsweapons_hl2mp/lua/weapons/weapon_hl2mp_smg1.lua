@@ -12,6 +12,7 @@ SWEP.HoldType = "smg"
 SWEP.Weight = 3
 
 SWEP.Activities = {
+	primary_empty = ACT_INVALID,
 	empty = ACT_VM_DRYFIRE
 }
 

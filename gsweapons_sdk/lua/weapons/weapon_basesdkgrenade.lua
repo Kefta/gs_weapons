@@ -31,7 +31,7 @@ function SWEP:PrimaryAttack()
 		return false
 	end
 	
-	self:Throw()
+	self:Throw( GRENADE_THROW, 0 )
 	
 	return true
 end
@@ -46,7 +46,7 @@ if ( SERVER ) then
 		
 		if ( pGrenade ~= NULL ) then
 			local pPlayer = self:GetOwner()
-			local aThrow = pPlayer:LocalEyeAngles()
+			local aThrow = pPlayer:EyeAngles() -- FIXME: LocalEyeAngles
 			aThrow.p = aThrow.p < 90 and -10 + aThrow.p * flThrowDown
 				or -10 + (360.0 - aThrow.p) * flThrowUp
 			

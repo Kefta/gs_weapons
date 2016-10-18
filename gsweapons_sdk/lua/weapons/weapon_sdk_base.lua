@@ -76,7 +76,6 @@ function SWEP:UpdateBurstShotTable( tbl )
 end
 
 function SWEP:GetShotTable( bSecondary )
-	bSecondary = self:SpecialActive()
 	local flRangeModifier
 	local flSpreadBias
 	
@@ -121,8 +120,8 @@ function SWEP:DoMuzzleFlash()
 end
 
 --- SDKBase
-function SWEP:GetSpread( bSecondary --[[= self:SpecialActive()]] )
-	if ( bSecondary or bSecondary == nil and self:SpecialActive() ) then
+function SWEP:GetSpread( bSecondary )
+	if ( bSecondary ) then
 		local flSpecial = self.Secondary.Spread.Base
 		
 		if ( flSpecial ~= -1 ) then

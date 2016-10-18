@@ -9,9 +9,7 @@ SWEP.WorldModel = "models/weapons/w_pist_usp.mdl"
 SWEP.SilencerModel = "models/weapons/w_pist_usp_silencer.mdl"
 
 SWEP.Activities = {
-	dryfire = ACT_VM_DRYFIRE,
-	secondary = ACT_VM_ATTACH_SILENCER,
-	s_dryfire = ACT_VM_DRYFIRE_SILENCED
+	secondary = ACT_VM_ATTACH_SILENCER
 }
 
 SWEP.Sounds = {
@@ -45,8 +43,6 @@ SWEP.Secondary = {
 	}
 }
 
-SWEP.SpecialType = SPECIAL_SILENCE
-
 if ( CLIENT ) then
 	SWEP.Category = "Counter-Strike: Source"
 	SWEP.KillIcon = 'a'
@@ -60,3 +56,13 @@ SWEP.Accuracy = {
 	Time = 0.3,
 	Min = 0.6
 }
+
+function SWEP:SecondaryAttack()
+	if ( self:CanSecondaryAttack(0) ) then
+		self:Silence(0)
+		
+		return true
+	end
+	
+	return false
+end

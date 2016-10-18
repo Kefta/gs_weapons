@@ -8,7 +8,7 @@ SWEP.ViewModel = "models/weapons/v_pist_fiveseven.mdl"
 SWEP.WorldModel = "models/weapons/w_pist_fiveseven.mdl"
 
 SWEP.Activities = {
-	dryfire = ACT_VM_DRYFIRE
+	primary_empty = ACT_INVALID -- Animation is broken
 }
 
 SWEP.Sounds = {

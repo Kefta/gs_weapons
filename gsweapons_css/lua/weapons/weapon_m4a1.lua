@@ -8,10 +8,6 @@ SWEP.ViewModel = "models/weapons/v_rif_m4a1.mdl"
 SWEP.WorldModel = "models/weapons/w_rif_m4a1.mdl"
 SWEP.SilencerModel = "models/weapons/w_rif_m4a1_silencer.mdl"
 
-SWEP.Activities = {
-	secondary = ACT_VM_ATTACH_SILENCER
-}
-
 SWEP.Sounds = {
 	primary = "Weapon_M4A1.Single",
 	secondary = "Weapon_M4A1.Silencer_On",
@@ -37,8 +33,6 @@ SWEP.Primary = {
 SWEP.Secondary.Spread = {
 	Base = 0.025
 }
-
-SWEP.SpecialType = SPECIAL_SILENCE
 
 if ( CLIENT ) then
 	SWEP.Category = "Counter-Strike: Source"
@@ -94,3 +88,13 @@ SWEP.Kick = {
 		DirectionChange = 7
 	}
 }
+
+function SWEP:SecondaryAttack()
+	if ( self:CanSecondaryAttack(0) ) then
+		self:Silence(0)
+		
+		return true
+	end
+	
+	return false
+end

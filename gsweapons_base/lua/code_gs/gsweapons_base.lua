@@ -484,7 +484,7 @@ gsweapons.RegisterAnimEvent( {5001, 5011, 5021, 5031}, "css", function( pWeapon,
 			return true
 		end
 		
-		local pViewModel = pPlayer:GetViewModel()
+		local pViewModel = pPlayer:GetViewModel(0)
 		
 		if ( pViewModel == NULL ) then
 			return true
@@ -508,7 +508,7 @@ gsweapons.RegisterAnimEvent( {5001, 5011, 5021, 5031}, "css_x", function( pWeapo
 			return true
 		end
 		
-		local pViewModel = pPlayer:GetViewModel()
+		local pViewModel = pPlayer:GetViewModel(0)
 		
 		if ( pViewModel == NULL ) then
 			return true

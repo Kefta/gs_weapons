@@ -30,7 +30,7 @@ end
 function SWEP:PrimaryAttack()
 	if ( self:CanPrimaryAttack() ) then
 		self:GetOwner():ChatPrint( "No primary attack implemented!" )
-		self:SetNextPrimaryFire( CurTime() + self:GetCooldown( false ))
+		self:SetNextPrimaryFire( CurTime() + self:GetCooldown() )
 		
 		return true
 	end

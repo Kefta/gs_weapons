@@ -10,6 +10,21 @@ SWEP.WorldModel = "models/w_9mmAR.mdl"
 SWEP.HoldType = "smg"
 SWEP.Weight = 15
 
+SWEP.Activities = {
+	priamry = {
+		ACT_VM_PRIMARYATTACK,
+		idle = {10, 15}
+	},
+	secondary = {
+		ACT_VM_SECONDARYATTACK,
+		idle = 5
+	},
+	idle = {
+		ACT_VM_IDLE,
+		idle = {3, 5}
+	}
+}
+
 SWEP.Sounds = {
 	primary = "Weapon_MP5.Single",
 	secondary = "Weapon_MP5.Double"
@@ -63,10 +78,7 @@ function SWEP:SecondaryAttack()
 		self:PlaySound( "secondary" )
 		self:PlayActivity( "secondary" )
 		
-		local flNextTime = CurTime()
-		self:SetNextIdle( flNextTime + 5 )
-		
-		flNextTime = flNextTime + self:GetCooldown( true )
+		local flNextTime = CurTime() + self:GetCooldown( true )
 		self:SetNextPrimaryFire( flNextTime )
 		self:SetNextSecondaryFire( flNextTime )
 		self:SetNextReload( flNextTime )
@@ -87,27 +99,10 @@ function SWEP:SecondaryAttack()
 	end
 end
 
-function SWEP:Shoot( bSecondary --[[= false]], iClipDeduction --[[= 1]] )
-	BaseClass.Shoot( self, bSecondary, iClipDeduction )
-	
+function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], iClipDeduction --[[= 1]] )
+	BaseClass.Shoot( self, bSecondary, iIndex, iClipDeduction )
+	-- FIXME: Add this as config?
 	self:SetNextSecondaryFire(0) -- Don't penalise secondary time
-	self:SetNextIdle( CurTime() + random.RandomFloat(10, 15) )
-end
-
-function SWEP:PlayActivity( sActivity, iIndex, flRate )
-	if ( sActivity == "idle" ) then
-		local bRet = BaseClass.PlayActivity( self, sActivity, iIndex, flRate )
-		
-		if ( bRet ) then
-			-- We need to re-seed since Think runs clientside in single-player
-			random.SetSeed( math.MD5Random( self:GetOwner():GetCurrentCommand():CommandNumber() ) % 0x100 )
-			self:SetNextIdle( CurTime() + random.RandomFloat(3, 5) )
-		end
-		
-		return bRet
-	end
-	
-	return BaseClass.PlayActivity( self, sActivity, iIndex, flRate )
 end
 
 --- HLBase

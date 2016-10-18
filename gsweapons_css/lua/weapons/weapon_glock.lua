@@ -8,8 +8,7 @@ SWEP.ViewModel = "models/weapons/v_pist_glock18.mdl"
 SWEP.WorldModel = "models/weapons/w_pist_glock18.mdl"
 
 SWEP.Activities = {
-	dryfire = ACT_VM_DRYFIRE,
-	burst = ACT_INVALID
+	burst = ACT_INVALID -- The glock plays the burst activity once
 }
 
 SWEP.Sounds = {
@@ -42,8 +41,6 @@ SWEP.Secondary = {
 	}
 }
 
-SWEP.SpecialType = SPECIAL_BURST
-
 if ( CLIENT ) then
 	SWEP.Category = "Counter-Strike: Source"
 	SWEP.KillIcon = 'c'
@@ -57,8 +54,18 @@ SWEP.Accuracy = {
 	Time = 0.325,
 	Min = 0.6
 }
-
+-- FIXME: Fix burst activities -- merge with primary? This is messy
 --- GSBase
+function SWEP:SecondaryAttack()
+	if ( self:CanSecondaryAttack(0) ) then
+		self:ToggleBurst(0)
+		
+		return true
+	end
+	
+	return false
+end
+
 function SWEP:PlayActivity( sActivity, iIndex, flRate )
-	return BaseClass.PlayActivity( self, sActivity == "primary" and self:BurstEnabled() and self:Clip1() > 1 and "secondary" or sActivity, iIndex, flRate )
+	return BaseClass.PlayActivity( self, sActivity == "primary" and self:BurstEnabled() and self:Clip1() ~= 0 and "secondary" or sActivity, iIndex, flRate )
 end

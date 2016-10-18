@@ -56,7 +56,7 @@ local vHeadMax = Vector( 16, 16, 18 )
 local vHeadMin = -vHeadMax
 
 function SWEP:PrimaryAttack( bStab )
-	if ( not bStab and not self:CanPrimaryAttack() ) then
+	if ( not bStab and not self:CanPrimaryAttack(0) ) then
 		return false
 	end
 	
@@ -113,7 +113,7 @@ function SWEP:PrimaryAttack( bStab )
 	end
 	
 	local bDidHit = tr.Fraction < 1 and pEntity ~= NULL
-	self:PlayActivity( bDidHit and "hit" or "miss" )
+	self:PlayActivity( bDidHit and "hit" or "miss", 0 )
 	
 	if ( bDidHit ) then
 		local flDamage = self:GetDamage( bStab )
@@ -166,9 +166,9 @@ function SWEP:PrimaryAttack( bStab )
 				end
 				
 				if ( pEntity:IsPlayer() or pEntity:IsNPC() ) then
-					self:PlaySound( bStab and "secondary" or "primary" )
+					self:PlaySound( bStab and "secondary" or "primary", 0 )
 				else
-					self:PlaySound( "hit" )
+					self:PlaySound( "hit", 0 )
 				end
 				
 				if ( IsFirstTimePredicted() ) then
@@ -206,7 +206,7 @@ function SWEP:PrimaryAttack( bStab )
 end
 
 function SWEP:SecondaryAttack()
-	if ( self:CanSecondaryAttack() ) then
+	if ( self:CanSecondaryAttack(0) ) then
 		return self:PrimaryAttack( true )
 	end
 	

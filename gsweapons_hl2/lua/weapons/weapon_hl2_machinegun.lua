@@ -50,8 +50,8 @@ function SWEP:ReloadClips( iIndex --[[= nil]] )
 	self.dt.FireDuration = 0
 end
 
-function SWEP:Shoot( bSecondary --[[= false]], iClipDeduction --[[= 1]] )
-	BaseClass.Shoot( self, bSecondary, iClipDeduction )
+function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], iClipDeduction --[[= 1]] )
+	BaseClass.Shoot( self, bSecondary, iIndex, iClipDeduction )
 	
 	local iLevel = self.dt.AnimLevel
 	
@@ -85,7 +85,7 @@ function SWEP:Punch( bSecondary )
 	// Add it to the view punch
 	pPlayer:ViewPunch( aPunch * tPunch.Dampening )
 end
-
+-- FIXME: Check dryfire
 function SWEP:PlayActivity( sActivity, iIndex, flRate )
 	if ( sActivity == "primary" and self:Clip1() ~= 0 ) then
 		local iShotsFired = self.dt.AnimLevel

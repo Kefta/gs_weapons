@@ -65,8 +65,8 @@ function SWEP:FinishReload()
 	self.m_flAccuracy = self.Accuracy.Base
 end
 
-function SWEP:Shoot( bSecondary, iClipDeduction )
-	BaseClass.Shoot( self, bSecondary, iClipDeduction )
+function SWEP:Shoot( bSecondary, iIndex, iClipDeduction )
+	BaseClass.Shoot( self, bSecondary, iIndex, iClipDeduction )
 	
 	// Mark the time of this shot and determine the accuracy modifier based on the last shot fired...
 	local flCurTime = CurTime()
@@ -90,11 +90,11 @@ function SWEP:Punch()
 end
 
 --- CSBase_Gun
-function SWEP:GetSpread( bSecondary --[[= self:SpecialActive()]] )
+function SWEP:GetSpread( bSecondary )
 	local pPlayer = self:GetOwner()
 	
 	if ( not pPlayer:OnGround() ) then
-		if ( bSecondary or bSecondary == nil and self:SpecialActive() ) then
+		if ( bSecondary ) then
 			local flSpecial = self.Secondary.Spread.Air
 			
 			if ( flSpecial ~= -1 ) then
@@ -106,7 +106,7 @@ function SWEP:GetSpread( bSecondary --[[= self:SpecialActive()]] )
 	end
 	
 	if ( pPlayer:_GetAbsVelocity():Length2DSqr() > (pPlayer:GetWalkSpeed() * self.Accuracy.Speed) ^ 2 ) then
-		if ( bSecondary or bSecondary == nil and self:SpecialActive() ) then
+		if ( bSecondary ) then
 			local flSpecial = self.Secondary.Spread.Move
 			
 			if ( flSpecial ~= -1 ) then
@@ -118,7 +118,7 @@ function SWEP:GetSpread( bSecondary --[[= self:SpecialActive()]] )
 	end
 	
 	if ( pPlayer:Crouching() ) then
-		if ( bSecondary or bSecondary == nil and self:SpecialActive() ) then
+		if ( bSecondary ) then
 			local flSpecial = self.Secondary.Spread.Crouch
 			
 			if ( flSpecial ~= -1 ) then

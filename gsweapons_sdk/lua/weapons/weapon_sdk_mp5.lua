@@ -11,6 +11,13 @@ SWEP.HoldType = "smg"
 
 SWEP.Weight = 25
 
+SWEP.Activities = {
+	primary = {
+		ACT_VM_PRIMARYATTACK,
+		idle = 5
+	}
+}
+
 SWEP.Sounds = {
 	primary = "Weapon_MP5Navy.Single"
 }
@@ -34,16 +41,10 @@ if ( CLIENT ) then
 	SWEP.SelectionIcon = 'x'
 end
 
-function SWEP:Shoot( bSecondary, iClipDeduction )
-	BaseClass.Shoot( self, bSecondary, iClipDeduction )
-	
-	self:SetNextIdle( CurTime() + 5 )
-end
-
 --- SDKBase
 function SWEP:GetSpread( bSecondary )
 	if ( not self:GetOwner():OnGround() ) then
-		if ( bSecondary or bSecondary == nil and self:SpecialActive() ) then
+		if ( bSecondary ) then
 			local flSpecial = self.Secondary.Spread.Air
 			
 			if ( flSpecial ~= -1 ) then

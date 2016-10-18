@@ -9,9 +9,8 @@ SWEP.WorldModel = "models/weapons/w_pist_elite.mdl"
 SWEP.HoldType = "duel"
 
 SWEP.Activities = {
-	dryfire = ACT_VM_DRYFIRE,
-	secondary_dryfire = ACT_VM_DRYFIRE_LEFT,
-	secondary_idle = ACT_VM_IDLE_EMPTY_LEFT
+	primary_empty_left = ACT_VM_DRYFIRE_LEFT,
+	idle_empty_left = ACT_VM_IDLE_EMPTY_LEFT
 }
 
 SWEP.Sounds = {
@@ -54,17 +53,19 @@ SWEP.Accuracy = {
 --- GSBase
 -- Right and left pistols
 function SWEP:PlayActivity( sActivity, iIndex, flRate )
-	if ( sActivity == "idle" ) then
-		return BaseClass.PlayActivity( self, self:Clip1() == 1 and "secondary_idle" or sActivity, iIndex, flRate )
-	end
-	
-	if ( sActivity == "primary" ) then
-		local iClip = self:Clip1()
-		
-		return BaseClass.PlayActivity( self, iClip == 1 and "secondary_dryfire" or iClip == 0 and "dryfire" or iClip % 2 == 0 and "secondary" or sActivity, iIndex, flRate )
+	if ( iIndex == 0 and sActivity == "primary" ) then
+		return BaseClass.PlayActivity( self, self:Clip1() % 2 == 0 and "secondary" or sActivity, iIndex, flRate )
 	end
 	
 	return BaseClass.PlayActivity( self, sActivity, iIndex, flRate )
+end
+
+function SWEP:GetActivitySuffix( sActivity, iIndex )
+	if ( iIndex == 0 and self:Clip1() == 1 ) then
+		return "empty_left"
+	end
+	
+	return BaseClass.GetActivitySuffix( self, sActivity, iIndex )
 end
 
 function SWEP:GetMuzzleAttachment( iEvent --[[= 5001]] )

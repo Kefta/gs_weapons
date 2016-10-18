@@ -49,8 +49,8 @@ function SWEP:ReloadClips( iIndex --[[= nil]] )
 	self.dt.FireDuration = 0
 end
 
-function SWEP:Shoot( bSecondary --[[= false]], iClipDeduction --[[= 1]] )
-	BaseClass.Shoot( self, bSecondary, iClipDeduction )
+function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], iClipDeduction --[[= 1]] )
+	BaseClass.Shoot( self, bSecondary, iIndex, iClipDeduction )
 	
 	local iLevel = self.dt.AnimLevel
 	
@@ -69,7 +69,7 @@ function SWEP:Punch( bSecondary )
 	-- Random seed is reset here
 	-- The "iSeed" var is actually incremented after the first RandomInt
 	-- But RandomSeed isn't called again. Probably an oversight
-	random.SetSeed( math.MD5Random( pPlayer:GetCurrentCommand():CommandNumber() ) % 0x100 )
+	random.SetSeed( pPlayer:GetMD5Seed() % 0x100 )
 	
 	// Apply this to the view angles as well
 	local tPunch = self.PunchAngle

@@ -12,8 +12,8 @@ SWEP.Weight = 15
 
 SWEP.Activities = {
 	reload_finish = ACT_SHOTGUN_PUMP,
-	idle2 = ACT_SHOTGUN_IDLE_DEEP,
-	idle3 = ACT_SHOTGUN_IDLE4
+	idle_alt = ACT_SHOTGUN_IDLE_DEEP,
+	idle_alt2 = ACT_SHOTGUN_IDLE4
 }
 
 SWEP.Sounds = {
@@ -54,15 +54,27 @@ if ( CLIENT ) then
 end
 
 --- GSBase
-function SWEP:PlayActivity( sActivity, iIndex, flRate )
-	if ( sActivity == "idle" ) then	
-		random.SetSeed( math.MD5Random( self:GetOwner():GetCurrentCommand():CommandNumber() ) % 0x100 )
+function SWEP:GetActivitySuffix( sActivity, iIndex )
+	if ( sActivity == "idle" ) then
+		if ( self.m_tDryFires[iIndex + 1] and BaseClass.GetActivitySuffix( self, sActivity, iIndex ) == "empty" ) then
+			return "empty"
+		end
+		
+		random.SetSeed( self:GetOwner():GetMD5Seed() % 0x100 )
 		local flRand = random.RandomFloat(0, 1)
 		
-		return BaseClass.PlayActivity( self, flRand > 0.95 and "idle3" or flRand > 0.8 and sActivity or "idle2", iIndex, flRate )
+		if ( flRand > 0.95 ) then
+			return "alt"
+		end
+		
+		if ( flRand > 0.8 ) then
+			return ""
+		end
+		
+		return "alt2"
 	end
 	
-	return BaseClass.PlayActivity( self, sActivity, iIndex, flRate )
+	return BaseClass.GetActivitySuffix( self, sActivity, iIndex )
 end
 
 function SWEP:SecondaryAttack()
@@ -73,7 +85,7 @@ function SWEP:SecondaryAttack()
 	end
 	
 	if ( self:CanSecondaryAttack() ) then
-		self:Shoot( true, 2 )
+		self:Shoot( true, 0, 2 )
 		--self:PlaySound( "primary" )
 		
 		return true

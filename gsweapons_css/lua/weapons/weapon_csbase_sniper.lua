@@ -44,8 +44,6 @@ SWEP.Zoom = {
 	DrawOverlay = CLIENT and true or nil
 }
 
-SWEP.SpecialType = SPECIAL_ZOOM
-
 if ( CLIENT ) then
 	SWEP.Category = "Counter-Strike: Source"
 end
@@ -62,6 +60,16 @@ SWEP.Accuracy = {
 SWEP.PunchIntensity = 2
 
 --- GSBase
+function SWEP:SecondaryAttack()
+	if ( self:CanSecondaryAttack(0) ) then
+		self:AdvanceZoom()
+		
+		return true
+	end
+	
+	return false
+end
+
 function SWEP:Punch()
 	local pPlayer = self:GetOwner()
 	local aPunch = pPlayer:GetViewPunchAngles()
@@ -70,7 +78,7 @@ function SWEP:Punch()
 end
 
 --- CSBase_Gun
-function SWEP:GetSpread( bSecondary --[[= self:SpecialActive()]] )
+function SWEP:GetSpread( bSecondary )
 	if ( bSecondary == nil ) then
 		bSecondary = self:SpecialActive()
 	end

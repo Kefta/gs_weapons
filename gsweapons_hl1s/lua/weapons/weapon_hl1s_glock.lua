@@ -11,8 +11,11 @@ SWEP.HoldType = "pistol"
 SWEP.Weight = 10
 
 SWEP.Activities = {
-	dryfire = ACT_GLOCK_SHOOTEMPTY,
-	secondary = ACT_VM_PRIMARYATTACK,
+	primary_empty = ACT_GLOCK_SHOOTEMPTY,
+	secondary = {
+		ACT_VM_PRIMARYATTACK,
+		idle = {10, 15}
+	},
 	reload_empty = ACT_GLOCK_SHOOT_RELOAD
 }
 
@@ -50,11 +53,7 @@ end
 --- GSBase
 function SWEP:SecondaryAttack()
 	if ( self:CanSecondaryAttack() ) then
-		self:Shoot( true )
-		
-		-- Random seed is already set from Shoot
-		-- FIXME: Does prediction screw this up? Check results
-		self:SetNextIdle( CurTime() + random.RandomFloat(10, 15) )
+		self:Shoot( true, 0 )
 		
 		return true
 	end

@@ -12,7 +12,7 @@ if ( SERVER or not game.SinglePlayer() ) then
 	end )
 	
 	-- Scales the player's movement speeds based on their weapon
-	hook.Add( "Move", "GSWeapons-Punch decay and Move speed", function( pPlayer, mv )
+	hook.Add( "Move", "GSWeapons-Punch decay and move speed", function( pPlayer, mv )
 		local pActiveWeapon = pPlayer:GetActiveWeapon()
 		
 		if ( pActiveWeapon.PunchDecayFunction ) then
@@ -21,7 +21,7 @@ if ( SERVER or not game.SinglePlayer() ) then
 		
 		if ( pActiveWeapon.GetWalkSpeed ) then
 			local flOldSpeed = mv:GetMaxSpeed() *
-				(pPlayer:KeyDown( IN_SPEED ) and pActiveWeapon:GetRunSpeed() or pActiveWeapon:GetWalkSpeed())
+				(pPlayer:KeyDown( IN_SPEED ) and pActiveWeapon:GetRunSpeed( pActiveWeapon:SpecialActive() ) or pActiveWeapon:GetWalkSpeed( pActiveWeapon:SpecialActive() ))
 			
 			mv:SetMaxSpeed( flOldSpeed )
 			mv:SetMaxClientSpeed( flOldSpeed )
@@ -70,19 +70,19 @@ function PLAYER:CSDecayPunchAngle( aPunch )
 end
 
 function PLAYER:SharedRandomFloat( sName, flMin, flMax, iAdditionalSeed )
-	random.SetSeed( util.SeedFileLineHash( math.MD5Random( self:GetCurrentCommand():CommandNumber() ) % 0x80000000, sName, iAdditionalSeed ))
+	random.SetSeed( util.SeedFileLineHash( self:GetMD5Seed() % 0x80000000, sName, iAdditionalSeed ))
 	
 	return random.RandomFloat( flMin, flMax )
 end
 
 function PLAYER:SharedRandomInt( sName, iMin, iMax, iAdditionalSeed )
-	random.SetSeed( util.SeedFileLineHash( math.MD5Random( self:GetCurrentCommand():CommandNumber() ) % 0x80000000, sName, iAdditionalSeed ))
+	random.SetSeed( util.SeedFileLineHash( self:GetMD5Seed() % 0x80000000, sName, iAdditionalSeed ))
 	
 	return random.RandomInt( iMin, iMax )
 end
 
 function PLAYER:SharedRandomVector( sName, flMin, flMax, iAdditionalSeed )
-	random.SetSeed( util.SeedFileLineHash( math.MD5Random( self:GetCurrentCommand():CommandNumber() ) % 0x80000000, sName, iAdditionalSeed ))
+	random.SetSeed( util.SeedFileLineHash( self:GetMD5Seed() % 0x80000000, sName, iAdditionalSeed ))
 
 	return Vector( random.RandomFloat( flMin, flMax ), 
 			random.RandomFloat( flMin, flMax ), 
@@ -90,7 +90,7 @@ function PLAYER:SharedRandomVector( sName, flMin, flMax, iAdditionalSeed )
 end
 
 function PLAYER:SharedRandomAngle( sName, flMin, flMax, iAdditionalSeed )
-	random.SetSeed( util.SeedFileLineHash( math.MD5Random( self:GetCurrentCommand():CommandNumber() ) % 0x80000000, sName, iAdditionalSeed ))
+	random.SetSeed( util.SeedFileLineHash( self:GetMD5Seed() % 0x80000000, sName, iAdditionalSeed ))
 
 	return Angle( random.RandomFloat( flMin, flMax ), 
 			random.RandomFloat( flMin, flMax ), 
@@ -98,7 +98,7 @@ function PLAYER:SharedRandomAngle( sName, flMin, flMax, iAdditionalSeed )
 end
 
 function PLAYER:SharedRandomColor( sName, flMin, flMax, iAdditionalSeed )
-	random.SetSeed( util.SeedFileLineHash( math.MD5Random( self:GetCurrentCommand():CommandNumber() ) % 0x80000000, sName, iAdditionalSeed ))
+	random.SetSeed( util.SeedFileLineHash( self:GetMD5Seed() % 0x80000000, sName, iAdditionalSeed ))
 	
 	return Color( random.RandomFloat( flMin, flMax ), 
 			random.RandomFloat( flMin, flMax ), 

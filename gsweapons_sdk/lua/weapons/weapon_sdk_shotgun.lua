@@ -11,6 +11,13 @@ SWEP.HoldType = "shotgun"
 
 SWEP.Weight = 20
 
+SWEP.Activities = {
+	primary = {
+		ACT_VM_PRIMARYATTACK,
+		idle = 2.5
+	}
+}
+
 SWEP.Primary = {
 	Damage = 22,
 	Bullets = 9,
@@ -39,13 +46,11 @@ if ( CLIENT ) then
 	SWEP.SelectionIcon = 'k'
 end
 
-function SWEP:Shoot( bSecondary, iClipDeduction )
-	BaseClass.Shoot( self, bSecondary, iClipDeduction )
+function SWEP:Shoot( bSecondary, iIndex, iClipDeduction )
+	BaseClass.Shoot( self, bSecondary, iIndex, iClipDeduction )
 	
 	if ( self:Clip1() == 0 ) then
 		self:SetNextIdle( CurTime() + self:GetCooldown() )
-	else
-		self:SetNextIdle( CurTime() + 2.5 )
 	end
 end
 

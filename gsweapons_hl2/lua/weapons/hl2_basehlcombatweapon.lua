@@ -38,8 +38,8 @@ function SWEP:GetShotTable( bSecondary )
 end
 
 --- HL2Base
-function SWEP:GetSpread( bSecondary --[[= self:SpecialActive()]] )
-	if ( bSecondary or bSecondary == nil and self:SpecialActive() ) then
+function SWEP:GetSpread( bSecondary )
+	if ( bSecondary ) then
 		local flSpecial = self.Secondary.Spread
 		
 		if ( flSpecial ~= NULL ) then

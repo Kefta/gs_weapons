@@ -11,7 +11,7 @@ SWEP.HoldType = "revolver"
 SWEP.Weight = 15
 
 SWEP.Activities = {
-	idle2 = ACT_VM_FIDGET
+	idle_alt = ACT_VM_FIDGET
 }
 
 SWEP.Sounds = {
@@ -41,8 +41,6 @@ SWEP.Zoom = {
 	HideViewModel = true
 }
 
-SWEP.SpecialType = SPECIAL_ZOOM
-
 if ( CLIENT ) then
 	SWEP.Category = "Half-Life: Source"
 end
@@ -54,12 +52,28 @@ function SWEP:CanSecondaryAttack()
 	return (bMultiPlayer or sv_cheats:GetBool()) and BaseClass.CanSecondaryAttack( self )
 end
 
-function SWEP:PlayActivity( sActivity, iIndex, flRate )
-	if ( sActivity == "idle" ) then
-		random.SetSeed( math.MD5Random( self:GetOwner():GetCurrentCommand():CommandNumber() ) % 0x100 )
-	
-		return BaseClass.PlayActivity( self, random.RandomFloat(0, 1) > 0.9 and "idle2" or sActivity, iIndex, flRate )
+function SWEP:SecondaryAttack()
+	if ( self:CanSecondaryAttack() ) then
+		self:AdvanceZoom()
+		
+		return true
 	end
 	
-	return BaseClass.PlayActivity( self, sActivity, iIndex, flRate )
+	return false
+end
+
+function SWEP:GetActivitySuffix( sActivity, iIndex )
+	if ( sActivity == "idle" ) then
+		if ( self.m_tDryFires[iIndex + 1] and BaseClass.GetActivitySuffix( self, sActivity, iIndex ) == "empty" ) then
+			return "empty"
+		end
+		
+		random.SetSeed( pPlayer:GetMD5Seed() % 0x100 )
+		
+		if ( random.RandomFloat(0, 1) > 0.9 ) then
+			return "alt"
+		end
+	end
+	
+	return BaseClass.GetActivitySuffix( self, sActivity, iIndex )
 end

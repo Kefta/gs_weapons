@@ -35,7 +35,7 @@ function SWEP:Initialize()
 	self.PunchDecayFunction = PLAYER.CSDecayPunchAngle
 end
 
-function SWEP:CanPrimaryAttack()
+function SWEP:CanPrimaryAttack( iIndex )
 	if ( self:GetNextPrimaryFire() == -1 ) then
 		return false
 	end
@@ -51,7 +51,7 @@ function SWEP:CanPrimaryAttack()
 	
 	if ( self:EventActive( "reload" )) then
 		if ( self.SingleReload.Enable and self.SingleReload.QueuedFire ) then
-			local flNextTime = self:SequenceEnd(0)
+			local flNextTime = self:SequenceEnd( iIndex )
 			self:RemoveEvent( "reload" )
 			
 			self:AddEvent( "fire", flNextTime, function()
@@ -76,13 +76,13 @@ function SWEP:CanPrimaryAttack()
 	
 	-- In CS:S weapons, water has priority over the clip
 	if ( not self.Primary.FireUnderwater and iWaterLevel == 3 ) then
-		self:HandleFireUnderwater( false )
+		self:HandleFireUnderwater( false, iIndex )
 		
 		return false
 	end
 	
 	if ( iClip == 0 or iClip == -1 and self:GetDefaultClip1() ~= -1 and pPlayer:GetAmmoCount( self:GetPrimaryAmmoName() ) == 0 ) then
-		self:HandleFireOnEmpty( false )
+		self:HandleFireOnEmpty( false, iIndex )
 		
 		return false
 	end
@@ -90,7 +90,7 @@ function SWEP:CanPrimaryAttack()
 	return true
 end
 
-function SWEP:CanSecondaryAttack()
+function SWEP:CanSecondaryAttack( iIndex )
 	if ( self:GetNextSecondaryFire() == -1 ) then
 		return false
 	end
@@ -107,7 +107,7 @@ function SWEP:CanSecondaryAttack()
 	
 	if ( self:EventActive( "reload" )) then
 		if ( self.SingleReload.Enable and self.SingleReload.QueuedFire ) then
-			local flNextTime = self:SequenceEnd(0)
+			local flNextTime = self:SequenceEnd( iIndex )
 			self:RemoveEvent( "reload" )
 			
 			self:AddEvent( "fire", flNextTime, function()
@@ -132,13 +132,13 @@ function SWEP:CanSecondaryAttack()
 	end
 	
 	if ( not self.Secondary.FireUnderwater and iWaterLevel == 3 ) then
-		self:HandleFireUnderwater( true )
+		self:HandleFireUnderwater( true, iIndex )
 		
 		return false
 	end
 	
 	if ( iClip == 0 or iClip == -1 and bEmpty and (self.UseClip1ForSecondary and self:GetDefaultClip1() or self:GetDefaultClip2()) ~= -1 ) then
-		self:HandleFireOnEmpty( true )
+		self:HandleFireOnEmpty( true, iIndex )
 		
 		return false
 	end

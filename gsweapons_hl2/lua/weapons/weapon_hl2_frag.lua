@@ -26,7 +26,7 @@ function SWEP:PrimaryAttack()
 		return false
 	end
 	
-	self:Throw()
+	self:Throw( GRENADE_THROW, 0 )
 	
 	return true
 end

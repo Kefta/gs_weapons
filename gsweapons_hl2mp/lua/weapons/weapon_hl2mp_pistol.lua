@@ -11,6 +11,7 @@ SWEP.WorldModel = "models/weapons/w_pistol.mdl"
 SWEP.Weight = 2
 
 SWEP.Activities = {
+	primary_empty = ACT_INVALID,
 	primary2 = ACT_VM_RECOIL1,
 	primary3 = ACT_VM_RECOIL2,
 	primary4 = ACT_VM_RECOIL3,
@@ -83,8 +84,8 @@ function SWEP:ItemFrame()
 	end
 end
 
-function SWEP:Shoot( bSecondary --[[= false]], iClipDeduction --[[= 1]] )
-	BaseClass.Shoot( self, bSecondary, iClipDeduction )
+function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], iClipDeduction --[[= 1]] )
+	BaseClass.Shoot( self, bSecondary, iIndex, iClipDeduction )
 	
 	local flCurTime = CurTime()
 	

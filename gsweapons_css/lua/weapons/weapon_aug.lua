@@ -27,7 +27,6 @@ SWEP.Primary = {
 }
 
 SWEP.Secondary.Cooldown = 0.135
-SWEP.SpecialType = SPECIAL_ZOOM
 
 if ( CLIENT ) then
 	SWEP.Category = "Counter-Strike: Source"
@@ -87,3 +86,13 @@ SWEP.Kick = {
 		DirectionChange = 8
 	}
 }
+
+function SWEP:SecondaryAttack()
+	if ( self:CanSecondaryAttack(0) ) then
+		self:AdvanceZoom()
+		
+		return true
+	end
+	
+	return false
+end
