@@ -15,14 +15,10 @@ SWEP.Sounds = {
 SWEP.Primary = {
 	Damage = 0, -- HL1 uses ammo damage
 	ReloadOnEmptyFire = true,
-	Spread = vector_origin,
 	PunchAngle = vector_origin
 }
 
-SWEP.Secondary = {
-	Spread = NULL, -- Set to NULL to disable
-	PunchAngle = NULL
-}
+SWEP.Secondary.PunchAngle = NULL -- Set to NULL to disable
 
 if ( CLIENT ) then
 	SWEP.Category = "Half-Life: Source"
@@ -42,13 +38,6 @@ function SWEP:Punch( bSecondary )
 	self:GetOwner():ViewPunch( self:GetPunchAngle( bSecondary ))
 end
 
-function SWEP:GetShotTable( bSecondary )
-	local tbl = BaseClass.GetShotTable( self, bSecondary )
-	tbl.Spread = self:GetSpread( bSecondary )
-	
-	return tbl
-end
-
 --- HLBase
 function SWEP:GetPunchAngle( bSecondary )
 	if ( bSecondary ) then
@@ -60,16 +49,4 @@ function SWEP:GetPunchAngle( bSecondary )
 	end
 	
 	return self.Primary.PunchAngle
-end
-
-function SWEP:GetSpread( bSecondary )
-	if ( bSecondary ) then
-		local flSpecial = self.Secondary.Spread
-		
-		if ( flSpecial ~= NULL ) then
-			return flSpecial
-		end
-	end
-	
-	return self.Primary.Spread
 end

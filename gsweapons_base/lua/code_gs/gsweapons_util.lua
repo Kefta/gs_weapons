@@ -29,12 +29,6 @@ SNDLVL_140dB = 140 // 0.2
 SNDLVL_150dB = 150 // 0.2
 SNDLVL_180dB = 180 // rocket launching
 
--- Weapon secondary/special type enums
-SPECIAL_SILENCE = 1
-SPECIAL_BURST = 2
-SPECIAL_ZOOM = 3
-SPECIAL_IRONSIGHTS = 4
-
 -- Grenade throw type enums
 GRENADE_THROW = 1
 GRENADE_TOSS = 2

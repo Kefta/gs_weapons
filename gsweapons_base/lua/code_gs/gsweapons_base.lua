@@ -23,8 +23,8 @@ do
 end
 
 do
-	local Default = function( _, _, _, _, vNewPos, aNew ) return vNewPos, aNew end
-	local Disable = function( _, _, vPos, ang ) return vPos, ang end
+	local Default = function( _, _, _, vNewPos, aNew ) return vNewPos, aNew end
+	local Disable = function( _, vPos, ang ) return vPos, ang end
 	local tBobTypes = {}
 	
 	function gsweapons.RegisterBobType( sName, func )
@@ -186,7 +186,7 @@ local flBobTime = 0
 local flLastBob = 0
 local flLastSpeed = 0
 
-gsweapons.RegisterBobType( "hls", function( pWeapon, _, vOrigin, ang )
+gsweapons.RegisterBobType( "hls", function( pWeapon, vOrigin, ang )
 	local pPlayer = pWeapon:GetOwner()
 	local flBobCycle = pWeapon.BobScale
 	local flBobUp = pWeapon.SwayScale
@@ -240,7 +240,7 @@ gsweapons.RegisterBobType( "hls", function( pWeapon, _, vOrigin, ang )
 	return vOrigin, ang
 end )
 
-gsweapons.RegisterBobType( "css", function( pWeapon, _, vOrigin, ang )
+gsweapons.RegisterBobType( "css", function( pWeapon, vOrigin, ang )
 	local pPlayer = pWeapon:GetOwner()
 	
 	//NOTENOTE: For now, let this cycle continue when in the air, because it snaps badly without it

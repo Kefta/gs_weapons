@@ -34,6 +34,8 @@ function PLAYER:ActualEyeAngles()
 	return self.m_aVehicleViewAngles
 end
 
+local vPlayerOffset = Vector(0, 0, -4)
+
 function PLAYER:ComputeTracerStartPosition( vSrc )
 	// adjust tracer position for player
 	local aEyes = self:ActualEyeAngles()
@@ -98,7 +100,7 @@ local sv_showimpacts = CreateConVar( "sv_showimpacts", "0", FCVAR_REPLICATED, "S
 local sv_showpenetration = CreateConVar( "sv_showpenetration", "0", FCVAR_REPLICATED, "Shows penetration trace (if applicable) when the weapon fires" )
 local sv_showplayerhitboxes = CreateConVar( "sv_showplayerhitboxes", "0", FCVAR_REPLICATED, "Show lag compensated hitboxes for the specified player index whenever a player fires." )
 
-local iTracerCount = 0 -- Global to interact with FireCSSBullets
+local iTracerCount = 0 -- Instance global to interact with FireBullets functions
 
 -- Player only as NPCs could not be overrided to use this function
 function PLAYER:FireLuaBullets( bullets )
@@ -514,14 +516,12 @@ function PLAYER:FireLuaBullets( bullets )
 	self:LagCompensation( false )
 end
 
-BULLET_CLASS = "gs_bullet"
-
-function PLAYER:FireEntityBullets( bullets )
+function PLAYER:FireEntityBullets( tBullets, sClass )
 	if ( SERVER ) then
-		local pBullet = ents.Create( BULLET_CLASS )
+		local pBullet = ents.Create( sClass or "gs_bullet" )
 		
 		if ( pBullet ~= NULL ) then
-			pBullet:SetupBullet( bullets )
+			pBullet:SetupBullet( tBullets )
 			pBullet:Spawn()
 		end
 	end
@@ -1401,6 +1401,30 @@ end
 
 function VECTOR:ImpulseAngle()
 	return Angle( self.y, self.z, self.x )
+end
+
+function VECTOR:Right( vUp --[[= Vector(0, 0, 1)]] )
+	if ( self.x == 0 and self.y == 0 )then
+		// pitch 90 degrees up/down from identity
+		return Vector( 0, -1, 0 )
+	else
+		local vRet = self:Cross( vUp or vector_normal )
+		vRet:Normalize()
+		
+		return vRet
+	end
+end
+
+function VECTOR:Up( vUp --[[= Vector(0, 0, 1)]] )
+	if ( self.x == 0 and self.y == 0 )then
+		return Vector( -self.z, 0, 0 )
+	else
+		local vRet = self:Cross( vUp or vector_normal )
+		vRet = vRet:Cross( self )
+		vRet:Normalize()
+		
+		return vRet
+	end
 end
 
 color_debug = SERVER and Color( 0, 0, 255, 100 ) or Color( 255, 0, 0, 100 )
@@ -2367,10 +2391,8 @@ end
 
 --- Trace
 function util.ClearTrace()
-	-- To prevent people from screwing up vector_origin
-	local vNewOrigin = Vector( 0, 0, 0 )
-	
-	return { Entity = NULL,
+	return {
+		Entity = NULL,
 		Fraction = 1,
 		FractionLeftSolid = 0,
 		Hit = false,
@@ -2378,15 +2400,15 @@ function util.ClearTrace()
 		HitGroup = 0,
 		HitNoDraw = false,
 		HitNonWorld = false,
-		HitNormal = vNewOrigin,
-		HitPos = vNewOrigin,
+		HitNormal = Vector(0, 0, 0),
+		HitPos = Vector(0, 0, 0),
 		HitSky = false,
 		HitTexture = "**empty**",
 		HitWorld = false,
 		MatType = 0,
-		Normal = vNewOrigin,
+		Normal = Vector(0, 0, 0),
 		PhysicsBone = 0,
-		StartPos = vNewOrigin,
+		StartPos = Vector(0, 0, 0),
 		SurfaceProps = 0,
 		StartSolid = false,
 		AllSolid = false

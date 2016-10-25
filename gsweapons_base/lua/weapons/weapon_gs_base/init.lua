@@ -110,11 +110,3 @@ function SWEP:ShouldDropOnDie()
 end
 
 --- Player functions
--- Creates DTVars attached to the player
-hook.Add( "PlayerInitialSpawn", "GSWeapons-Player DTVars", function( pPlayer )
-	timer.Simple( 0, function()
-		if ( pPlayer ~= NULL ) then
-			pPlayer:SetupWeaponDataTables()
-		end
-	end )
-end )

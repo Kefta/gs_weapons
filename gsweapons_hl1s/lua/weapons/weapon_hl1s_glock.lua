@@ -14,7 +14,7 @@ SWEP.Activities = {
 	primary_empty = ACT_GLOCK_SHOOTEMPTY,
 	secondary = {
 		ACT_VM_PRIMARYATTACK,
-		idle = {10, 15}
+		idle = {10, 15} -- FIXME: Is this right?
 	},
 	reload_empty = ACT_GLOCK_SHOOT_RELOAD
 }

@@ -7,13 +7,6 @@ SWEP.Spawnable = true
 SWEP.ViewModel = "models/weapons/v_rif_ak47.mdl"
 SWEP.WorldModel = "models/weapons/w_rif_ak47.mdl"
 
-SWEP.Activities = {
-	idle = {
-		ACT_VM_IDLE,
-		idle = {10, 15}
-	}
-}
-
 SWEP.Sounds = {
 	primary = "Weapon_AK47.Single"
 }

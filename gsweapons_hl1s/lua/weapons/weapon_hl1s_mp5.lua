@@ -13,7 +13,7 @@ SWEP.Weight = 15
 SWEP.Activities = {
 	priamry = {
 		ACT_VM_PRIMARYATTACK,
-		idle = {10, 15}
+		idle = {10, 15} -- FIXME: Not working
 	},
 	secondary = {
 		ACT_VM_SECONDARYATTACK,

@@ -44,8 +44,6 @@ SWEP.Zoom = {
 	DrawOverlay = CLIENT and true or nil
 }
 
-SWEP.SpecialType = SPECIAL_ZOOM
-
 if ( CLIENT ) then
 	SWEP.Category = "Counter-Strike: Source"
 	

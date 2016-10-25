@@ -56,7 +56,7 @@ end
 --- GSBase
 function SWEP:GetActivitySuffix( sActivity, iIndex )
 	if ( sActivity == "idle" ) then
-		if ( self.m_tDryFires[iIndex + 1] and BaseClass.GetActivitySuffix( self, sActivity, iIndex ) == "empty" ) then
+		if ( self.m_tDryFire[iIndex] and BaseClass.GetActivitySuffix( self, sActivity, iIndex ) == "empty" ) then
 			return "empty"
 		end
 		

@@ -7,11 +7,9 @@ SWEP.ViewModelFOV = 75
 
 SWEP.Primary = {
 	Damage = 0, -- FIXME: I think damage is managed by the ammo?
-	ReloadOnEmptyFire = true,
-	Spread = vector_origin
+	ReloadOnEmptyFire = true
 }
 
-SWEP.Secondary.Spread = NULL -- Set to NULL to disable
 SWEP.EmptyCooldown = 0.15
 SWEP.HolsterReloadTime = 3
 
@@ -28,24 +26,4 @@ function SWEP:Initialize()
 	BaseClass.Initialize( self )
 	
 	self.FireFunction = PLAYER.FireLuaBullets
-end
-
-function SWEP:GetShotTable( bSecondary )
-	local tbl = BaseClass.GetShotTable( self, bSecondary )
-	tbl.Spread = self:GetSpread( bSecondary )
-	
-	return tbl
-end
-
---- HL2Base
-function SWEP:GetSpread( bSecondary )
-	if ( bSecondary ) then
-		local flSpecial = self.Secondary.Spread
-		
-		if ( flSpecial ~= NULL ) then
-			return flSpecial
-		end
-	end
-	
-	return self.Primary.Spread
 end

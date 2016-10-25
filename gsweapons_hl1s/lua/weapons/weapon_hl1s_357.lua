@@ -64,11 +64,11 @@ end
 
 function SWEP:GetActivitySuffix( sActivity, iIndex )
 	if ( sActivity == "idle" ) then
-		if ( self.m_tDryFires[iIndex + 1] and BaseClass.GetActivitySuffix( self, sActivity, iIndex ) == "empty" ) then
+		if ( self.m_tDryFire[iIndex] and BaseClass.GetActivitySuffix( self, sActivity, iIndex ) == "empty" ) then
 			return "empty"
 		end
 		
-		random.SetSeed( pPlayer:GetMD5Seed() % 0x100 )
+		random.SetSeed( self:GetOwner():GetMD5Seed() % 0x100 )
 		
 		if ( random.RandomFloat(0, 1) > 0.9 ) then
 			return "alt"

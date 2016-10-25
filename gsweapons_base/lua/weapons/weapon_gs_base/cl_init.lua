@@ -91,21 +91,60 @@ end
 --- HUD/Visual
 -- Bobbing affects all view models; individual view models can call CalcViewModelView
 function SWEP:CalcViewModelView( vm, vPos, ang, vNewPos, aNew )
-	return gsweapons.GetBobType( self.BobStyle )( self, vm, vPos, ang, vNewPos, aNew )
+	vPos, ang = gsweapons.GetBobType( self.BobStyle )( self, vPos, ang, vNewPos, aNew )
+	
+	local iIndex = self:GetIronSights()
+	local flZoomActive = self:GetZoomActiveTime()
+	local flCurTime = CurTime()
+	local bZooming = flZoomActive > flCurTime
+	
+	if ( iIndex == vm:ViewModelIndex() and not (bZooming and self.m_iIronSightsState == 0) ) then
+		if ( self.m_iIronSightsState == 0 ) then
+			self.m_iIronSightsState = 1
+		end
+		
+		if ( self.m_iIronSightsState == 1 ) then
+			if ( bZooming ) then
+				local flProgress = (self:GetZoomActiveTime() - CurTime()) / self.IronSights.ZoomTime
+				
+				return vPos + self.IronSights.Pos * flProgress, ang + self.IronSights.Ang * flProgress
+			end
+			
+			self.m_iIronSightsState = 2
+		end
+		
+		if ( self.m_iIronSightsState == 2 ) then
+			if ( not bZooming ) then
+				return vPos + self.IronSights.Pos, ang + self.IronSights.Ang
+			end
+			
+			self.m_iIronSightsState = 3
+		end
+		
+		if ( bZooming ) then
+			local flProgress = (self:GetZoomActiveTime() - CurTime()) / self.IronSights.ZoomTime
+			
+			return vPos + self.IronSights.Pos * flProgress, ang + self.IronSights.Ang * flProgress
+		end
+		
+		self.m_iIronSightsState = 0
+	end
+	
+	return vPos, ang
 end
 
 function SWEP:DoDrawCrosshair( x, y )
 	return self.Zoom.DrawOverlay and self:GetZoomLevel() ~= 0 and not self:GetOwner():ShouldDrawLocalPlayer()
-		and gsweapons.GetScope( self.ScopeStyle )( self, x, y )
-		or gsweapons.GetCrosshair( self.CrosshairStyle )( self, x, y )
+		and gsweapons.GetScope( self.ScopeStyle )( self, x, y ) or (self.IronSights.DrawCrosshair or self:GetIronSights() == 0)
+		and gsweapons.GetCrosshair( self.CrosshairStyle )( self, x, y ) or true
 end
 
 function SWEP:FireAnimationEvent( vPos, ang, iEvent, sOptions )
 	if ( self.EventStyle[iEvent] ) then
 		return gsweapons.GetAnimEvent( iEvent, self.EventStyle[iEvent]:lower() )( self, vPos, ang, iEvent, sOptions )
-	else
-		DevMsg( 2, string.format( "%s (weapon_gs_base) Missing event %u: %s", self:GetClass(), iEvent, sOptions ))
 	end
+	
+	DevMsg( 2, string.format( "%s (weapon_gs_base) Missing event %u: %s", self:GetClass(), iEvent, sOptions ))
 end
 
 function SWEP:DrawWeaponSelection( x, y, flWide, flTall )

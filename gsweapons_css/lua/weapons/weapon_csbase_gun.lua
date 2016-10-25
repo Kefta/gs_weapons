@@ -89,7 +89,6 @@ function SWEP:GetShotTable( bSecondary )
 	}
 end
 
---- CSBase_Gun
 function SWEP:GetSpread( bSecondary )
 	if ( bSecondary ) then
 		local flSpecial = self.Secondary.Spread.Base
