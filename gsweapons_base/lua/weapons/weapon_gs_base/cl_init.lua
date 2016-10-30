@@ -37,6 +37,9 @@ SWEP.EventStyle = {
 	[21] = "default", -- First-person
 	[22] = "default", -- Third-person
 	
+	-- HL2 melee hit
+	[3001] = "",
+	
 	-- Grenades
 	-- Throw events are handled by Think events
 	[3005] = "",

@@ -67,13 +67,13 @@ end
 
 function SWEP:SecondaryAttack()
 	if ( self:Clip1() == 1 ) then
-		self:Shoot( false, 1, 0 )
+		self:Shoot( false, 0, 1 )
 		
 		return false
 	end
 	
 	if ( self:CanSecondaryAttack() ) then
-		self:Shoot( true, 2, 0 )
+		self:Shoot( true, 0, 2 )
 		
 		return true
 	end

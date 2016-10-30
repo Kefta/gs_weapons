@@ -89,32 +89,47 @@ SWEP.Activities = { -- Default activity events
 
 -- https://github.com/Facepunch/garrysmod-issues/issues/2346
 SWEP.Sounds = { -- Default sound events. If a sound isn't available, nothing will play
-	--event = "sound.wav",
+	--event = "Sound.Scape",
 	--[[event2 = {
 		pitch = {50, 100},
 		sound = "sound2.wav"
+	},
+	event3 = {
+		"sound3.wav", -- Sound to use for the first viewmodel
+		nil, -- The second viewmodel will not play any sound for this event
+		{ -- Sound to use for the third viewmodel
+			pitch = {10, 100},
+			sound = "Sound.Scape2"
+		}
 	},]]
-	--deploy = "",
-	--primary = "",
-	--secondary = "",
-	--reload = "",
-	--empty = "",
-	--holster = "",
-	--pump = "",
+	deploy = "",
+	primary = "Weapon_Pistol.Single",
+	secondary = "Weapon_SMG1.Double",
+	silence = "Weapon_USP.AttachSilencer",
+	zoom = "Default.Zoom",
+	burst = "",
+	reload = "Weapon_Pistol.Reload",
+	empty = "Weapon_Pistol.Empty",
+	holster = "",
+	pump = "Weapon_Shotgun.Special",
 	-- For silencers
-	--s_deploy = "",
-	--s_primary = "",
-	--s_secondary = "",
-	--s_reload = "",
-	--s_empty = "",
-	--s_holster = "",
-	--s_pump = "",
+	s_deploy = "",
+	s_primary = "Weapon_USP.SilencedShot",
+	s_secondary = "",
+	s_silence = "Weapon_USP.DetachSilencer",
+	s_reload = "",
+	s_empty = "",
+	s_holster = "",
 	-- For single reloading
-	--reload_start = "",
-	--reload_finish = "",
+	reload_start = "",
+	reload_finish = "Weapon_Shotgun.Special1",
+	-- For melee weapons
+	hit = "Weapon_Crowbar.Melee_Hit",
+	hitworld = "Weapon_Crowbar.Melee_HitWorld",
+	miss = "Weapon_Crowbar.Single",
 	-- For grenades
-	--pullback = "",
-	--throw = ""
+	pullback = "",
+	throw = ""
 }
 
 --- Weapon behaviour
@@ -171,7 +186,8 @@ SWEP.Burst = {
 		--0.1 -- Time until second extra shot; leave nil to fallback to the previous specified time
 	},
 	Count = 2, -- Number of extra shots to fire when burst is enabled
-	Cooldown = 0.3 -- Cooldown between toggling bursts
+	Cooldown = 0.3, -- Cooldown between toggling bursts
+	SingleActivity = false -- Only play the initial shooting activity during burst firing
 }
 
 SWEP.Zoom = {
@@ -210,6 +226,14 @@ SWEP.Grenade = {
 	Timer = SERVER and 2.5 or nil -- (Serverside) Grenade timer until detonation
 }
 
+SWEP.Melee = {
+	DotRange = 0.70721, -- Not sure about this constant, but it's close to 1/sqrt(2)
+	HullRadius = 1.732, -- sqrt(3)
+	TestHull = Vector(16, 16, 16),
+	DamageType = DMG_CLUB,
+	Mask = MASK_SHOT_HULL
+}
+
 SWEP.DoPump = false -- Do a pump animation after shooting
 
 SWEP.AutoSwitchOnEmpty = false -- Automatically switch away if the weapon is completely empty and the mouse is not being held. Ignores AutoSwitchFrom
@@ -235,7 +259,6 @@ SWEP.TriggerBoundSize = 36 -- Trigger box size to pickup the weapon off the grou
 --SWEP.m_WeaponDeploySpeed = 1 -- Do NOT use this, the deploy animation will be cut short by the idle animation! Instead, set the "rate" key in the SWEP.Activities.deploy table
 
 local bSinglePlayer = game.SinglePlayer()
-local format = string.format
 local sFormatOne = "%s_%s"
 local sFormatTwo = "%s_%s_%s"
 
@@ -1444,7 +1467,10 @@ function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], iClipDeduction 
 			self:SetShotsFired( self:GetShotsFired() + 1 )
 			self:DoMuzzleFlash( iIndex )
 			self:PlaySound( bSecondary and "secondary" or "primary", iIndex )
-			self:PlayActivity( "burst", iIndex )
+			
+			if ( not tBurst.SingleActivity ) then
+				self:PlayActivity( bSecondary and "secondary" or "primary", iIndex )
+			end
 			
 			self:UpdateBurstShotTable( tbl )
 			
@@ -1538,7 +1564,6 @@ function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], iClipDeduction 
 	
 	self:SetShotsFired( self:GetShotsFired() + 1 )
 	self:DoMuzzleFlash( iIndex )
-	self:Punch( bSecondary )
 	self:PlaySound( bSecondary and "secondary" or "primary", iIndex )
 	local bActivity = self:PlayActivity( bSecondary and "secondary" or "primary", iIndex )
 	
@@ -1579,6 +1604,8 @@ function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], iClipDeduction 
 		end )
 	end
 	
+	self:Punch( bSecondary )
+	
 	return bActivity
 end
 
@@ -1602,13 +1629,143 @@ function SWEP:Throw( iType --[[= GRENADE_THROW]], iIndex --[[= 0]] )
 	self:SetNextSecondaryFire(-1)
 	self:SetNextReload(-1)
 	self:SetNextIdle(-1)
-	
-	-- Don't switch while we're throwing
-	--self.AutoSwitchFrom = false -- FIXME: Change to shared?
 end
 
 -- Shared for the HL1 grenade
 function SWEP:EmitGrenade()
+end
+
+function SWEP:Swing( bSecondary, iIndex )	
+	local tMelee = self.Melee
+	local pPlayer = self:GetOwner()
+	pPlayer:LagCompensation( true )
+	
+	local vSrc = self:GetShootSrc()
+	local vForward = self:GetShootAngles():Forward()
+	local vEnd = vSrc + vForward * self:GetRange( bSecondary )
+	
+	local tbl = {
+		start = vSrc,
+		endpos = vEnd,
+		mask = self.Melee.Mask,
+		filter = pPlayer
+	}
+	local tr = util.TraceLine( tbl )
+	local bMiss = tr.Fraction == 1
+	
+	if ( bMiss ) then
+		// hull is +/- 16, so use cuberoot of 2 to determine how big the hull is from center to the corner point
+		-- Comment is wrong; it's actually the sqrt(3)
+		tbl.endpos = vEnd - vForward * tMelee.HullRadius
+		tbl.mins = -tMelee.TestHull
+		tbl.maxs = tMelee.TestHull
+		tbl.output = tr
+		
+		util.TraceHull( tbl )
+		bMiss = tr.Fraction == 1 or tr.Entity == NULL
+		
+		if ( not bMiss ) then
+			local vTarget = tr.Entity:GetPos() - vSrc
+			vTarget:Normalize()
+			
+			// YWB:  Make sure they are sort of facing the guy at least...
+			if ( vTarget:Dot( vForward ) < tMelee.DotRange ) then
+				// Force amiss
+				tr.Fraction = 1
+				tr.Entity = NULL
+				bMiss = true
+			else
+				util.FindHullIntersection( tbl, tr )
+				bMiss = tr.Fraction == 1 or tr.Entity == NULL
+			end
+		end
+	else
+		bMiss = tr.Entity == NULL
+	end
+	
+	local bFirstTimePredicted = IsFirstTimePredicted()
+	local bNoWater = true
+	
+	if ( bFirstTimePredicted ) then
+		local bHitWater = bit.band( util.PointContents( vSrc ), MASK_WATER ) ~= 0
+		local bEndNotWater = bit.band( util.PointContents( tr.HitPos ), MASK_WATER ) == 0
+		local trSplash
+		tbl.mask = MASK_WATER
+		tbl.output = nil
+		
+		if ( bHitWater and bEndNotWater ) then
+			tbl.start = tr.HitPos
+			tbl.endpos = vSrc
+			trSplash = util.TraceLine( tbl )
+		elseif ( not (bHitWater or bEndNotWater) ) then
+			tbl.start = vSrc
+			tbl.endpos = tr.HitPos
+			trSplash = util.TraceLine( tbl )
+		end
+		
+		if ( trSplash and not self:DoSplashEffect( trSplash )) then
+			bNoWater = false
+			local data = EffectData()
+				data:SetOrigin( trSplash.HitPos )
+				data:SetScale(8)
+				
+				if ( bit.band( util.PointContents( trSplash.HitPos ), CONTENTS_SLIME ) ~= 0 ) then
+					data:SetFlags( FX_WATER_IN_SLIME )
+				end
+				
+			util.Effect( "watersplash", data )
+		end
+	end
+	
+	// Send the anim
+	pPlayer:SetAnimation( PLAYER_ATTACK1 )
+	
+	local bActivity
+	
+	if ( bMiss ) then
+		self:PlaySound( "miss", iIndex )
+		bActivity = self:PlayActivity( bSecondary and "miss_alt" or "miss", iIndex )	
+	else
+		self:PlaySound( (tr.Entity:IsPlayer() or tr.Entity:IsNPC()) and "hit" or "hitworld", iIndex )
+		
+		bActivity = self:PlayActivity( bSecondary and "hit_alt" or "hit", iIndex )
+		self:Hit( bSecondary, tr, vForward, iIndex )
+		
+		if ( bNoWater and bFirstTimePredicted and not self:DoImpactEffect( tr, tMelee.DamageType )) then
+			local data = EffectData()
+				data:SetOrigin( tr.HitPos )
+				data:SetStart( vSrc )
+				data:SetSurfaceProp( tr.SurfaceProps )
+				data:SetDamageType( tMelee.DamageType )
+				data:SetHitBox( tr.HitBox )
+				data:SetEntity( tr.Entity )
+			util.Effect( "Impact", data )
+		end
+	end
+	
+	// Setup out next attack times
+	local flCurTime = CurTime()
+	self:SetNextPrimaryFire( flCurTime + self:GetCooldown( bSecondary ))
+	self:SetNextSecondaryFire( flCurTime + self:SequenceLength( iIndex ))
+	
+	self:Punch( bSecondary )
+	pPlayer:LagCompensation( false )
+	
+	return bActivity
+end
+
+function SWEP:Hit( bSecondary, tr, vForward )
+	local flDamage = self:GetDamage( bSecondary )
+	local info = DamageInfo()
+		info:SetAttacker( self:GetOwner() )
+		info:SetInflictor( self )
+		info:SetDamage( flDamage )
+		info:SetDamageType( self.Melee.DamageType )
+		info:SetDamagePosition( tr.HitPos )
+		info:SetReportedPosition( tr.StartPos )
+		
+		--info:SetDamageForce( vForward * info:GetBaseDamage() * self.Force * (1 / (flDamage < 1 and 1 or flDamage)) * phys_pushscale:GetFloat() )
+	tr.Entity:DispatchTraceAttack( info, tr, vForward )
 end
 
 function SWEP:Silence( iIndex )
@@ -1630,6 +1787,7 @@ function SWEP:Silence( iIndex )
 end
 
 function SWEP:ToggleBurst( iIndex )
+	self:PlaySound( "burst", iIndex )
 	self:SetNextSecondaryFire( CurTime() + self.Burst.Cooldown )
 	
 	local iBurst = self:GetBurst()
@@ -1640,11 +1798,12 @@ function SWEP:ToggleBurst( iIndex )
 end
 
 -- Doesn't matter which viewmodel is zoomed in since no specific anims are assosiated with it
-function SWEP:AdvanceZoom()
+function SWEP:AdvanceZoom( iIndex )
 	local tZoom = self.Zoom
 	local iLevel = (self:GetZoomLevel() + 1) % (tZoom.Levels + 1)
 	local iFOV = iLevel == 0 and 0 or tZoom.FOV[iLevel]
 	local flTime = tZoom.Times[iLevel] or tZoom.Times[0]
+	self:PlaySound( "zoom", iIndex )
 	
 	if ( iFOV and flTime ) then
 		self:SetZoomLevel( iLevel )
@@ -2242,6 +2401,10 @@ function SWEP:DoImpactEffect( tr, iDamageType )
 	return false
 end
 
+function SWEP:DoSplashEffect( tr )
+	return false
+end
+
 function SWEP:PlaySound( sSound, iIndex, bStrictIndex, bPlayShared --[[= false]] )
 	if ( sSound == "" ) then
 		return false
@@ -2258,7 +2421,7 @@ function SWEP:PlaySound( sSound, iIndex, bStrictIndex, bPlayShared --[[= false]]
 				return false
 			end
 		else
-			local sPlay = self:LookupSound( format( sFormatOne, sPrefix, sSound ), iIndex, bStrictIndex )
+			local sPlay = self:LookupSound( string.format( sFormatOne, sPrefix, sSound ), iIndex, bStrictIndex )
 			
 			if ( sPlay == "" ) then
 				sSound = self:LookupSound( sSound, iIndex, bStrictIndex )
@@ -2318,7 +2481,7 @@ function SWEP:PlayActivity( Activity, iIndex --[[= 0]], flRate --[[= 1]], bStric
 		local bSuffix = sSuffix ~= ""
 		
 		if ( bPrefix and bSuffix ) then
-			sActivity = format( sFormatTwo, sPrefix, Activity, sSuffix )
+			sActivity = string.format( sFormatTwo, sPrefix, Activity, sSuffix )
 			iActivity = self:LookupActivity( sActivity, iIndex )
 			
 			if ( iActivity == ACT_RESET ) then
@@ -2331,7 +2494,7 @@ function SWEP:PlayActivity( Activity, iIndex --[[= 0]], flRate --[[= 1]], bStric
 		
 		if ( bSequence ) then
 			if ( bPrefix and not (bStrictSuffix and bSuffix) ) then
-				sActivity = format( sFormatOne, sPrefix, Activity )
+				sActivity = string.format( sFormatOne, sPrefix, Activity )
 				iActivity = self:LookupActivity( sActivity, iIndex )
 				
 				if ( iActivity == ACT_RESET ) then
@@ -2348,7 +2511,7 @@ function SWEP:PlayActivity( Activity, iIndex --[[= 0]], flRate --[[= 1]], bStric
 				end
 				
 				if ( bSuffix ) then
-					sActivity = format( sFormatOne, Activity, sSuffix )
+					sActivity = string.format( sFormatOne, Activity, sSuffix )
 					iActivity = self:LookupActivity( sActivity, iIndex )
 					
 					if ( iActivity == ACT_RESET ) then
@@ -2806,16 +2969,16 @@ function SWEP:LookupSound( sName, iIndex --[[= 0]], bStrictIndex --[[= false]] )
 		end
 		
 		if ( not iIndex or iIndex == 0 or bStrictIndex ) then
-			return format( sSound, iIndex or 0 )
+			return string.format( sSound, iIndex or 0 )
 		end
 		
-		local sFormatSound = format( sSound, iIndex )
+		local sFormatSound = string.format( sSound, iIndex )
 		
 		if ( sound.GetProperties( sFormatSound )) then
 			return sFormatSound
 		end
 		
-		return format( sSound, 0 )
+		return string.format( sSound, 0 )
 	end
 	
 	return ""

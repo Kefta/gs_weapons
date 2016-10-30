@@ -299,7 +299,7 @@ function PLAYER:FireLuaBullets( bullets )
 				if ( bFirstTimePredicted ) then
 					local data = EffectData()
 						local vSplashPos = util.TraceLine({
-							start = vEnd,
+							start = tr.HitPos,
 							endpos = vNewSrc,
 							mask = MASK_WATER
 						}).HitPos
@@ -319,7 +319,7 @@ function PLAYER:FireLuaBullets( bullets )
 					local data = EffectData()
 						local vSplashPos = util.TraceLine({
 							start = vNewSrc,
-							endpos = vEnd,
+							endpos = tr.HistPos,
 							mask = MASK_WATER
 						}).HitPos
 						
@@ -731,7 +731,7 @@ function PLAYER:FireCSSBullets( bullets )
 				if ( bFirstTimePredicted ) then
 					local data = EffectData()
 						local vSplashPos = util.TraceLine({
-							start = vEnd,
+							start = tr.HitPos,
 							endpos = vNewSrc,
 							mask = MASK_WATER
 						}).HitPos
@@ -751,7 +751,7 @@ function PLAYER:FireCSSBullets( bullets )
 					local data = EffectData()
 						local vSplashPos = util.TraceLine({
 							start = vNewSrc,
-							endpos = vEnd,
+							endpos = tr.HitPos,
 							mask = MASK_WATER
 						}).HitPos
 						
@@ -1141,7 +1141,7 @@ function PLAYER:FireSDKBullets( bullets )
 			if ( bFirstTimePredicted ) then
 				local data = EffectData()
 					local vSplashPos = util.TraceLine({
-						start = vEnd,
+						start = tr.HitPos,
 						endpos = vSrc,
 						mask = MASK_WATER
 					}).HitPos
@@ -1161,7 +1161,7 @@ function PLAYER:FireSDKBullets( bullets )
 				local data = EffectData()
 					local vSplashPos = util.TraceLine({
 						start = vSrc,
-						endpos = vEnd,
+						endpos = tr.HitPos,
 						mask = MASK_WATER
 					}).HitPos
 					

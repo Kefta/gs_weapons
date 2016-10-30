@@ -15,9 +15,9 @@ if ( SERVER or not game.SinglePlayer() ) then
 	hook.Add( "Move", "GSWeapons-Punch decay and move speed", function( pPlayer, mv )
 		local pActiveWeapon = pPlayer:GetActiveWeapon()
 		
-		if ( pActiveWeapon.PunchDecayFunction ) then
+		--[[if ( pActiveWeapon.PunchDecayFunction ) then
 			pPlayer.dt.LastPunchAngle = pPlayer:GetViewPunchAngles()
-		end
+		end]]
 		
 		if ( pActiveWeapon.GetWalkSpeed ) then
 			local flOldSpeed = mv:GetMaxSpeed() *
@@ -28,13 +28,13 @@ if ( SERVER or not game.SinglePlayer() ) then
 		end
 	end )
 
-	hook.Add( "FinishMove", "GSWeapons-Punch decay", function( pPlayer )
+	--[[hook.Add( "FinishMove", "GSWeapons-Punch decay", function( pPlayer )
 		local fPunchDecay = pPlayer:GetActiveWeapon().PunchDecayFunction
 		
 		if ( fPunchDecay ) then
 			pPlayer:SetViewPunchAngles( fPunchDecay( pPlayer, pPlayer.dt.LastPunchAngle ))
 		end
-	end )
+	end )]]
 end
 
 local PLAYER = FindMetaTable( "Player" )

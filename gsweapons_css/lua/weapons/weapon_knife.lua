@@ -11,9 +11,9 @@ SWEP.HoldType = "knife"
 
 SWEP.Sounds = {
 	deploy = "Weapon_Knife.Deploy",
-	primary = "Weapon_Knife.Hit",
-	secondary = "Weapon_Knife.Stab",
-	hit = "Weapon_Knife.HitWall",
+	hit = "Weapon_Knife.Hit",
+	hit_alt = "Weapon_Knife.Stab",
+	hitworld = "Weapon_Knife.HitWall",
 	miss = "Weapon_Knife.Slash"
 }
 
@@ -22,7 +22,9 @@ SWEP.Primary = {
 	Range = 48,
 	Cooldown = 0.4,
 	HitCooldown = 0.5,
-	SmackTime = 0.1
+	SmackTime = 0.1,
+	InitialDamage = 20,
+	BackMultiplier = 1
 }
 
 SWEP.Secondary = {
@@ -30,7 +32,18 @@ SWEP.Secondary = {
 	Range = 32,
 	Cooldown = 1,
 	HitCooldown = 1.1,
-	SmackTime = 0.2
+	SmackTime = 0.2,
+	InitialDamage = 65,
+	BackMultiplier = 3
+}
+
+SWEP.Melee = {
+	DotRange = 0.8,
+	HullRadius = 1.732, -- sqrt(3)
+	TestHull = Vector(16, 16, 18),
+	DamageType = bit.bor( DMG_BULLET, DMG_NEVERGIB ),
+	Force = 300,
+	Mask = MASK_SOLID
 }
 
 if ( CLIENT ) then
@@ -43,37 +56,45 @@ if ( CLIENT ) then
 	}
 end
 
---- Knife
-SWEP.FirstSwingDamage = 20
-SWEP.BackMultiplier = 3
-SWEP.BackMargin = 0.8
-SWEP.Force = 300
-
---- GSBase
-local phys_pushscale = GetConVar( "phys_pushscale" )
-local iDamageTypeKnife = bit.bor( DMG_BULLET, DMG_NEVERGIB )
-local vHeadMax = Vector( 16, 16, 18 )
-local vHeadMin = -vHeadMax
-
-function SWEP:PrimaryAttack( bStab )
-	if ( not bStab and not self:CanPrimaryAttack(0) ) then
-		return false
+function SWEP:PrimaryAttack()
+	if ( self:CanPrimaryAttack(0) ) then
+		self:Swing( false, 0 )
+		
+		return true
 	end
 	
+	return false
+end
+
+function SWEP:SecondaryAttack()
+	if ( self:CanSecondaryAttack(0) ) then
+		self:Swing( true, 0 )
+		
+		return true
+	end
+	
+	return false
+end
+
+local phys_pushscale = GetConVar( "phys_pushscale" )
+
+function SWEP:Swing( bSecondary, iIndex )
+	local tMelee = self.Melee
 	local pPlayer = self:GetOwner()
-	pPlayer:SetAnimation( PLAYER_ATTACK1 )
 	pPlayer:LagCompensation( true )
 	
-	local vForward = self:GetShootAngles():Forward()
 	local vSrc = self:GetShootSrc()
-	local vEnd = vSrc + vForward * self:GetRange( bStab )
+	local vForward = self:GetShootAngles():Forward()
+	local vEnd = vSrc + vForward * self:GetRange( bSecondary )
 	
-	local tr = util.TraceLine({
+	local tbl = {
 		start = vSrc,
 		endpos = vEnd,
-		mask = MASK_SOLID,
+		mask = self.Melee.Mask,
 		filter = pPlayer
-	})
+	}
+	local tr = util.TraceLine( tbl )
+	local bMiss = tr.Fraction == 1
 	
 	//check for hitting glass - TODO - fix this hackiness, doesn't always line up with what FindHullIntersection returns
 	--[[if ( SERVER ) then
@@ -85,138 +106,126 @@ function SWEP:PrimaryAttack( bStab )
 		self:TraceAttackToTriggers( info, tr.StartPos, tr.HitPos, vForward )
 	end]]
 	
-	local pEntity = tr.Entity
-	
-	if ( tr.Fraction == 1 ) then
-		local tbl = {
-			start = vSrc,
-			endpos = vEnd,
-			mins = vHeadMin,
-			maxs = vHeadMax,
-			mask = MASK_SOLID,
-			filter = pPlayer,
-			output = tr
-		}
+	if ( bMiss ) then
+		tbl.mins = -tMelee.TestHull
+		tbl.maxs = tMelee.TestHull
+		tbl.output = tr
 		
 		util.TraceHull( tbl )
-		pEntity = tr.Entity
 		
 		// Calculate the point of intersection of the line (or hull) and the object we hit
 		// This is and approximation of the "best" intersection
 		if ( tr.Fraction ~= 1 ) then
-			if ( pEntity == NULL or pEntity:IsBSPModel() ) then
+			if ( tr.Entity == NULL or tr.Entity:IsBSPModel() ) then
 				tbl.mins, tbl.maxs = pPlayer:GetHullDuck()
 				util.FindHullIntersection( tbl, tr )
-				pEntity = tr.Entity
+				bMiss = tr.Fraction == 1 or tr.Entity == NULL
+			else
+				bMiss = false
 			end
 		end
 	end
 	
-	local bDidHit = tr.Fraction < 1 and pEntity ~= NULL
-	self:PlayActivity( bDidHit and "hit" or "miss", 0 )
+	pPlayer:SetAnimation( PLAYER_ATTACK1 )
+	self:PlaySound( "miss", iIndex )
+	local bActivity
 	
-	if ( bDidHit ) then
-		local flDamage = self:GetDamage( bStab )
-		local bHitBack = false
-		
-		if ( bStab ) then
-			if ( pEntity:IsPlayer() or pEntity:IsNPC() ) then
-				local vTargetForward = pEntity:GetAngles():Forward() -- FIXME: Not correctly returning on client
-				vTargetForward.z = 0
-				
-				local vLOS = pEntity:GetPos() - pPlayer:GetPos()
-				vLOS.z = 0
-				vLOS:Normalize()
-				
-				//Triple the damage if we are stabbing them in the back.
-				if ( vLOS:Dot( vTargetForward ) > self.BackMargin ) then
-					bHitBack = true
-				end
-			end
-		end
-		
-		if ( bHitBack ) then
-			flDamage = flDamage * self.BackMultiplier
-		end
-		
-		local info = DamageInfo()
-			info:SetAttacker( pPlayer )
-			info:SetInflictor( self )
-			info:SetDamage( flDamage )
-			info:SetDamageType( iDamageTypeKnife )
-			info:SetDamagePosition( tr.HitPos )
-			info:SetReportedPosition( vSrc )
-			
-			--[[if ( bHitBack ) then
-				-- FIXME: This doesn't work?
-				info:SetDamageBonus( flDamage * self.BackMultiplier - flDamage ) -- Fix; not working?
-				flDamage = flDamage * self.BackMultiplier
-			end]]
-			
-			// Calculate an impulse large enough to push a 75kg man 4 in/sec per point of damage
-			-- FIXME: This is exactly how the CS:S knife calculates force, but the 1/Damage doesn't make much sense
-			info:SetDamageForce( vForward * info:GetBaseDamage() * self.Force * (1 / (flDamage < 1 and 1 or flDamage)) * phys_pushscale:GetFloat() )
-		pEntity:DispatchTraceAttack( info, tr, vForward )
-		
-		if ( not tr.HitSky ) then
-			// delay the decal a bit
-			self:AddEvent( "smack", bStab and self.Secondary.SmackTime or self.Primary.SmackTime, function()
-				if ( pEntity == NULL ) then
-					return true
-				end
-				
-				if ( pEntity:IsPlayer() or pEntity:IsNPC() ) then
-					self:PlaySound( bStab and "secondary" or "primary", 0 )
-				else
-					self:PlaySound( "hit", 0 )
-				end
-				
-				if ( IsFirstTimePredicted() ) then
-					-- https://github.com/Facepunch/garrysmod-requests/issues/779
-					--[[local data = EffectData()
-						data:SetOrigin( tr.HitPos )
-						data:SetStart( tr.StartPos )
-						data:SetSurfaceProp( tr.SurfaceProps )
-						data:SetDamageType( DMG_SLASH )
-						data:SetHitBox( tr.HitBox )
-						data:SetAngles( pPlayer:GetAngles() )
-						data:SetFlags(0x1) // IMPACT_NODECAL
-						data:SetEntity( tr.Entity )
-					util.Effect( "KnifeSlash", data )]]
-					
-					DevMsg( 1, self:GetClass() .. " (weapon_knife) Placing decal!" )
-					util.Decal( "ManhackCut", tr.HitPos - tr.HitNormal, tr.HitPos + tr.HitNormal, true )
-				end
-				
-				return true
-			end )
-		end
+	if ( bMiss ) then
+		bActivity = self:PlayActivity( "miss", iIndex )
 	else
-		self:PlaySound( "miss" )
+		bActivity = self:PlayActivity( "hit", iIndex )
+		self:Hit( bSecondary, tr, vForward, iIndex )
 	end
 	
+	local flDelay = self:GetCooldown( bSecondary, bMiss )
+	local flCurTime = CurTime()
+	self:SetNextPrimaryFire( flCurTime + flDelay )
+	self:SetNextSecondaryFire( flCurTime + (bSecondary and flDelay or self:GetCooldown( false, true )))
+	
+	self:Punch( bSecondary )
 	pPlayer:LagCompensation( false )
 	
-	local flPrimDelay = self:GetCooldown( bStab, bDidHit )
-	local flCurTime = CurTime()
-	self:SetNextPrimaryFire( flCurTime + flPrimDelay )
-	self:SetNextSecondaryFire( flCurTime + (bStab and flPrimDelay or self:GetCooldown( false, true )))
-	
-	return true
+	return bActivity
 end
 
-function SWEP:SecondaryAttack()
-	if ( self:CanSecondaryAttack(0) ) then
-		return self:PrimaryAttack( true )
+function SWEP:Hit( bSecondary, tr, vForward, iIndex )
+	local pPlayer = self:GetOwner()
+	local flDamage
+	
+	if ( bSecondary ) then
+		flDamage = self:GetNextSecondaryFire() + self:GetCooldown( true, false ) < CurTime()
+			and self.Secondary.InitialDamage or self:GetDamage( true )
+	else
+		flDamage = self:GetNextPrimaryFire() + self:GetCooldown( false, false ) < CurTime()
+			and self.Primary.InitialDamage or self:GetDamage( false )
 	end
 	
-	return false
+	local bPlayer = tr.Entity:IsPlayer() or tr.Entity:IsNPC()
+	
+	if ( bPlayer ) then
+		local vTargetForward = tr.Entity:GetAngles():Forward() -- FIXME: Not correctly returning on client
+		vTargetForward.z = 0
+		
+		local vLOS = tr.Entity:GetPos() - pPlayer:GetPos()
+		vLOS.z = 0
+		vLOS:Normalize()
+		
+		//Triple the damage if we are stabbing them in the back.
+		if ( vLOS:Dot( vTargetForward ) > self.Melee.DotRange ) then
+			flDamage = flDamage * (bSecondary and self.Secondary.BackMultiplier or self.Primary.BackMultiplier)
+		end
+	end
+	
+	local info = DamageInfo()
+		info:SetAttacker( pPlayer )
+		info:SetInflictor( self )
+		info:SetDamage( flDamage )
+		info:SetDamageType( self.Melee.DamageType )
+		info:SetDamagePosition( tr.HitPos )
+		info:SetReportedPosition( tr.StartPos )
+		
+		// Calculate an impulse large enough to push a 75kg man 4 in/sec per point of damage
+		-- FIXME: This is exactly how the CS:S knife calculates force, but the 1/Damage doesn't make much sense
+		info:SetDamageForce( vForward * info:GetBaseDamage() * self.Melee.Force * (1 / (flDamage < 1 and 1 or flDamage)) * phys_pushscale:GetFloat() )
+	tr.Entity:DispatchTraceAttack( info, tr, vForward )
+	
+	// delay the decal a bit
+	self:AddEvent( "smack", bSecondary and self.Secondary.SmackTime or self.Primary.SmackTime, function()
+		if ( tr.Entity == NULL ) then
+			return true
+		end
+		
+		if ( bPlayer ) then
+			self:PlaySound( bSecondary and "hit_alt" or "hit", iIndex )
+		else
+			self:PlaySound( "hitworld", iIndex )
+		end
+		
+		if ( IsFirstTimePredicted() and not self:DoImpactEffect( tr, self.Melee.DamageType )) then
+			-- https://github.com/Facepunch/garrysmod-requests/issues/779
+			--[[local data = EffectData()
+				data:SetOrigin( tr.HitPos )
+				data:SetStart( tr.StartPos )
+				data:SetSurfaceProp( tr.SurfaceProps )
+				data:SetDamageType( DMG_SLASH )
+				data:SetHitBox( tr.HitBox )
+				data:SetAngles( pPlayer:GetAngles() )
+				data:SetFlags(0x1) // IMPACT_NODECAL
+				data:SetEntity( tr.Entity )
+			util.Effect( "KnifeSlash", data )]]
+			
+			DevMsg( 1, self:GetClass() .. " (weapon_knife) Placing decal!" )
+			util.Decal( "ManhackCut", tr.HitPos - tr.HitNormal, tr.HitPos + tr.HitNormal, true )
+		end
+		
+		return true
+	end )
 end
 
-function SWEP:GetCooldown( bStab, bHit )
-	if ( bHit ) then
-		return bStab and self.Secondary.HitCooldown or self.Primary.HitCooldown
+function SWEP:GetCooldown( bSecondary, bMiss )
+	if ( bMiss ) then
+		return BaseClass.GetCooldown( self, bSecondary )
 	end
 	
-	return BaseClass.GetCooldown( self, bStab )
+	return bSecondary and self.Secondary.HitCooldown or self.Primary.HitCooldown
 end

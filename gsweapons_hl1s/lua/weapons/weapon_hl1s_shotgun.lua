@@ -86,7 +86,6 @@ function SWEP:SecondaryAttack()
 	
 	if ( self:CanSecondaryAttack() ) then
 		self:Shoot( true, 0, 2 )
-		--self:PlaySound( "primary" )
 		
 		return true
 	end

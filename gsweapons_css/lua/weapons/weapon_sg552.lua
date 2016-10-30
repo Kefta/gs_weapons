@@ -89,7 +89,7 @@ SWEP.Kick = {
 
 function SWEP:SecondaryAttack()
 	if ( self:CanSecondaryAttack(0) ) then
-		self:AdvanceZoom()
+		self:AdvanceZoom(0)
 		
 		return true
 	end

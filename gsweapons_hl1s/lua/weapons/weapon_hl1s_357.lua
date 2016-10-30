@@ -54,7 +54,7 @@ end
 
 function SWEP:SecondaryAttack()
 	if ( self:CanSecondaryAttack() ) then
-		self:AdvanceZoom()
+		self:AdvanceZoom(0)
 		
 		return true
 	end
