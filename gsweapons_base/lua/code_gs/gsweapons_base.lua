@@ -1,3 +1,5 @@
+SF_SPRITE_ONCE = 0x0002
+
 gsweapons = {}
 local Empty = function() end
 local ReturnTrue = function() return true end

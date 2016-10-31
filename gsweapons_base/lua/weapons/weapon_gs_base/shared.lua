@@ -81,7 +81,9 @@ SWEP.Activities = { -- Default activity events
 	reload_finish = ACT_SHOTGUN_RELOAD_FINISH,
 	-- For melee weapons
 	hit = ACT_VM_HITCENTER,
+	hit_alt = ACT_VM_HITCENTER2,
 	miss = ACT_VM_MISSCENTER,
+	miss_alt = ACT_VM_MISSCENTER2,
 	-- For grenades
 	pullback = ACT_VM_PULLBACK_HIGH,
 	throw = ACT_VM_THROW
@@ -203,6 +205,7 @@ SWEP.Zoom = {
 	Levels = 1, -- Number of zoom levels
 	Cooldown = 0.3, -- Cooldown between zooming
 	UnzoomOnFire = false, -- Unzoom when the weapon is fired; rezooms after Primary/Secondary cooldown if the clip is not 0
+	UnzoomOnReload = true, -- Unzoom when the weapon is reloaded
 	HideViewModel = false, -- Hide view model when zoomed
 	FireDuringZoom = true, -- Allow fire during zoom/unzoom
 	DrawOverlay = CLIENT and false or nil -- (Clientside) Draw scope overlay when zoomed
@@ -232,6 +235,16 @@ SWEP.Melee = {
 	TestHull = Vector(16, 16, 16),
 	DamageType = DMG_CLUB,
 	Mask = MASK_SHOT_HULL
+}
+
+SWEP.Bolt = {
+	Class = "crossbow_bolt",
+	WaterVelocity = 1500,
+	AirVelocity = 3500,
+	Attachment = 1,
+	SpriteClass = "env_sprite",
+	SpriteMaterial = "sprites/blueflare1.vmt",
+	DieTime = 0.25
 }
 
 SWEP.DoPump = false -- Do a pump animation after shooting
@@ -635,7 +648,7 @@ function SWEP:SharedDeploy( bDelayed )
 			if ( pPlayer:GetAmmoCount( self:GetGrenadeAmmoName() ) ~= 0 ) then
 				self:SetShouldThrow(0)
 				
-				local flNewTime = CurTime() + (self:PlayActivity( "deploy", iIndex ) and self:SequenceLength( iIndex ))
+				local flNewTime = CurTime() + (self:PlayActivity( "deploy", iIndex ) and self:SequenceLength( iIndex ) or 0)
 				self:SetNextPrimaryFire( flNewTime )
 				self:SetNextSecondaryFire( flNewTime )
 				self:SetNextReload( flNewTime )
@@ -1137,20 +1150,19 @@ function SWEP:MouseLifted()
 		local iIndex = math.floor( iThrow / GRENADE_COUNT )
 		
 		pPlayer:SetAnimation( PLAYER_ATTACK1 )
-		self:PlaySound( "throw", iIndex )
 		
 		local flDelay = self.Grenade.Delay
 		
 		if ( flDelay == -1 ) then
 			self:SetLastShootTime( CurTime() )
 			self:EmitGrenade( iThrow % GRENADE_COUNT )
-			self:PlaySound( "primary", iIndex )
+			self:PlaySound( "throw", iIndex )
 			pPlayer:RemoveAmmo( 1, self:GetGrenadeAmmoName() )
 		else
 			self:AddEvent( "throw", flDelay, function()
 				self:SetLastShootTime( CurTime() )
 				self:EmitGrenade( iThrow % GRENADE_COUNT )
-				self:PlaySound( "primary", iIndex )
+				self:PlaySound( "throw", iIndex )
 				pPlayer:RemoveAmmo( 1, self:GetGrenadeAmmoName() )
 				
 				return true
@@ -1158,7 +1170,7 @@ function SWEP:MouseLifted()
 		end
 		
 		self:SetShouldThrow( -iIndex )
-		local bInitial = true
+		local bRepeat = false
 		
 		self:AddEvent( "deploy", self:PlayActivity( "throw", iIndex ) and self:SequenceLength( iIndex ) or 0, function()
 			if ( self:EventActive( "throw" )) then
@@ -1170,16 +1182,18 @@ function SWEP:MouseLifted()
 					if ( SERVER ) then
 						self:Remove()
 					end
-				elseif ( bInitial ) then
-					bInitial = false
+				elseif ( not bRepeat ) then
+					bRepeat = true
 					self:SetNextPrimaryFire(0)
 					self:SetNextSecondaryFire(0)
 					self:SetNextReload(0)
+					
+					return 0
 				end
 			else
 				self:SetShouldThrow(0)
 				
-				local flNewTime = CurTime() + (self:PlayActivity( "deploy", iIndex ) and self:SequenceLength( iIndex ))
+				local flNewTime = CurTime() + (self:PlayActivity( "deploy", iIndex ) and self:SequenceLength( iIndex ) or 0)
 				self:SetNextPrimaryFire( flNewTime )
 				self:SetNextSecondaryFire( flNewTime )
 				self:SetNextReload( flNewTime )
@@ -1467,9 +1481,10 @@ function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], iClipDeduction 
 			self:SetShotsFired( self:GetShotsFired() + 1 )
 			self:DoMuzzleFlash( iIndex )
 			self:PlaySound( bSecondary and "secondary" or "primary", iIndex )
+			local bActivity = false
 			
 			if ( not tBurst.SingleActivity ) then
-				self:PlayActivity( bSecondary and "secondary" or "primary", iIndex )
+				bActivity = self:PlayActivity( bSecondary and "secondary" or "primary", iIndex )
 			end
 			
 			self:UpdateBurstShotTable( tbl )
@@ -1484,11 +1499,30 @@ function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], iClipDeduction 
 			end
 			
 			if ( iCurCount == iCount or bDeductClip and iClip < iClipDeduction ) then
-				local flNewTime = flCurTime + self:GetCooldown( true )
-				self:SetNextPrimaryFire( flNewTime )
-				self:SetNextSecondaryFire( flNewTime )
-				self:SetNextReload( flNewTime )
-				self:SetReduceShotTime(-1)
+				if ( self.DoPump ) then
+					self:SetNextPrimaryFire(-1)
+					self:SetNextSecondaryFire(-1)
+					self:SetNextReload(-1)
+					self:SetReduceShotTime(-1)
+					
+					self:AddEvent( "pump", bActivity and self:SequenceLength( iIndex ) or 0, function() 
+						self:PlaySound( "pump", iIndex )
+						
+						-- Cooldown is sequence based
+						local flNextTime = CurTime() + (self:PlayActivity( "pump", iIndex ) and self:SequenceLength( iIndex ) or 0)
+						self:SetNextPrimaryFire( flNextTime )
+						self:SetNextSecondaryFire( flNextTime )
+						self:SetNextReload( flNextTime )
+						
+						return true
+					end )
+				else
+					local flNewTime = flCurTime + self:GetCooldown( true )
+					self:SetNextPrimaryFire( flNewTime )
+					self:SetNextSecondaryFire( flNewTime )
+					self:SetNextReload( flNewTime )
+					self:SetReduceShotTime(-1)
+				end
 				
 				return true
 			end
@@ -1589,13 +1623,12 @@ function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], iClipDeduction 
 		pPlayer:FireBullets( tbl )
 	end
 	
-	if ( self.DoPump ) then
+	if ( not bBurst and self.DoPump ) then
 		self:AddEvent( "pump", bActivity and self:SequenceLength( iIndex ) or 0, function() 
 			self:PlaySound( "pump", iIndex )
-			self:PlayActivity( "pump", iIndex )
 			
 			-- Cooldown is sequence based
-			local flNextTime = CurTime() + self:SequenceLength( iIndex )
+			local flNextTime = CurTime() + (self:PlayActivity( "pump", iIndex ) and self:SequenceLength( iIndex ) or 0)
 			self:SetNextPrimaryFire( flNextTime )
 			self:SetNextSecondaryFire( flNextTime )
 			self:SetNextReload( flNextTime )
@@ -1623,12 +1656,14 @@ function SWEP:Throw( iType --[[= GRENADE_THROW]], iIndex --[[= 0]] )
 	self:SetShouldThrow( (iType or GRENADE_THROW) + GRENADE_COUNT * iIndex )
 		
 	self:PlaySound( "pullback", iIndex )
-	self:PlayActivity( "pullback", iIndex )
+	local bActivity = self:PlayActivity( "pullback", iIndex )
 	
 	self:SetNextPrimaryFire(-1)
 	self:SetNextSecondaryFire(-1)
 	self:SetNextReload(-1)
 	self:SetNextIdle(-1)
+	
+	return bActivity
 end
 
 -- Shared for the HL1 grenade
@@ -1745,8 +1780,9 @@ function SWEP:Swing( bSecondary, iIndex )
 	
 	// Setup out next attack times
 	local flCurTime = CurTime()
+	self:SetLastShootTime( flCurTime )
 	self:SetNextPrimaryFire( flCurTime + self:GetCooldown( bSecondary ))
-	self:SetNextSecondaryFire( flCurTime + self:SequenceLength( iIndex ))
+	self:SetNextSecondaryFire( flCurTime + (bActivity and self:SequenceLength( iIndex ) or 0))
 	
 	self:Punch( bSecondary )
 	pPlayer:LagCompensation( false )
@@ -1766,6 +1802,124 @@ function SWEP:Hit( bSecondary, tr, vForward )
 		
 		--info:SetDamageForce( vForward * info:GetBaseDamage() * self.Force * (1 / (flDamage < 1 and 1 or flDamage)) * phys_pushscale:GetFloat() )
 	tr.Entity:DispatchTraceAttack( info, tr, vForward )
+end
+
+local nSpriteFlags = bit.bor( EFL_DIRTY_SPATIAL_PARTITION, EFL_DIRTY_SURROUNDING_COLLISION_BOUNDS )
+
+function SWEP:FireBolt( bSecondary, iIndex )
+	local pPlayer = self:GetOwner()
+	
+	if ( SERVER ) then
+		local aShoot = self:GetShootAngles()
+		local pBolt = ents.Create( self.Bolt.Class )
+		
+		if ( pBolt ~= NULL ) then
+			pBolt:SetPos( self:GetShootSrc() )
+			pBolt:SetAngles( aShoot )
+			pBolt:SetOwner( pPlayer )
+			pBolt:_SetAbsVelocity( aShoot:Forward() * (pPlayer:WaterLevel() == 3 and self.Bolt.WaterVelocity or self.Bolt.AirVelocity) )
+			pBolt:Spawn()
+			pBolt.m_iDamage = self:GetDamage()
+		end
+	end
+	
+	local pViewModel = pPlayer:GetViewModel( iIndex )
+	
+	if ( pViewModel ~= NULL ) then
+		local data = EffectData()
+			data:SetEntity( pViewModel )
+			data:SetAttachment( self.Bolt.Attachment )
+			
+			if ( SERVER ) then
+				data:SetEntIndex( pViewModel:EntIndex() )
+			end
+			
+		util.Effect( "CrossbowLoad", data )
+		
+		if ( SERVER ) then
+			local pBlast = ents.Create( self.Bolt.SpriteClass )
+			
+			if ( pBlast ~= NULL ) then
+				pBlast:SetModelName( "sprites/blueflare1.vmt" )
+				pBlast:SetPos( self:GetPos() )
+				pBlast:Spawn()
+				pBlast:SetSolid( SOLID_NONE )
+				pBlast:SetCollisionBounds( vector_origin, vector_origin )
+				pBlast:SetMoveType( MOVETYPE_NONE )
+				pBlast:SetAttachment( pViewModel, self.Bolt.Attachment )
+				pBlast:SetRenderMode( RENDERMODE_TRANSADD )
+				pBlast:SetSaveValue( "m_flScaleTime", 0 )
+				pBlast:SetSaveValue( "m_flSpriteScale", 0.2 ) -- Fix; this or "scale"?
+				pBlast:SetSaveValue( "m_flBrightnessTime", 0 )
+				pBlast:SetSaveValue( "m_nBrightness", 128 )
+				pBlast:AddEFlags( nSpriteFlags )
+				
+				self:AddEvent( "spritestartfade", 0.01, function()
+					if ( pBlast == NULL ) then
+						return true
+					end
+					
+					pBlast:SetSaveValue( "m_flBrightnessTime", self.Bolt.DieTime )
+					pBlast:SetSaveValue( "m_nBrightness", 0 )
+					pBlast:SetSaveValue( "m_flDieTime", CurTime() + self.Bolt.DieTime )
+					
+					self:AddEvent( "spritefade", 0, function()
+						if ( pBlast == NULL ) then
+							return true
+						end
+						
+						local flCurTime = CurTime()
+						local tSaveTable = pBlast:GetSaveTable()
+						
+						if ( flCurTime > tSaveTable["m_flDieTime"] ) then
+							pBlast:Remove()
+							
+							return true
+						end
+						
+						local flFrames = tSaveTable["frame"] + tSaveTable["framerate"] * (flCurTime - tSaveTable["m_flLastTime"])
+						local flMaxFrames = tSaveTable["m_flMaxFrame"]
+						pBlast:SetSaveValue( "m_flLastTime", flCurTime )
+						
+						if ( flFrames > flMaxFrames ) then
+							if ( pBlast:HasSpawnFlags( SF_SPRITE_ONCE )) then
+								--pBlast:AddEffects( EF_NODRAW )
+								pBlast:Remove()
+								
+								return true
+							end
+							
+							if ( flMaxFrames > 0 ) then
+								flFrames = flFrames % flMaxFrames
+							end
+						end
+						
+						pBlast:SetSaveValue( "m_flFrame", flFrames )
+					end )
+					
+					return true
+				end )
+			end
+		end
+	end
+	
+	self:SetClip1( self:Clip1() - 1 )
+	
+	self:PlaySound( bSecondary and "secondary" or "primary", iIndex )
+	local bActivity = self:PlayActivity( bSecondary and "secondary" or "primary", iIndex )
+	
+	local flCurTime = CurTime()
+	self:SetLastShootTime( flCurTime )
+	
+	if ( bSecondary ) then
+		self:SetNextSecondaryFire( flCurTime + self:GetCooldown( self:SpecialActive() ))
+	else
+		self:SetNextPrimaryFire( flCurTime + self:GetCooldown( self:SpecialActive() ))
+	end
+	
+	self:Punch( bSecondary )
+	
+	return bActivity
 end
 
 function SWEP:Silence( iIndex )
@@ -2029,7 +2183,7 @@ end
 function SWEP:ReloadClips( iIndex --[[= nil]] )
 	local pPlayer = self:GetOwner()
 	
-	if ( self:GetZoomLevel() ~= 0 ) then
+	if ( self.Zoom.UnzoomOnReload and self:GetZoomLevel() ~= 0 ) then
 		self:SetZoomLevel(0)
 		pPlayer:SetFOV(0, 0)
 		
