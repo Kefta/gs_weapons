@@ -32,15 +32,14 @@ SWEP.WorldModel = "models/weapons/w_pistol.mdl" -- Third-person view of the weap
 SWEP.SilencerModel = "" -- World model to use when the weapon is silenced
 SWEP.EmptyModel = "" -- World model to use when the grenades are depleted
 SWEP.HoldType = "pistol" -- How the player should hold the weapon in third-person http://wiki.garrysmod.com/page/Hold_Types
-SWEP.HolsterAnimation = false -- Play an animation when the weapon is being holstered. Only works if the weapon has a holster animation
+SWEP.HolsterAnimation = true -- Play an animation when the weapon is being holstered. Only works if the weapon has a holster animation
 
 SWEP.Weight = 0 -- Weight in automatic weapon selection
 -- There are two weapon switching algorithms:
 -- *Singleplay (true) - Switch to the weapon with the highest weight
 -- *Multiplay (false) - Try and find a weapon with the same weight, otherwise, fallback to highest
 SWEP.HighWeightPriority = false
--- FIXME: Activity searching system?
--- FIXME: Support sequences
+
 SWEP.Activities = { -- Default activity events
 	-- event = ACT_VM_EVENT,
 	--[[event2 = {
@@ -178,7 +177,7 @@ SWEP.Secondary = {
 
 SWEP.SingleReload = {
 	Enable = false,  // True if this weapon reloads 1 round at a time (shotguns)
-	QueuedFire = true, -- Queue a primary/secondary fire to activate once the next bullet is put in the chamber
+	QueuedFire = false, -- Queue a primary/secondary fire to activate once the next bullet is put in the chamber
 	InitialRound = true -- Give round for the first reload (HL2) or subsequent reloads only (CS:S)
 }
 
@@ -272,6 +271,9 @@ SWEP.TriggerBoundSize = 36 -- Trigger box size to pickup the weapon off the grou
 --SWEP.m_WeaponDeploySpeed = 1 -- Do NOT use this, the deploy animation will be cut short by the idle animation! Instead, set the "rate" key in the SWEP.Activities.deploy table
 
 local bSinglePlayer = game.SinglePlayer()
+local bRun = SERVER or not bSinglePlayer
+local PLAYER = FindMetaTable( "Player" )
+local Empty = function() end
 local sFormatOne = "%s_%s"
 local sFormatTwo = "%s_%s_%s"
 
@@ -282,27 +284,31 @@ function SWEP:Initialize()
 	local sClass = self:GetClass()
 	DevMsg( 2, sClass .. " (weapon_gs_base) Initialize" )
 	
-	--self.FireFunction = nil -- Fire function to use with Shoot. Args are ( pPlayer, tFireBulletsInfo ). nil = Default FireBullets
-	--self.PunchDecayFunction = nil -- Function to decay the punch angle manually. Args are ( pPlayer, aPunchAngle ). The function should modify aPunchAngle and return it. nil = Default decaying
+	self.FireFunction = PLAYER.FireBullets -- Fire function to use with Shoot. Args are ( pPlayer, tFireBulletsInfo )
+	self.PunchDecayFunction = Empty -- Function to decay the punch angle manually. Args are ( pPlayer, aPunchAngle )
 	
 	self.m_bAutoSwitchFrom = self.AutoSwitchFrom
-	self.m_bDeployedNoAmmo = false
-	self.m_bInHolsterAnim = false
 	self.m_bInitialized = true
-	self.m_bHoldTypeUpdate = false
-	self.m_bHolsterAnimDone = false
+	self.m_bHolsterAnim = false
 	self.m_sHoldType = self.HoldType
 	self.m_sWorldModel = self.WorldModel
-	self.m_tDryFire = { [0] = false, false, false }
 	self.m_tEvents = {}
 	self.m_tEventHoles = {}
 	self.m_tRemovalQueue = {}
-	self.m_tUseViewModel = { [0] = false, false, false }
+	
+	if ( bRun ) then
+		self.m_bDeployedNoAmmo = false
+		self.m_bSwitchInvalid = false
+		self.m_pSwitchWeapon = NULL
+		self.m_tDryFire = { [0] = false, false, false }
+		self.m_tSimulateHolsterAnim = { [0] = { false, 0, 0 }, { false, 0, 0 }, { false, 0, 0 }}
+		self.m_tUseViewModel = { [0] = false, false, false }
+	end
 	
 	self:SetHoldType( self.m_sHoldType )
 	
 	-- If it was created silenced, make it appear that way
-	self:UpdateThirdPerson()
+	self:UpdateVariables()
 	
 	if ( self.TriggerBoundSize == -1 ) then
 		self:UseTriggerBounds( false, 0 )
@@ -469,12 +475,12 @@ function SWEP:Precache()
 end
 
 function SWEP:SetupDataTables()
+	self:AddNWVar( "Bool", "Deployed", false ) -- To manage clientside deploying
 	self:AddNWVar( "Int", "Burst" )
 	self:AddNWVar( "Int", "IronSights" )
 	self:AddNWVar( "Int", "ShotsFired" )
 	self:AddNWVar( "Int", "ShouldThrow" )
 	self:AddNWVar( "Int", "Silenced" )
-	self:AddNWVar( "Int", "SwitchWeapon", false ) -- To manage clientside deploying
 	self:AddNWVar( "Int", "ZoomLevel" )
 	self:AddNWVar( "Float", "LastShootTime" )
 	self:AddNWVar( "Float", "NextIdle" )
@@ -504,24 +510,30 @@ function SWEP:CanDeploy()
 end
 
 function SWEP:Deploy()
-	-- Do not deploy again
-	if ( self.dt.SwitchWeapon == -1 and (not CLIENT or self.m_bDeployed) ) then
-		return true
-	end
-	
-	if ( self.RemoveOnEmpty and not self:HasAmmo() ) then
-		if ( SERVER ) then
-			self:Remove()
-		end
-		
-		return false
-	end
-	
 	local pPlayer = self:GetOwner()
 	
 	// Dead men deploy no weapons
-	if ( pPlayer == NULL or not pPlayer:Alive() or self.BlockDeployOnEmpty and not self:HasAmmo() ) then
+	if ( pPlayer == NULL or not pPlayer:Alive() ) then
 		return false
+	end
+	
+	-- Do not deploy again
+	if ( self.dt.Deployed and (SERVER or self.m_bDeployed and pPlayer.m_iDeployCommand ~= CurTime()) ) then
+		return true
+	end
+	
+	if ( not self:HasAmmo() ) then
+		if ( self.RemoveOnEmpty ) then
+			if ( SERVER ) then
+				self:Remove()
+			end
+			
+			return false
+		end
+		
+		if ( self.BlockDeployOnEmpty ) then
+			return false
+		end
 	end
 	
 	if ( self:CanDeploy() ) then
@@ -530,139 +542,181 @@ function SWEP:Deploy()
 		return true
 	end
 	
+	DevMsg( 2, string.format( "%s (weapon_gs_base) Deploy invalid", self:GetClass() ) .. (IsFirstTimePredicted() and "" or " (predicted)") )
+	
 	return false
 end
 
 function SWEP:SharedDeploy( bDelayed )
 	-- Clientside does not initialize sometimes
 	if ( self.m_bInitialized ) then
-		self:UpdateThirdPerson()
+		self:UpdateVariables()
 	else
 		self:Initialize()
 	end
 	
-	DevMsg( 2, self:GetClass() .. " (weapon_gs_base) Deploy" )
+	DevMsg( 2, self:GetClass() .. " (weapon_gs_base) Deploy" .. (bDelayed and " late" or IsFirstTimePredicted() and "" or " (predicted)") )
 	
-	self.m_bInHolsterAnim = false
-	self.m_bHolsterAnimDone = false
-	
-	if ( SERVER ) then
-		self.dt.SwitchWeapon = -1
-	else
-		self.m_bDeployed = true
-	end
-	
-	if ( not self:HasAmmo() ) then
-		self.m_bDeployedNoAmmo = true
-	end
-	
-	local bRun = not bDelayed and (not bSinglePlayer or SERVER)
 	local pPlayer = self:GetOwner()
 	
-	-- Only client can be delayed
-	if ( bRun ) then
-		self:PlaySound( "deploy", 0 )
-		self:SetZoomLevel(0)
-		self:SetReduceShotTime(0)
-		self:SetShotsFired(0)
-		
-		pPlayer:SetFOV(0, 0)
+	if ( CLIENT ) then
+		self.m_bDeployed = true
+		pPlayer.m_iDeployCommand = CurTime()
 	end
-		
-	-- Wait for all viewmodels to deploy
-	local flSequenceDuration = 0
 	
-	if ( self.ViewModel == "" ) then
-		self.m_tUseViewModel[0] = false
-		self.m_tDryFire[0] = false
-	else
-		local pViewModel = pPlayer:GetViewModel(0)
+	if ( bRun ) then
+		self.m_bDeployedNoAmmo = not self:HasAmmo()
 		
-		if ( pViewModel == NULL ) then
+		local iIndex = -self:GetShouldThrow() - 1
+		
+		if ( iIndex > 0 and pPlayer:GetAmmoCount( self:GetGrenadeAmmoName() ) ~= 0 ) then
+			iIndex = 0
+			
+			if ( not bDelayed ) then
+				self:SetShouldThrow(0)
+			end
+		end
+		
+		local bPlayed = false
+		local pHideModel
+			
+		-- Wait for all viewmodels to deploy
+		local flSequenceDuration = 0
+		
+		if ( self.ViewModel == "" ) then
 			self.m_tUseViewModel[0] = false
 			self.m_tDryFire[0] = false
 		else
-			self.m_tUseViewModel[0] = true
+			local pViewModel = pPlayer:GetViewModel(0)
 			
-			if ( self:PlayActivity( "deploy", 0 )) then
-				flSequenceDuration = self:SequenceLength(0)
+			if ( pViewModel == NULL ) then
+				self.m_tUseViewModel[0] = false
+				self.m_tDryFire[0] = false
+			else
+				self.m_tUseViewModel[0] = true
+				
+				if ( not bDelayed ) then
+					if ( iIndex == 0 ) then
+						pHideModel = pViewModel
+					else
+						self:PlaySound( "deploy", 0 )
+						bPlayed = true
+						
+						if ( self:PlayActivity( "deploy", 0 )) then
+							flSequenceDuration = self:SequenceLength(0)
+						end
+					end
+				end
+				
+				local iActivity = self:LookupActivity( self:GetDryfireActivity(0), 0 )
+				self.m_tDryFire[0] = not (iActivity == ACT_INVALID or pViewModel:SelectWeightedSequence( iActivity ) == -1)
 			end
-			
-			local iActivity = self:LookupActivity( self:GetDryfireActivity(0), 0 )
-			self.m_tDryFire[0] = not (iActivity == ACT_INVALID or pViewModel:SelectWeightedSequence( iActivity ) == -1)
 		end
-	end
-	
-	if ( self.ViewModel1 == "" ) then
-		self.m_tUseViewModel[1] = false
-		self.m_tDryFire[1] = false
-	else
-		local pViewModel = pPlayer:GetViewModel(1)
 		
-		if ( pViewModel == NULL ) then
+		if ( self.ViewModel1 == "" ) then
 			self.m_tUseViewModel[1] = false
 			self.m_tDryFire[1] = false
 		else
-			self.m_tUseViewModel[1] = true
-			pViewModel:SetWeaponModel( self.ViewModel1, self )
-			self:PlaySound( "deploy", 1, true )
+			local pViewModel = pPlayer:GetViewModel(1)
 			
-			if ( self:PlayActivity( "deploy", 1 )) then
-				flSequenceDuration = math.max( flSequenceDuration, self:SequenceLength(1) )
+			if ( pViewModel == NULL ) then
+				self.m_tUseViewModel[1] = false
+				self.m_tDryFire[1] = false
+			else
+				self.m_tUseViewModel[1] = true
+				
+				if ( not bDelayed ) then
+					pViewModel:SetWeaponModel( self.ViewModel1, self )
+					
+					if ( iIndex == 1 ) then
+						pHideModel = pViewModel
+					else
+						if ( not (self:PlaySound( "deploy", 1, true ) or bPlayed) ) then
+							self:PlaySound( "deploy", 0 )
+							bPlayed = true
+						end
+						
+						if ( self:PlayActivity( "deploy", 1 )) then
+							flSequenceDuration = math.max( flSequenceDuration, self:SequenceLength(1) )
+						end
+					end
+				end
+				
+				local iActivity = self:LookupActivity( self:GetDryfireActivity(1), 1 )
+				self.m_tDryFire[1] = not (iActivity == ACT_INVALID or pViewModel:SelectWeightedSequence( iActivity ) == -1)
 			end
-			
-			local iActivity = self:LookupActivity( self:GetDryfireActivity(1), 1 )
-			self.m_tDryFire[1] = not (iActivity == ACT_INVALID or pViewModel:SelectWeightedSequence( iActivity ) == -1)
 		end
-	end
-		
-	if ( self.ViewModel2 == "" ) then
-		self.m_tUseViewModel[2] = false
-		self.m_tDryFire[2] = false
-	else
-		local pViewModel = pPlayer:GetViewModel(2)
-		
-		if ( pViewModel == NULL ) then
+			
+		if ( self.ViewModel2 == "" ) then
 			self.m_tUseViewModel[2] = false
 			self.m_tDryFire[2] = false
 		else
-			self.m_tUseViewModel[2] = true
-			pViewModel:SetWeaponModel( self.ViewModel2, self )
-			self:PlaySound( "deploy", 2, true )
+			local pViewModel = pPlayer:GetViewModel(2)
 			
-			if ( self:PlayActivity( "deploy", 2 )) then
-				flSequenceDuration = math.max( flSequenceDuration, self:SequenceLength(2) )
+			if ( pViewModel == NULL ) then
+				self.m_tUseViewModel[2] = false
+				self.m_tDryFire[2] = false
+			else
+				self.m_tUseViewModel[2] = true
+				
+				if ( not bDelayed ) then
+					pViewModel:SetWeaponModel( self.ViewModel2, self )
+					
+					if ( iIndex == 2 ) then
+						pHideModel = pViewModel
+					else
+						if ( not (self:PlaySound( "deploy", 2, true ) or bPlayed) ) then
+							self:PlaySound( "deploy", 0 )
+							bPlayed = true
+						end
+						
+						if ( self:PlayActivity( "deploy", 2 )) then
+							flSequenceDuration = math.max( flSequenceDuration, self:SequenceLength(2) )
+						end
+					end
+				end
+				
+				local iActivity = self:LookupActivity( self:GetDryfireActivity(2), 2 )
+				self.m_tDryFire[2] = not (iActivity == ACT_INVALID or pViewModel:SelectWeightedSequence( iActivity ) == -1)
+			end
+		end
+		
+		if ( iIndex > 0 ) then
+			if ( not bDelayed ) then
+				pHideModel:SetVisible( true )
 			end
 			
-			local iActivity = self:LookupActivity( self:GetDryfireActivity(2), 2 )
-			self.m_tDryFire[2] = not (iActivity == ACT_INVALID or pViewModel:SelectWeightedSequence( iActivity ) == -1)
+			self:AddEvent( "reload_grenade", 0, function()
+				if ( pPlayer:GetAmmoCount( self:GetGrenadeAmmoName() ) ~= 0 ) then
+					self:SetShouldThrow(0)
+					self:SetVisible( true, iIndex )
+					
+					self:PlaySound( "deploy", iIndex )
+					local flNewTime = CurTime() + (self:PlayActivity( "deploy", iIndex ) and self:SequenceLength( iIndex ) or 0)
+					self:SetNextPrimaryFire( flNewTime )
+					self:SetNextSecondaryFire( flNewTime )
+					self:SetNextReload( flNewTime )
+					
+					return true
+				end
+			end )
+		end
+		
+		if ( not bDelayed ) then
+			self.dt.Deployed = true
+			self:SetZoomLevel(0)
+			self:SetReduceShotTime(0)
+			self:SetShotsFired(0)
+			
+			pPlayer:SetFOV(0, 0)
+			
+			// Can't shoot again until we've finished deploying
+			flSequenceDuration = flSequenceDuration + CurTime()
+			self:SetNextPrimaryFire( flSequenceDuration )
+			self:SetNextSecondaryFire( flSequenceDuration )
+			self:SetNextReload( flSequenceDuration )
 		end
 	end
-	
-	local iIndex = self:GetShouldThrow()
-	
-	if ( iIndex < 0 ) then
-		iIndex = iIndex * -1
-		
-		self:AddEvent( "deploy", 0, function()
-			if ( pPlayer:GetAmmoCount( self:GetGrenadeAmmoName() ) ~= 0 ) then
-				self:SetShouldThrow(0)
-				
-				local flNewTime = CurTime() + (self:PlayActivity( "deploy", iIndex ) and self:SequenceLength( iIndex ) or 0)
-				self:SetNextPrimaryFire( flNewTime )
-				self:SetNextSecondaryFire( flNewTime )
-				self:SetNextReload( flNewTime )
-			end
-			
-			return true
-		end )
-	end
-	
-	// Can't shoot again until we've finished deploying
-	flSequenceDuration = flSequenceDuration + CurTime()
-	self:SetNextPrimaryFire( flSequenceDuration )
-	self:SetNextSecondaryFire( flSequenceDuration )
-	self:SetNextReload( flSequenceDuration )
 end
 
 --- Holster/Remove
@@ -671,257 +725,314 @@ function SWEP:CanHolster()
 end
 
 function SWEP:Holster( pSwitchingTo )
-	-- Do not holster again
-	-- https://github.com/Facepunch/garrysmod-issues/issues/2854
-	if ( pSwitchingTo == self or self.dt.SwitchWeapon ~= -1 and not (CLIENT and self.m_bDeployed) ) then
-		return true
+	local pPlayer = self:GetOwner()
+	local bIsValid = pPlayer ~= NULL
+	
+	if ( CLIENT and bIsValid ) then
+		local iCommand = CurTime()
+		
+		if ( pPlayer.m_iHolsterAnimCommand == iCommand ) then
+			-- Stupid Garry manual holster
+			if ( pSwitchingTo ~= self ) then
+				self:HolsterAnim( pSwitchingTo, false )
+			end
+			
+			return false
+		end
+		
+		if ( pPlayer.m_iDeployCommand == iCommand ) then
+			if ( pSwitchingTo ~= self ) then
+				self:SharedHolster( pSwitchingTo, false )
+			end
+			
+			return true
+		end
 	end
 	
-	local pPlayer = self:GetOwner()
+	-- Do not holster again
+	-- https://github.com/Facepunch/garrysmod-issues/issues/2854
+	if ( SERVER and not self.dt.Deployed or CLIENT and not self.m_bDeployed ) then
+		return true
+	end
 	
 	-- Holster is called when the player dies with it active but nothing should be done
 	-- Player:Alive() will return true on the frame the death occured but the health will be less than or equal to 0
-	if ( pPlayer ~= NULL and (pPlayer:Health() < 1 or not pPlayer:Alive()) ) then
+	if ( bIsValid and (pPlayer:Health() < 1 or not pPlayer:Alive()) ) then
 		return true
 	end
 	
-	if ( not self.m_bInHolsterAnim ) then
-		local bCanHolster = self:CanHolster()
-		
-		if ( bCanHolster ) then
-			if ( self.HolsterAnimation and not self.m_bHolsterAnimDone ) then
-				self:HolsterAnim( pSwitchingTo )
-				
-				-- Run this clientside to reset the viewmodels and set the variables for a full holster
-				if ( bSinglePlayer ) then
-					net.Start( "GSWeapons-Holster animation" )
-						net.WriteEntity( self )
-						net.WriteEntity( pSwitchingTo )
-					net.Send( pPlayer )
-				end
-			elseif ( self.RemoveOnEmpty and not self:HasAmmo() ) then
-				if ( SERVER ) then
-					self:Remove()
+	if ( bIsValid and self.HolsterAnimation and pSwitchingTo ~= NULL ) then
+		if ( not self.m_bHolsterAnim ) then
+			if ( self:CanHolster( pSwitchingTo )) then
+				if ( pSwitchingTo ~= self ) then
+					self:HolsterAnim( pSwitchingTo, false )
 				end
 				
-				return true
-			else
-				self:SharedHolster( pSwitchingTo )
-				
 				if ( SERVER ) then
-					-- Clientside does not run Holster in single-player
-					if ( bSinglePlayer or pSwitchingTo == NULL ) then
-						net.Start( "GSWeapons-Holster" )
+					-- Run this clientside to reset the viewmodels and set the variables for a full holster
+					if ( bSinglePlayer ) then
+						net.Start( "GSWeapons-Holster animation" )
 							net.WriteEntity( self )
 							net.WriteEntity( pSwitchingTo )
-						net.Broadcast()
+						net.Send( pPlayer )
 					else
-						timer.Create( "GSWeapons-Select holster-" .. self:EntIndex(), 0, 1, function()
+						timer.Create( "GSWeapons-Holster animation-" .. self:EntIndex(), 0, 1, function()
 							if ( self ~= NULL ) then
-								net.Start( "GSWeapons-Holster" )
+								net.Start( "GSWeapons-Holster animation" )
 									net.WriteEntity( self )
 									net.WriteEntity( pSwitchingTo )
-								net.Broadcast()
+								net.Send( pPlayer )
 							end
 						end )
 					end
 				end
-				
-				return true
 			end
-		else
-			DevMsg( 2, string.format( "%s (weapon_gs_base) Holster invalid to %s", self:GetClass(), tostring( pSwitchingTo )))
+			
+			return false
 		end
+		
+		if ( self:GetNextThink() > CurTime() ) then
+			return false
+		end
+		
+		if ( self.RemoveOnEmpty and not self:HasAmmo() ) then
+			if ( SERVER ) then
+				self:Remove()
+			end
+			
+			return true
+		end
+		
+		if ( pSwitchingTo ~= self ) then
+			self:SharedHolster( pSwitchingTo, false )
+		end
+		
+		if ( SERVER ) then
+			-- Clientside does not run Holster in single-player
+			if ( bSinglePlayer ) then
+				net.Start( "GSWeapons-Holster" )
+					net.WriteEntity( self )
+					net.WriteEntity( pSwitchingTo )
+				net.Send( pPlayer )
+			else -- FIXME: Change to predicted hook?
+				timer.Create( "GSWeapons-Holster-" .. self:EntIndex(), 0, 1, function()
+					if ( self ~= NULL ) then
+						net.Start( "GSWeapons-Holster" )
+							net.WriteEntity( self )
+							net.WriteEntity( pSwitchingTo )
+						net.Send( pPlayer )
+					end
+				end )
+			end
+		end
+		
+		return true
 	end
+	
+	if ( self.RemoveOnEmpty and not self:HasAmmo() ) then
+		if ( SERVER ) then
+			self:Remove()
+		end
+		
+		return true
+	end
+	
+	if ( self:CanHolster( pSwitchingTo )) then
+		if ( pSwitchingTo ~= self ) then
+			self:SharedHolster( pSwitchingTo, false )
+		end
+		
+		if ( SERVER ) then
+			-- Clientside does not run Holster in single-player
+			if ( bSinglePlayer ) then
+				net.Start( "GSWeapons-Holster" )
+					net.WriteEntity( self )
+					net.WriteEntity( pSwitchingTo )
+				net.Send( pPlayer )
+			else
+				timer.Create( "GSWeapons-Holster-" .. self:EntIndex(), 0, 1, function()
+					if ( self ~= NULL ) then
+						net.Start( "GSWeapons-Holster" )
+							net.WriteEntity( self )
+							net.WriteEntity( pSwitchingTo )
+						net.Send( pPlayer )
+					end
+				end )
+			end
+		end
+		
+		return true
+	end
+		
+	DevMsg( 2, string.format( "%s (weapon_gs_base) Holster invalid to %s", self:GetClass(), tostring( pSwitchingTo )) .. (IsFirstTimePredicted() and "" or " (predicted)") )
 	
 	return false
 end
 
-function SWEP:HolsterAnim( pSwitchingTo )
-	DevMsg( 2, string.format( "%s (weapon_gs_base) Holster animation to %s", self:GetClass(), tostring( pSwitchingTo )))
+function SWEP:HolsterAnim( pSwitchingTo, bDelayed )
+	DevMsg( 2, string.format( "%s (weapon_gs_base) Holster animation to %s", self:GetClass(), tostring( pSwitchingTo )) .. (bDelayed and " late" or IsFirstTimePredicted() and "" or " (predicted)") )
+	
+	self.m_bHolsterAnim = true
+	local pPlayer = self:GetOwner()
+	
+	if ( not bDelayed and CLIENT ) then
+		pPlayer.m_iHolsterAnimCommand = CurTime()
+	end
+	
+	if ( bRun ) then
+		if ( IsFirstTimePredicted() ) then
+			self.m_bSwitchInvalid = pSwitchingTo == NULL
+			self.m_pSwitchWeapon = pSwitchingTo
+		
+			if ( self.HolsterReloadTime ~= -1 and self:EventActive( "reload" )) then
+				-- If self is NULL in the hook, there's no way to retrieve what EntIndex it had
+				local sName = "GSWeapons-Holster reload-" .. self:EntIndex()
+				local flReloadTime
+				local bDidReload = false
+				
+				hook.Add( "Think", sName, function()
+					if ( bDidReload and IsFirstTimePredicted() ) then
+						hook.Remove( "Think", sName )
+					elseif ( self == NULL or pPlayer == NULL ) then
+						hook.Remove( "Think", sName )
+					elseif ( not self:IsActiveWeapon() ) then
+						if ( flReloadTime ) then
+							if ( CurTime() >= flReloadTime ) then
+								local iMaxClip = self:GetMaxClip1()
+								
+								if ( iMaxClip ~= -1 ) then
+									local iClip = self:Clip1()
+									local sAmmoType = self:GetPrimaryAmmoName()
+									local iAmmo = math.min( iMaxClip - iClip, pPlayer:GetAmmoCount( sAmmoType ))
+									self:SetClip1( iClip + iAmmo )
+									pPlayer:RemoveAmmo( iAmmo, sAmmoType )
+								end
+								
+								iMaxClip = self:GetMaxClip2()
+								
+								// If I use secondary clips, reload secondary
+								if ( iMaxClip ~= -1 ) then
+									local iClip = self:Clip2()
+									local sAmmoType = self:GetSecondaryAmmoName()
+									local iAmmo = math.min( iMaxClip - iClip, pPlayer:GetAmmoCount( sAmmoType ))
+									self:SetClip2( iClip + iAmmo )
+									pPlayer:RemoveAmmo( iAmmo, sAmmoType )
+								end
+								
+								self:FinishReload()
+								bDidReload = true
+							end
+						else
+							flReloadTime = CurTime() + self.HolsterReloadTime
+						end
+					end
+				end )
+			end
+		end
+		
+		if ( not bDelayed ) then
+			local iIndex = -self:GetShouldThrow() - 1
+			local bPlayed = false
+			
+			-- Wait for all viewmodels to holster
+			local flEndTime = 0
+			local flCurTime = CurTime()
+			
+			if ( self.m_tUseViewModel[0] and iIndex ~= 0 ) then
+				self:PlaySound( "holster", 0 )
+				bPlayed = true
+				
+				if ( self:PlayActivity( "holster", 0 )) then
+					flEndTime = self:SequenceLength(0)
+				--[[elseif ( self:PlayActivity( "deploy", 0 )) then
+					flEndTime = self:SequenceLength(0)
+					
+					local tbl = self.m_tSimulateHolsterAnim[0]
+					tbl[1] = true
+					tbl[2] = flCurTime
+					tbl[3] = flEndTime
+					
+					-- Guaranteed to be valid
+					pPlayer:GetViewModel(0):SetCycle(1)]]
+				end
+			end
+			
+			if ( self.m_tUseViewModel[1] and iIndex ~= 1 ) then
+				if ( not (self:PlaySound( "holster", 1, true ) or bPlayed) ) then
+					self:PlaySound( "holster", 0 )
+					bPlayed = true
+				end
+				
+				if ( self:PlayActivity( "holster", 1 )) then
+					flEndTime = self:SequenceLength(1)
+				--[[elseif ( self:PlayActivity( "deploy", 1 )) then
+					local flSeqDur = self:SequenceLength(1)
+					flEndTime = math.max( flEndTime, flSeqDur )
+					
+					local tbl = self.m_tSimulateHolsterAnim[1]
+					tbl[1] = true
+					tbl[2] = flCurTime
+					tbl[3] = flSeqDur
+					
+					pPlayer:GetViewModel(1):SetCycle(1)]]
+				end
+			end
+				
+			if ( self.m_tUseViewModel[2] and iIndex ~= 2 ) then
+				if ( not (self:PlaySound( "holster", 2, true ) or bPlayed) ) then
+					self:PlaySound( "holster", 0 )
+					bPlayed = true
+				end
+				
+				if ( self:PlayActivity( "holster", 2 )) then
+					flEndTime = self:SequenceLength(2)
+				--[[elseif ( self:PlayActivity( "deploy", 2 )) then
+					local flSeqDur = self:SequenceLength(2)
+					flEndTime = math.max( flEndTime, flSeqDur )
+					
+					local tbl = self.m_tSimulateHolsterAnim[2]
+					tbl[1] = true
+					tbl[2] = flCurTime
+					tbl[3] = flSeqDur
+					
+					pPlayer:GetViewModel(2):SetCycle(1)]]
+				end
+			end
+			
+			self:SetZoomLevel(0)
+			
+			-- Disable all events during Holster animation
+			self:SetNextPrimaryFire(-1)
+			self:SetNextSecondaryFire(-1)
+			self:SetNextReload(-1)
+			self:SetNextThink( flCurTime + flEndTime )
+		end
+	end
 	
 	-- https://github.com/Facepunch/garrysmod-requests/issues/739
 	table.Empty( self.m_tEvents )
 	table.Empty( self.m_tEventHoles )
 	table.Empty( self.m_tRemovalQueue )
-	self.m_bInHolsterAnim = true
-	
-	-- The client state is purged too early in single-player for the event to run on time
-	if ( not bSinglePlayer or SERVER ) then
-		local pPlayer = self:GetOwner()
-		
-		self:PlaySound( "holster", 0 )
-		
-		-- Wait for all viewmodels to holster
-		local flSequenceDuration = 0
-		
-		if ( self.m_tUseViewModel[0] ) then
-			if ( self:PlayActivity( "holster", 0 )) then
-				flSequenceDuration = self:SequenceLength(0)
-			else
-				-- FIXME
-			end
-		end
-		
-		if ( self.m_tUseViewModel[1] ) then
-			self:PlaySound( "holster", 1, true )
-			
-			if ( self:PlayActivity( "holster", 1 )) then
-				flSequenceDuration = math.max( flSequenceDuration, self:SequenceLength(1) )
-			else
-			end
-		end
-			
-		if ( self.m_tUseViewModel[2] ) then
-			self:PlaySound( "holster", 2, true )
-			
-			if ( self:PlayActivity( "holster", 2 )) then
-				flSequenceDuration = math.max( flSequenceDuration, self:SequenceLength(2) )
-			else
-			end
-		end
-		
-		-- We have to do this here since events are cleared here
-		if ( self.HolsterReloadTime ~= -1 and self:EventActive( "reload" )) then
-			local flReloadTime = flSequenceDuration + CurTime() + self.HolsterReloadTime
-			
-			-- If self is NULL in the hook, there's no way to retrieve what EntIndex it had
-			local sName = "GSWeapons-Holster reload-" .. self:EntIndex()
-			
-			hook.Add( "Think", sName, function()
-				if ( self == NULL or pPlayer == NULL ) then
-					hook.Remove( "Think", sName )
-				elseif ( CurTime() >= flReloadTime ) then
-					if ( not self:IsActiveWeapon() ) then
-						local iMaxClip = self:GetMaxClip1()
-						
-						if ( iMaxClip ~= -1 ) then
-							local iClip = self:Clip1()
-							local sAmmoType = self:GetPrimaryAmmoName()
-							local iAmmo = math.min( iMaxClip - iClip, pPlayer:GetAmmoCount( sAmmoType ))
-							self:SetClip1( iClip + iAmmo )
-							pPlayer:RemoveAmmo( iAmmo, sAmmoType )
-						end
-						
-						iMaxClip = self:GetMaxClip2()
-						
-						// If I use secondary clips, reload secondary
-						if ( iMaxClip ~= -1 ) then
-							local iClip = self:Clip2()
-							local sAmmoType = self:GetSecondaryAmmoName()
-							local iAmmo = math.min( iMaxClip - iClip, pPlayer:GetAmmoCount( sAmmoType ))
-							self:SetClip2( iClip + iAmmo )
-							pPlayer:RemoveAmmo( iAmmo, sAmmoType )
-						end
-						
-						self:FinishReload()
-					end
-					
-					hook.Remove( "Think", sName )
-				end
-			end )
-		end
-		
-		self:SetZoomLevel(0)
-		
-		-- Disable all events during Holster animation
-		self:SetNextPrimaryFire(-1)
-		self:SetNextSecondaryFire(-1)
-		self:SetNextReload(-1)
-		
-		local bIsInvalid = pSwitchingTo == NULL
-		
-		self:AddEvent( "holster", flSequenceDuration, function()
-			self.m_bInHolsterAnim = false
-			self.m_bHolsterAnimDone = true
-			
-			if ( bIsInvalid ) then -- Switching to NULL to begin with
-				pPlayer.m_pNewWeapon = NULL
-			elseif ( pSwitchingTo == NULL ) then -- Weapon disappeared; find a new one or come back to the same weapon
-				pPlayer.m_pNewWeapon = pPlayer:GetNextBestWeapon( self.HighWeightPriority )
-			else -- Weapon being swapped to is still on the player
-				pPlayer.m_pNewWeapon = pSwitchingTo
-			end
-			
-			return true
-		end )
-	end
 end
 
-function SWEP:SharedHolster( pSwitchingTo )
-	if ( SERVER ) then
-		self.dt.SwitchWeapon = pSwitchingTo:EntIndex()
-		bRun = true
-	else
-		self.m_bDeployed = false
-		bRun = not bSinglePlayer
-		
-		if ( pSwitchingTo:EntIndex() == 0 ) then
-			pSwitchingTo = NULL
-		end
-	end
+function SWEP:SharedHolster( pSwitchingTo, bDelayed )	
+	DevMsg( 2, string.format( "%s (weapon_gs_base) Holster to %s", self:GetClass(), tostring( pSwitchingTo )) .. (bDelayed and " late" or IsFirstTimePredicted() and "" or " (predicted)") )
 	
-	DevMsg( 2, string.format( "%s (weapon_gs_base) Holster to %s", self:GetClass(), tostring( pSwitchingTo )))
-	
-	self.m_bDeployedNoAmmo = false
 	local pPlayer = self:GetOwner()
 	local bIsValid = pPlayer ~= NULL
 	local bNoAnim = not self.HolsterAnimation
-	local bRun
+	self.m_bHolsterAnim = false
 	
-	if ( SERVER ) then
-		self.dt.SwitchWeapon = pSwitchingTo:EntIndex()
-		bRun = true
-	else
+	if ( CLIENT ) then
 		self.m_bDeployed = false
-		bRun = not bSinglePlayer
+		
+		if ( bIsValid and not bDelayed ) then
+			pPlayer.m_iDeployCommand = CurTime()
+		end
 	end
 	
 	-- These are already set if there was a holster animation
 	if ( bNoAnim ) then
-		if ( bRun and bIsValid and self.HolsterReloadTime ~= -1 and self:EventActive( "reload" )) then
-			local flReloadTime = CurTime() + self.HolsterReloadTime
-			local sName = "GSWeapons-Holster reload-" .. self:EntIndex()
-			
-			hook.Add( "Think", sName, function()
-				if ( self == NULL or pPlayer == NULL ) then
-					hook.Remove( "Think", sName )
-				elseif ( CurTime() >= flReloadTime ) then
-					if ( not self:IsActiveWeapon() ) then
-						local iMaxClip = self:GetMaxClip1()
-						
-						if ( iMaxClip ~= -1 ) then
-							local iClip = self:Clip1()
-							local sAmmoType = self:GetPrimaryAmmoName()
-							local iAmmo = math.min( iMaxClip - iClip, pPlayer:GetAmmoCount( sAmmoType ))
-							self:SetClip1( iClip + iAmmo )
-							pPlayer:RemoveAmmo( iAmmo, sAmmoType )
-						end
-						
-						iMaxClip = self:GetMaxClip2()
-						
-						// If I use secondary clips, reload secondary
-						if ( iMaxClip ~= -1 ) then
-							local iClip = self:Clip2()
-							local sAmmoType = self:GetSecondaryAmmoName()
-							local iAmmo = math.min( iMaxClip - iClip, pPlayer:GetAmmoCount( sAmmoType ))
-							self:SetClip2( iClip + iAmmo )
-							pPlayer:RemoveAmmo( iAmmo, sAmmoType )
-						end
-						
-						self:FinishReload()
-					end
-					
-					hook.Remove( "Think", sName )
-				end
-			end )
-		end
-		
-		-- https://github.com/Facepunch/garrysmod-requests/issues/739
-		table.Empty( self.m_tEvents )
-		table.Empty( self.m_tEventHoles )
-		table.Empty( self.m_tRemovalQueue )
-		
 		if ( bRun ) then
 			self:SetZoomLevel(0)
 			
@@ -929,49 +1040,108 @@ function SWEP:SharedHolster( pSwitchingTo )
 			self:SetNextPrimaryFire(-1)
 			self:SetNextSecondaryFire(-1)
 			self:SetNextReload(-1)
-			self:SetNextIdle(-1)
-			self:SetNextIdle1(-1)
-			self:SetNextIdle2(-1)
-		end
-	end
-	
-	self:PlaySound( "holster", 0 )
-	
-	if ( self.m_tUseViewModel[1] ) then
-		if ( bNoAnim ) then
-			self:PlaySound( "holster", 1, true )
-		end
-		
-		if ( bRun and bIsValid ) then
-			local pViewModel = pPlayer:GetViewModel(1)
 			
-			if ( pViewModel ~= NULL ) then
-				pViewModel:SetWeaponModel("")
+			if ( bIsValid and self.HolsterReloadTime ~= -1 and self:EventActive( "reload" )) then
+				-- If self is NULL in the hook, there's no way to retrieve what EntIndex it had
+				local sName = "GSWeapons-Holster reload-" .. self:EntIndex()
+				local flReloadTime
+				local bDidReload = false
+			
+				hook.Add( "Think", sName, function()
+					if ( bDidReload and IsFirstTimePredicted() ) then
+						hook.Remove( "Think", sName )
+					elseif ( self == NULL or pPlayer == NULL ) then
+						hook.Remove( "Think", sName )
+					elseif ( not self:IsActiveWeapon() ) then
+						if ( flReloadTime ) then
+							if ( CurTime() >= flReloadTime ) then
+								local iMaxClip = self:GetMaxClip1()
+								
+								if ( iMaxClip ~= -1 ) then
+									local iClip = self:Clip1()
+									local sAmmoType = self:GetPrimaryAmmoName()
+									local iAmmo = math.min( iMaxClip - iClip, pPlayer:GetAmmoCount( sAmmoType ))
+									self:SetClip1( iClip + iAmmo )
+									pPlayer:RemoveAmmo( iAmmo, sAmmoType )
+								end
+								
+								iMaxClip = self:GetMaxClip2()
+								
+								// If I use secondary clips, reload secondary
+								if ( iMaxClip ~= -1 ) then
+									local iClip = self:Clip2()
+									local sAmmoType = self:GetSecondaryAmmoName()
+									local iAmmo = math.min( iMaxClip - iClip, pPlayer:GetAmmoCount( sAmmoType ))
+									self:SetClip2( iClip + iAmmo )
+									pPlayer:RemoveAmmo( iAmmo, sAmmoType )
+								end
+								
+								self:FinishReload()
+								bDidReload = true
+							end
+						else
+							flReloadTime = CurTime() + self.HolsterReloadTime
+						end
+					end
+				end )
 			end
 		end
-	end
-	
-	if ( self.m_tUseViewModel[2] ) then
-		if ( bNoAnim ) then
-			self:PlaySound( "holster", 2, true )
-		end
 		
-		if ( bRun and bIsValid ) then
-			local pViewModel = pPlayer:GetViewModel(2)
-			
-			if ( pViewModel ~= NULL ) then
-				pViewModel:SetWeaponModel("")
-			end
-		end
+		-- https://github.com/Facepunch/garrysmod-requests/issues/739
+		table.Empty( self.m_tEvents )
+		table.Empty( self.m_tEventHoles )
+		table.Empty( self.m_tRemovalQueue )
 	end
 	
 	if ( bRun ) then
-		if ( bIsValid ) then
-			pPlayer:SetFOV(0, 0) // reset the default FOV
+		local tbl = self.m_tSimulateHolsterAnim
+		tbl[0][1] = false
+		tbl[1][1] = false
+		tbl[2][1] = false
+		
+		if ( not bDelayed ) then
+			self.dt.Deployed = false
+			self:SetNextIdle(-1)
+			self:SetNextIdle1(-1)
+			self:SetNextIdle2(-1)
+			
+			if ( bIsValid ) then
+				pPlayer:SetFOV(0, 0) // reset the default FOV
+				local iIndex = -self:GetShouldThrow() - 1
+				local bPlayed = false
+				
+				if ( bNoAnim and iIndex ~= 0 ) then
+					self:PlaySound( "holster", 0 )
+					bPlayed = true
+				end
+				
+				if ( self.m_tUseViewModel[1] ) then
+					if ( bNoAnim and not (iIndex == 1 or self:PlaySound( "holster", 1, true ) or bPlayed) ) then
+						self:PlaySound( "holster", 0 )
+						bPlayed = true
+					end
+					
+					local pViewModel = pPlayer:GetViewModel(1)
+					
+					if ( pViewModel ~= NULL ) then
+						pViewModel:SetWeaponModel("")
+					end
+				end
+				
+				if ( self.m_tUseViewModel[2] ) then
+					if ( bNoAnim and not (iIndex == 2 or self:PlaySound( "holster", 2, true ) or bPlayed) ) then
+						self:PlaySound( "holster", 0 )
+						bPlayed = true
+					end
+					
+					local pViewModel = pPlayer:GetViewModel(2)
+					
+					if ( pViewModel ~= NULL ) then
+						pViewModel:SetWeaponModel("")
+					end
+				end
+			end
 		end
-	else
-		self.m_bInHolsterAnim = false
-		self.m_bHolsterAnimDone = true
 	end
 end
 
@@ -981,8 +1151,6 @@ function SWEP:OnRemove()
 	if ( pPlayer == NULL ) then
 		DevMsg( 2, self:GetClass() .. " (weapon_gs_base) Remove invalid" )
 	else
-		local bRun = not bSinglePlayer or SERVER
-		
 		if ( bRun ) then
 			pPlayer:SetFOV(0, 0) // reset the default FOV
 			
@@ -1006,52 +1174,83 @@ function SWEP:OnRemove()
 		
 		if ( pPlayer:Health() > 0 and pPlayer:Alive() and self:IsActiveWeapon() ) then
 			-- The weapon was removed while it was active and the player was alive, so find a new one
+			local pWeapon = pPlayer:GetNextBestWeapon( self.HighWeightPriority, true )
+			
 			if ( bRun ) then
-				pPlayer.m_pNewWeapon = pPlayer:GetNextBestWeapon( self.HighWeightPriority, true )
+				pPlayer:SwitchWeapon( pWeapon )
 			end
 			
-			DevMsg( 2, string.format( "%s (weapon_gs_base) Remove to %s", self:GetClass(), tostring( pPlayer.m_pNewWeapon )))
+			DevMsg( 2, string.format( "%s (weapon_gs_base) Remove to %s", self:GetClass(), tostring( pWeapon )) .. (IsFirstTimePredicted() and "" or " (predicted)") )
 		else
-			DevMsg( 2, self:GetClass() .. " (weapon_gs_base) Remove invalid" )
+			DevMsg( 2, self:GetClass() .. " (weapon_gs_base) Remove invalid" .. (IsFirstTimePredicted() and "" or " (predicted)") )
 		end
 	end
 end
 
 --- Think
 function SWEP:Think()
-	-- Don't think until we're deployed
-	if ( CLIENT and timer.Exists( "GSWeapons-Think deploy-" .. self:EntIndex() )) then
-		return
-	end
-	
-	-- Do not think if there is no owner
 	local pPlayer = self:GetOwner()
 	
 	if ( pPlayer == NULL ) then
 		return
 	end
 	
-	if ( CLIENT ) then
-		if ( not self.m_bDeployed and self.dt.SwitchWeapon == -1 ) then
-			-- For clientside deployment in single-player or by use of Player:SelectWeapon()
-			timer.Create( "GSWeapons-Think deploy-" .. self:EntIndex(), 0, 1, function()
-				if ( self ~= NULL and pPlayer ~= NULL and not self.m_bDeployed and self.dt.SwitchWeapon == -1 ) then
-					if ( self:CanDeploy() ) then
-						self:SharedDeploy( true )
-					end
-					
-					self.m_bDeployed = true
+	if ( self.m_bHolsterAnim ) then
+		if ( bRun ) then
+			--[[local flCurTime = CurTime()
+			local tbl = self.m_tSimulateHolsterAnim[0]
+			
+			if ( tbl[1] ) then
+				local pViewModel = pPlayer:GetViewModel(0)
+				
+				if ( pViewModel ~= NULL ) then
+					pViewModel:SetCycle( math.max( 0, 1 - (flCurTime - tbl[2]) / tbl[3] ))
 				end
-			end )
+			end
+			
+			tbl = self.m_tSimulateHolsterAnim[1]
+			
+			if ( tbl[1] ) then
+				local pViewModel = pPlayer:GetViewModel(1)
+				
+				if ( pViewModel ~= NULL ) then
+					pViewModel:SetCycle( math.max( 0, 1 - (flCurTime - tbl[2]) / tbl[3] ))
+				end
+			end
+			
+			tbl = self.m_tSimulateHolsterAnim[2]
+			
+			if ( tbl[1] ) then
+				local pViewModel = pPlayer:GetViewModel(2)
+				
+				if ( pViewModel ~= NULL ) then
+					pViewModel:SetCycle( math.max( 0, 1 - (flCurTime - tbl[2]) / tbl[3] ))
+				end
+			end]]
+			
+			if ( CurTime() >= self:GetNextThink() ) then
+				if ( self.m_bSwitchInvalid ) then -- Switching to NULL to begin with
+					pPlayer:SwitchWeapon( NULL )
+				elseif ( self.m_pSwitchWeapon == NULL ) then -- Weapon disappeared; find a new one or come back to the same weapon
+					pPlayer:SwitchWeapon( pPlayer:GetNextBestWeapon( self.HighWeightPriority ))
+				else -- Weapon being swapped to is still on the player
+					pPlayer:SwitchWeapon( self.m_pSwitchWeapon )
+				end
+			end
+		end
+		
+		return
+	end
+	
+	if ( CLIENT ) then
+		if ( (not self.m_bDeployed or not pPlayer.m_iDeployCommand == CurTime()) and self.dt.Deployed ) then
+			-- For clientside deployment in single-player or by use of Player:SelectWeapon()
+			if ( self:CanDeploy() ) then
+				self:SharedDeploy( true )
+			end
 			
 			return
 		end
-		
-		-- The default bobbing algorithm calls upon the set variables BobScale and SwayScale
-		-- So instead of using a conditional accessor, these have to be set as soon as SpecialActive changes
-		local bSecondary = self:SpecialActive()
-		self.BobScale = bSecondary and self.Secondary.BobScale ~= -1 and self.Secondary.BobScale or self.Primary.BobScale
-		self.SwayScale = bSecondary and self.Secondary.SwayScale ~= -1 and self.Secondary.SwayScale or self.Primary.SwayScale
 	end
 	
 	local bFirstTimePredicted = IsFirstTimePredicted()
@@ -1095,7 +1294,7 @@ function SWEP:Think()
 		end
 	end
 	
-	self:UpdateThirdPerson()
+	self:UpdateVariables()
 	
 	if ( not (pPlayer:KeyDown( IN_ATTACK ) or pPlayer:KeyDown( IN_ATTACK2 )) ) then
 		self:MouseLifted()
@@ -1107,7 +1306,7 @@ function SWEP:Think()
 		self:ItemFrame()
 	end
 	
-	if ( SERVER or not bSinglePlayer ) then
+	if ( bRun ) then
 		if ( self:CanIdle(0) ) then
 			self:PlayActivity( "idle", 0, nil, true, self.m_tDryFire[0] and self:GetActivitySuffix(0) == "empty" )
 		end
@@ -1139,14 +1338,16 @@ function SWEP:ItemFrame()
 end
 
 function SWEP:MouseLifted()
-	if ( bSinglePlayer and CLIENT ) then
+	if ( not bRun ) then
 		return
 	end
 	
 	local pPlayer = self:GetOwner()
+	local flCurTime = CurTime()
 	local iThrow = self:GetShouldThrow()
 	
 	if ( iThrow > 0 ) then
+		self:SetShouldThrow(0)
 		local iIndex = math.floor( iThrow / GRENADE_COUNT )
 		
 		pPlayer:SetAnimation( PLAYER_ATTACK1 )
@@ -1154,7 +1355,7 @@ function SWEP:MouseLifted()
 		local flDelay = self.Grenade.Delay
 		
 		if ( flDelay == -1 ) then
-			self:SetLastShootTime( CurTime() )
+			self:SetLastShootTime( flCurTime )
 			self:EmitGrenade( iThrow % GRENADE_COUNT )
 			self:PlaySound( "throw", iIndex )
 			pPlayer:RemoveAmmo( 1, self:GetGrenadeAmmoName() )
@@ -1169,10 +1370,18 @@ function SWEP:MouseLifted()
 			end )
 		end
 		
-		self:SetShouldThrow( -iIndex )
-		local bRepeat = false
+		local flTime = 0
 		
-		self:AddEvent( "deploy", self:PlayActivity( "throw", iIndex ) and self:SequenceLength( iIndex ) or 0, function()
+		if ( self:PlayActivity( "throw", iIndex )) then
+			flTime = self:SequenceLength( iIndex )
+			
+			if ( flTime < flDelay ) then
+				flTime = flDelay
+			end
+		end
+		
+		self:AddEvent( "reload", flTime, function()
+			-- This must be run AFTER throw
 			if ( self:EventActive( "throw" )) then
 				return 0
 			end
@@ -1182,17 +1391,26 @@ function SWEP:MouseLifted()
 					if ( SERVER ) then
 						self:Remove()
 					end
-				elseif ( not bRepeat ) then
-					bRepeat = true
-					self:SetNextPrimaryFire(0)
-					self:SetNextSecondaryFire(0)
-					self:SetNextReload(0)
+				else
+					self:SetShouldThrow( -iIndex - 1 )
+					self:SetVisible( false, iIndex )
 					
-					return 0
+					self:AddEvent( "deploy", 0, function()
+						if ( pPlayer:GetAmmoCount( self:GetGrenadeAmmoName() ) ~= 0 ) then
+							self:SetShouldThrow(0)
+							self:SetVisible( true, iIndex )
+							
+							self:PlaySound( "deploy", iIndex )
+							local flNewTime = CurTime() + (self:PlayActivity( "deploy", iIndex ) and self:SequenceLength( iIndex ) or 0)
+							self:SetNextPrimaryFire( flNewTime )
+							self:SetNextSecondaryFire( flNewTime )
+							self:SetNextReload( flNewTime )
+							
+							return true
+						end
+					end )
 				end
 			else
-				self:SetShouldThrow(0)
-				
 				local flNewTime = CurTime() + (self:PlayActivity( "deploy", iIndex ) and self:SequenceLength( iIndex ) or 0)
 				self:SetNextPrimaryFire( flNewTime )
 				self:SetNextSecondaryFire( flNewTime )
@@ -1205,7 +1423,7 @@ function SWEP:MouseLifted()
 	
 	-- Just ran out of ammo and the mouse has been lifted, so switch away
 	if ( self.AutoSwitchOnEmpty and not self.m_bDeployedNoAmmo and not self:HasAmmo() ) then
-		pPlayer.m_pNewWeapon = pPlayer:GetNextBestWeapon( self.HighWeightPriority )
+		pPlayer:SwitchWeapon( pPlayer:GetNextBestWeapon( self.HighWeightPriority ))
 	-- Reload is still called serverside only in single-player
 	elseif ( self:Clip1() == 0 and self.Primary.AutoReloadOnEmpty or self:Clip2() == 0 and self.Secondary.AutoReloadOnEmpty ) then
 		self:Reload()
@@ -1222,10 +1440,8 @@ function SWEP:MouseLifted()
 				self:SetShotsFired(15)
 			end
 			
-			self:SetReduceShotTime( CurTime() + self.ShotInitialDecreaseTime )
+			self:SetReduceShotTime( flCurTime + self.ShotInitialDecreaseTime )
 		elseif ( iShotsFired > 0 ) then
-			local flCurTime = CurTime()
-			
 			if ( flShotTime < flCurTime ) then
 				self:SetShotsFired( iShotsFired - 1 )
 				self:SetReduceShotTime( flCurTime + self.ShotDecreaseTime )
@@ -1234,52 +1450,45 @@ function SWEP:MouseLifted()
 	end
 end
 
-function SWEP:UpdateThirdPerson()
+function SWEP:UpdateVariables()
+	if ( CLIENT ) then
+		-- The default bobbing algorithm calls upon the set variables BobScale and SwayScale
+		-- So instead of using a conditional accessor, these have to be set as soon as SpecialActive changes
+		local bSecondary = self:SpecialActive()
+		self.BobScale = bSecondary and self.Secondary.BobScale ~= -1 and self.Secondary.BobScale or self.Primary.BobScale
+		self.SwayScale = bSecondary and self.Secondary.SwayScale ~= -1 and self.Secondary.SwayScale or self.Primary.SwayScale
+	end
+	
 	if ( self:Silenced() ) then
 		self.WorldModel = self.SilencerModel
 		self.AutoSwitchFrom = self.m_bAutoSwitchFrom
 		
-		if ( self.m_bHoldTypeUpdate ) then
-			if ( self.Grenade.UpdateHoldType ) then
-				self:SetHoldType( self.m_sHoldType )
-			end
-			
-			self.m_bHoldTypeUpdate = false
+		if ( self.Grenade.UpdateHoldType and self:GetWeaponHoldType() ~= self.m_sHoldType ) then
+			self:SetHoldType( self.m_sHoldType )
 		end
 	else
 		local iThrow = self:GetShouldThrow()
 		
 		if ( iThrow > 0 ) then
+			self.WorldModel = self.m_sWorldModel
 			self.AutoSwitchFrom = false
 			
-			if ( self.m_bHoldTypeUpdate ) then
-				if ( self.Grenade.UpdateHoldType ) then
-					self:SetHoldType( self.m_sHoldType )
-				end
-				
-				self.m_bHoldTypeUpdate = false
+			if ( self.Grenade.UpdateHoldType and self:GetWeaponHoldType() ~= self.m_sHoldType ) then
+				self:SetHoldType( self.m_sHoldType )
 			end
 		elseif ( iThrow ~= 0 ) then
 			self.WorldModel = ""
 			self.AutoSwitchFrom = self.m_bAutoSwitchFrom
 			
-			if ( not self.m_bHoldTypeUpdate ) then
-				if ( self.Grenade.UpdateHoldType ) then
-					self:SetHoldType( "normal" )
-				end
-				
-				self.m_bHoldTypeUpdate = true
+			if ( self.Grenade.UpdateHoldType and self:GetWeaponHoldType() ~= "normal" ) then
+				self:SetHoldType( "normal" )
 			end
 		else
 			self.WorldModel = self.m_sWorldModel
 			self.AutoSwitchFrom = self.m_bAutoSwitchFrom
 			
-			if ( self.m_bHoldTypeUpdate ) then
-				if ( self.Grenade.UpdateHoldType ) then
-					self:SetHoldType( self.m_sHoldType )
-				end
-				
-				self.m_bHoldTypeUpdate = false
+			if ( self.Grenade.UpdateHoldType and self:GetWeaponHoldType() ~= self.m_sHoldType ) then
+				self:SetHoldType( self.m_sHoldType )
 			end
 		end
 	end
@@ -1452,7 +1661,7 @@ function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], iClipDeduction 
 		iIndex = 0
 	end
 	
-	local bSpecialActive = self:SpecialActive( iIndex )
+	local bSpecialActive = self:SpecialActive( iIndex ) or bSecondary
 	local tbl = self:GetShotTable( bSpecialActive )
 	local bBurst = self:BurstEnabled( iIndex ) and (not bDeductClip or iClip >= iClipDeduction * 2)
 	local flCooldown = bBurst and nil or self:GetCooldown( bSpecialActive )
@@ -1491,12 +1700,7 @@ function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], iClipDeduction 
 			
 			local flCurTime = CurTime()
 			self:SetLastShootTime( flCurTime )
-			
-			if ( self.FireFunction ) then
-				self.FireFunction( pPlayer, tbl )
-			else
-				pPlayer:FireBullets( tbl )
-			end
+			self.FireFunction( pPlayer, tbl )
 			
 			if ( iCurCount == iCount or bDeductClip and iClip < iClipDeduction ) then
 				if ( self.DoPump ) then
@@ -1617,11 +1821,7 @@ function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], iClipDeduction 
 		self:SetNextReload( flNextTime )
 	end
 	
-	if ( self.FireFunction ) then
-		self.FireFunction( pPlayer, tbl )
-	else
-		pPlayer:FireBullets( tbl )
-	end
+	self.FireFunction( pPlayer, tbl )
 	
 	if ( not bBurst and self.DoPump ) then
 		self:AddEvent( "pump", bActivity and self:SequenceLength( iIndex ) or 0, function() 
@@ -2089,7 +2289,7 @@ function SWEP:HandleFireOnEmpty( bSecondary --[[= false]], iIndex --[[= 0]] )
 	end
 	
 	if ( self.SwitchOnEmptyFire and not self:HasAmmo() ) then
-		pPlayer.m_pNewWeapon = pPlayer:GetNextBestWeapon( self.HighWeightPriority )
+		pPlayer:SwitchWeapon( pPlayer:GetNextBestWeapon( self.HighWeightPriority ))
 	elseif ( bSecondary and self.Secondary.ReloadOnEmptyFire or not bSecondary and self.Primary.ReloadOnEmptyFire ) then
 		self:SetNextReload(0)
 		self:Reload()
@@ -2277,7 +2477,8 @@ function SWEP:ReloadClips( iIndex --[[= nil]] )
 		
 		self:AddEvent( "reload", flSequenceDuration, function()
 			-- HACK: Don't reload with primary fire underwater
-			if ( (pPlayer:KeyDown( IN_ATTACK ) and not self.Primary.FireUnderwater and pPlayer:WaterLevel() == 3 or pPlayer:KeyDown( IN_ATTACK2 )) and not tSingleReload.QueuedFire ) then
+			if ( (pPlayer:KeyDown( IN_ATTACK ) and not self.Primary.FireUnderwater and pPlayer:WaterLevel() == 3
+				or pPlayer:KeyDown( IN_ATTACK2 )) and not tSingleReload.QueuedFire ) then
 				self:SetNextIdle(-1)
 				
 				-- Start reloading when the mouse is lifted
@@ -2386,7 +2587,6 @@ function SWEP:ReloadClips( iIndex --[[= nil]] )
 				end
 			end
 			
-			--FIXME: Post dryfire and reload dynamicsism and finish duration accuracy
 			if ( iMaxClip1 == -1 and iMaxClip2 == -1 ) then	
 				--pPlayer:DoAnimationEvent( PLAYERANIMEVENT_RELOAD_END )
 				self:SetShotsFired(0)
@@ -2589,7 +2789,7 @@ function SWEP:PlaySound( sSound, iIndex, bStrictIndex, bPlayShared --[[= false]]
 		end
 	end
 	
-	if ( bPlayShared or bSinglePlayer or SERVER ) then
+	if ( bPlayShared or SERVER ) then
 		local pPlayer = self:GetOwner()
 		
 		if ( pPlayer == NULL ) then
@@ -2638,8 +2838,15 @@ function SWEP:PlayActivity( Activity, iIndex --[[= 0]], flRate --[[= 1]], bStric
 			sActivity = string.format( sFormatTwo, sPrefix, Activity, sSuffix )
 			iActivity = self:LookupActivity( sActivity, iIndex )
 			
+			if ( isstring( iActivity )) then
+				self:PlaySequence( iActivity, iIndex, flRate )
+				
+				-- No way to tell if it succeeded or not
+				return true
+			end
+			
 			if ( iActivity == ACT_RESET ) then
-				return self:ResetActivity( iIndex, self:LookupActivityKey( sActivity, "rate", iIndex, nil ))
+				return self:ResetActivity( iIndex, self:LookupActivityKey( sActivity, "rate", iIndex ))
 			end
 			
 			iSequence = iActivity == ACT_INVALID and -1 or pViewModel:SelectWeightedSequence( iActivity )
@@ -2651,8 +2858,14 @@ function SWEP:PlayActivity( Activity, iIndex --[[= 0]], flRate --[[= 1]], bStric
 				sActivity = string.format( sFormatOne, sPrefix, Activity )
 				iActivity = self:LookupActivity( sActivity, iIndex )
 				
+				if ( isstring( iActivity )) then
+					self:PlaySequence( iActivity, iIndex, flRate )
+					
+					return true
+				end
+				
 				if ( iActivity == ACT_RESET ) then
-					return self:ResetActivity( iIndex, self:LookupActivityKey( sActivity, "rate", iIndex, nil ))
+					return self:ResetActivity( iIndex, self:LookupActivityKey( sActivity, "rate", iIndex ))
 				end
 				
 				iSequence = iActivity == ACT_INVALID and -1 or pViewModel:SelectWeightedSequence( iActivity )
@@ -2668,8 +2881,14 @@ function SWEP:PlayActivity( Activity, iIndex --[[= 0]], flRate --[[= 1]], bStric
 					sActivity = string.format( sFormatOne, Activity, sSuffix )
 					iActivity = self:LookupActivity( sActivity, iIndex )
 					
+					if ( isstring( iActivity )) then
+						self:PlaySequence( iActivity, iIndex, flRate )
+						
+						return true
+					end
+					
 					if ( iActivity == ACT_RESET ) then
-						return self:ResetActivity( iIndex, self:LookupActivityKey( sActivity, "rate", iIndex, nil ))
+						return self:ResetActivity( iIndex, self:LookupActivityKey( sActivity, "rate", iIndex ))
 					end
 					
 					iSequence = iActivity == ACT_INVALID and -1 or pViewModel:SelectWeightedSequence( iActivity )
@@ -2684,8 +2903,14 @@ function SWEP:PlayActivity( Activity, iIndex --[[= 0]], flRate --[[= 1]], bStric
 					sActivity = Activity
 					iActivity = self:LookupActivity( sActivity, iIndex )
 					
+					if ( isstring( iActivity )) then
+						self:PlaySequence( iActivity, iIndex, flRate )
+						
+						return true
+					end
+					
 					if ( iActivity == ACT_RESET ) then
-						return self:ResetActivity( iIndex, self:LookupActivityKey( sActivity, "rate", iIndex, nil ))
+						return self:ResetActivity( iIndex, self:LookupActivityKey( sActivity, "rate", iIndex ))
 					end
 					
 					iSequence = iActivity == ACT_INVALID and -1 or pViewModel:SelectWeightedSequence( iActivity )
@@ -2695,7 +2920,7 @@ function SWEP:PlayActivity( Activity, iIndex --[[= 0]], flRate --[[= 1]], bStric
 		end
 		
 		if ( not flRate ) then
-			flRate = self:LookupActivityKey( sActivity, "rate", iIndex, 1 )
+			flRate = self:LookupActivityKey( sActivity, "rate", iIndex ) or 1
 		end
 	else
 		if ( Activity == ACT_INVALID ) then
@@ -2750,8 +2975,8 @@ function SWEP:PlayActivity( Activity, iIndex --[[= 0]], flRate --[[= 1]], bStric
 		pViewModel:SetPlaybackRate( flRate )
 	end
 	
-	if ( flRate > 0 ) then
-		local flTime = self:LookupActivityKey( sActivity, "idle", iIndex, nil ) or self:SequenceLength( iIndex )
+	if ( flRate ~= 0 ) then
+		local flTime = self:LookupActivityKey( sActivity, "idle", iIndex ) or pViewModel:SequenceDuration()
 		
 		if ( istable( flTime )) then
 			random.SetSeed( pPlayer:GetMD5Seed() % 0x100 )
@@ -2759,11 +2984,11 @@ function SWEP:PlayActivity( Activity, iIndex --[[= 0]], flRate --[[= 1]], bStric
 		end
 		
 		if ( iIndex == 1 ) then
-			self:SetNextIdle1( flTime / flRate + CurTime() )
+			self:SetNextIdle1( flTime / (flRate < 0 and -flRate or flRate) + CurTime() )
 		elseif ( iIndex == 2 ) then
-			self:SetNextIdle2( flTime / flRate + CurTime() )
+			self:SetNextIdle2( flTime / (flRate < 0 and -flRate or flRate) + CurTime() )
 		else
-			self:SetNextIdle( flTime / flRate + CurTime() )
+			self:SetNextIdle( flTime / (flRate < 0 and -flRate or flRate) + CurTime() )
 		end
 	else -- Invalid rate; reset idle time
 		if ( iIndex == 1 ) then
@@ -2776,6 +3001,56 @@ function SWEP:PlayActivity( Activity, iIndex --[[= 0]], flRate --[[= 1]], bStric
 	end
 	
 	return true
+end
+
+function SWEP:PlaySequence( Sequence, iIndex --[[= 0]], flRate --[[= 1]] )
+	if ( Sequence == -1 ) then
+		return false
+	end
+	
+	local pViewModel = self:GetViewModel( iIndex )
+	
+	if ( pViewModel == NULL ) then
+		return false
+	end
+	
+	local flTime
+	
+	if ( isstring( Sequence )) then
+		Sequence, flTime = pViewModel:LookupSequence( Sequence )
+		
+		if ( Sequence == -1 ) then
+			return false
+		end
+	else
+		flTime = pViewModel:SequenceDuration( Sequence )
+	end
+	
+	flRate = flRate or 0
+	
+	if ( SERVER or self:GetPredictable() ) then
+		--pViewModel:SetWeaponModel( self:GetViewModel( iIndex ), self )
+		pViewModel:SendViewModelMatchingSequence( Sequence )
+		pViewModel:SetPlaybackRate( flRate )
+	end
+	
+	if ( flRate > 0 ) then
+		if ( iIndex == 1 ) then
+			self:SetNextIdle1( flTime / flRate + CurTime() )
+		elseif ( iIndex == 2 ) then
+			self:SetNextIdle2( flTime / flRate + CurTime() )
+		else
+			self:SetNextIdle( flTime / flRate + CurTime() )
+		end
+	else
+		if ( iIndex == 1 ) then
+			self:SetNextIdle1(0)
+		elseif ( iIndex == 2 ) then
+			self:SetNextIdle2(0)
+		else
+			self:SetNextIdle(0)
+		end
+	end
 end
 
 function SWEP:ResetActivity( iIndex --[[= 0]], flRate --[[= nil]] )
@@ -3031,7 +3306,7 @@ function SWEP:GetSpread( bSecondary )
 	if ( bSecondary ) then
 		local flSpecial = self.Secondary.Spread
 		
-		if ( flSpecial ~= -1 ) then
+		if ( flSpecial ~= NULL ) then
 			return flSpecial
 		end
 	end
@@ -3099,14 +3374,18 @@ function SWEP:LookupActivity( sName, iIndex --[[= 0]] )
 	return ACT_INVALID
 end
 
--- FIXME: Remove default
-function SWEP:LookupActivityKey( sName, sKey, iIndex, Default )
+function SWEP:LookupActivityKey( sName, sKey, iIndex )
 	local Activity = self.Activities[sName]
 	
-	return Activity and istable( Activity ) and (Activity[sKey .. iIndex + 1] or Activity[sKey]) or Default
+	if ( Activity and istable( Activity )) then
+		if ( Activity[sKey .. iIndex + 1] == nil ) then
+			return Activity[sKey]
+		end
+		
+		return Activity[sKey .. iIndex + 1]
+	end
 end
 
--- FIXME: Do more GetProperties checks?
 function SWEP:LookupSound( sName, iIndex --[[= 0]], bStrictIndex --[[= false]] )
 	local sSound = self.Sounds[sName]
 	

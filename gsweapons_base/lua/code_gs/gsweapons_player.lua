@@ -2,7 +2,8 @@ if ( SERVER or not game.SinglePlayer() ) then
 	-- Handles weapon switching
 	hook.Add( "StartCommand", "GSWeapons-Shared SelectWeapon", function( pPlayer, cmd )
 		if ( pPlayer.m_pNewWeapon ) then
-			if ( pPlayer.m_pNewWeapon == NULL or pPlayer.m_pNewWeapon == pPlayer:GetActiveWeapon() ) then
+			-- https://github.com/Facepunch/garrysmod-issues/issues/2906
+			if ( (--[[not pPlayer.m_pNULLWeapon and]] pPlayer.m_pNewWeapon == NULL) or pPlayer.m_pNewWeapon == pPlayer:GetActiveWeapon() ) then
 				pPlayer.m_pNewWeapon = nil
 			else
 				-- Sometimes does not work the first time
@@ -37,7 +38,15 @@ if ( SERVER or not game.SinglePlayer() ) then
 	end )]]
 end
 
+local ENTITY = FindMetaTable( "Entity" )
 local PLAYER = FindMetaTable( "Player" )
+
+function PLAYER:InstallDataTable()
+	if ( not self.m_bInstalledDataTable ) then
+		ENTITY.InstallDataTable( self )
+		self.m_bInstalledDataTable = true
+	end
+end
 
 function PLAYER:SetupWeaponDataTables()
 	-- For CS:S ViewPunching
@@ -50,15 +59,20 @@ function PLAYER:SetupWeaponDataTables()
 end
 
 -- Shared version of SelectWeapon
-function PLAYER:SwitchWeapon( weapon )
-	if ( isstring( weapon )) then
-		local pWeapon = self:GetWeapon( weapon )
+function PLAYER:SwitchWeapon( Weapon )
+	if ( isstring( Weapon )) then
+		local pWeapon = self:GetWeapon( Weapon )
 		
 		if ( pWeapon ~= NULL ) then
 			self.m_pNewWeapon = pWeapon
+			self.m_pNULLWeapon = false
 		end
-	elseif ( weapon:GetOwner() == self ) then
-		self.m_pNewWeapon = weapon
+	elseif ( Weapon == NULL ) then
+		self.m_pNewWeapon = Weapon
+		self.m_pNULLWeapon = true
+	elseif ( Weapon:GetOwner() == self ) then
+		self.m_pNewWeapon = Weapon
+		self.m_pNULLWeapon = false
 	end
 end
 

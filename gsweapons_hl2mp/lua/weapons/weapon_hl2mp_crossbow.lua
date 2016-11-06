@@ -92,8 +92,8 @@ function SWEP:SecondaryAttack()
 	return false
 end
 
-function SWEP:SharedHolster( pSwitchingTo )
-	BaseClass.SharedHolster( self, pSwitchingTo )
+function SWEP:SharedHolster( pSwitchingTo, bDelayed )
+	BaseClass.SharedHolster( self, pSwitchingTo, bDelayed )
 	
 	local pPlayer = self:GetOwner()
 	

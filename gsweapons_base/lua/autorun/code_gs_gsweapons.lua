@@ -20,10 +20,7 @@ if ( CLIENT ) then
 	include( "code_gs/gsweapons_base.lua" )
 	include( "code_gs/gsweapons_player.lua" )
 	include( "code_gs/gsweapons_util.lua" )
-	
-	if ( not dash ) then
-		include( "code_gs/gsweapons_dash.lua" )
-	end
+	include( "code_gs/gsweapons_dash.lua" )
 	
 	DevMsg( 1, string.format( language.GetPhrase( "GSWeapons_Loaded" ), language.GetPhrase( "language" )))
 else
@@ -42,11 +39,8 @@ else
 	include( "code_gs/gsweapons_player.lua" )
 	AddCSLuaFile( "code_gs/gsweapons_util.lua" )
 	include( "code_gs/gsweapons_util.lua" )
-	
-	if ( not dash ) then
-		AddCSLuaFile( "code_gs/gsweapons_dash.lua" )
-		include( "code_gs/gsweapons_dash.lua" )
-	end
+	AddCSLuaFile( "code_gs/gsweapons_dash.lua" )
+	include( "code_gs/gsweapons_dash.lua" )
 	
 	MsgN( "[GSWeapons] Loaded!" )
 end

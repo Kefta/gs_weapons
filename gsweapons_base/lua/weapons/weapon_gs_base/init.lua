@@ -3,10 +3,8 @@ AddCSLuaFile( "shared.lua" )
 include( "shared.lua" )
 
 util.AddNetworkString( "GSWeapons-Holster" )
-
-if ( game.SinglePlayer() ) then
-	util.AddNetworkString( "GSWeapons-Holster animation" )
-end
+util.AddNetworkString( "GSWeapons-Holster animation" )
+util.AddNetworkString( "GSWeapons-Player DTVars" )
 
 --- Weapon demeanour
 SWEP.DisableDuplicator = false -- Block spawning weapon with the duplicator
@@ -110,3 +108,10 @@ function SWEP:ShouldDropOnDie()
 end
 
 --- Player functions
+hook.Add( "PlayerInitialSpawn", "GSWeapons-Player DTVars", function( pPlayer )
+	pPlayer:InstallDataTable()
+	pPlayer:SetupWeaponDataTables()
+	
+	net.Start( "GSWeapons-Player DTVars" )
+	net.Send( pPlayer )
+end )

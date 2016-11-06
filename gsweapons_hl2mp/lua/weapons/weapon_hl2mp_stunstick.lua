@@ -35,8 +35,10 @@ if ( CLIENT ) then
 end
 
 function SWEP:DoImpactEffect( tr )
-	local data = EffectData()
-		data:SetNormal( tr.HitNormal )
-		data:SetOrigin( tr.HitPos + tr.HitNormal * 4 )
-	util.Effect( "StunstickImpact", data )
+	if ( IsFirstTimePredicted() ) then
+		local data = EffectData()
+			data:SetNormal( tr.HitNormal )
+			data:SetOrigin( tr.HitPos + tr.HitNormal * 4 )
+		util.Effect( "StunstickImpact", data )
+	end
 end

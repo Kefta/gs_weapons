@@ -75,21 +75,18 @@ net.Receive( "GSWeapons-Holster", function()
 	
 	if ( pWeapon.SharedHolster and pWeapon.m_bDeployed ) then
 		local pSwitchingTo = net.ReadEntity()
-		local iIndex = pSwitchingTo:EntIndex()
-		pWeapon.dt.SwitchWeapon = iIndex
-		pWeapon:SharedHolster( iIndex == 0 and NULL or pSwitchingTo )
+		pWeapon:SharedHolster( pSwitchingTo:EntIndex() == 0 and NULL or pSwitchingTo, true )
 	end
 end )
 
-if ( game.SinglePlayer() ) then
-	net.Receive( "GSWeapons-Holster animation", function()
-		local pWeapon = net.ReadEntity()
-		
-		if ( pWeapon.HolsterAnim ) then
-			pWeapon:HolsterAnim( net.ReadEntity() )
-		end
-	end )
-end
+net.Receive( "GSWeapons-Holster animation", function()
+	local pWeapon = net.ReadEntity()
+	
+	if ( pWeapon.HolsterAnim and not pWeapon.m_bHolsterAnim and pWeapon.m_bDeployed ) then
+		local pSwitchingTo = net.ReadEntity()
+		pWeapon:HolsterAnim( pSwitchingTo:EntIndex() == 0 and NULL or pSwitchingTo, true )
+	end
+end )
 
 --- HUD/Visual
 -- Bobbing affects all view models; individual view models can call CalcViewModelView
@@ -169,17 +166,14 @@ function SWEP:GetMuzzleFlashScale()
 end
 
 --- Player functions
--- DTVar exists are varying times based on when the player loads in
-hook.Add( "Think", "GSWeapons-Player DTVars", function()
-	local pLocalPlayer = LocalPlayer()
-	
-	if ( pLocalPlayer.DTVar ) then
-		if ( pLocalPlayer.SetupWeaponDataTables ) then
-			pLocalPlayer:SetupWeaponDataTables()
-		else
-			ErrorNoHalt( "[GSWeapons] Player DTVars could not be initialized! This is probably due to an earlier error that halted loading. Please fix, or contact code_gs" )
-		end
+net.Receive( "GSWeapons-Player DTVars", function(len, ply)
+	timer.Create( "GSWeapons-Player DTVars", 0, 0, function()	
+		local pPlayer = LocalPlayer()
 		
-		hook.Remove( "Think", "GSWeapons-Player DTVars" )
-	end
+		if ( pPlayer ~= NULL ) then
+			pPlayer:InstallDataTable()
+			pPlayer:SetupWeaponDataTables()
+			timer.Remove( "GSWeapons-Player DTVars" )
+		end
+	end )
 end )

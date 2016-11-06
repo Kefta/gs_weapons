@@ -160,13 +160,14 @@ function SWEP:Hit( bSecondary, tr, vForward, iIndex )
 			and self.Primary.InitialDamage or self:GetDamage( false )
 	end
 	
-	local bPlayer = tr.Entity:IsPlayer() or tr.Entity:IsNPC()
+	local pEntity = tr.Entity
+	local bPlayer = pEntity:IsPlayer() or pEntity:IsNPC()
 	
 	if ( bPlayer ) then
-		local vTargetForward = tr.Entity:GetAngles():Forward() -- FIXME: Not correctly returning on client
+		local vTargetForward = pEntity:GetAngles():Forward() -- FIXME: Not correctly returning on client
 		vTargetForward.z = 0
 		
-		local vLOS = tr.Entity:GetPos() - pPlayer:GetPos()
+		local vLOS = pEntity:GetPos() - pPlayer:GetPos()
 		vLOS.z = 0
 		vLOS:Normalize()
 		
@@ -187,13 +188,13 @@ function SWEP:Hit( bSecondary, tr, vForward, iIndex )
 		// Calculate an impulse large enough to push a 75kg man 4 in/sec per point of damage
 		-- FIXME: This is exactly how the CS:S knife calculates force, but the 1/Damage doesn't make much sense
 		info:SetDamageForce( vForward * info:GetBaseDamage() * self.Melee.Force * (1 / (flDamage < 1 and 1 or flDamage)) * phys_pushscale:GetFloat() )
-	tr.Entity:DispatchTraceAttack( info, tr, vForward )
+	pEntity:DispatchTraceAttack( info, tr, vForward )
 	
 	// delay the decal a bit
 	self:AddEvent( "smack", bSecondary and self.Secondary.SmackTime or self.Primary.SmackTime, function()
-		if ( tr.Entity == NULL ) then
+		--[[if ( pEntity == NULL ) then
 			return true
-		end
+		end]]
 		
 		if ( bPlayer ) then
 			self:PlaySound( bSecondary and "hit_alt" or "hit", iIndex )
