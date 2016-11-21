@@ -1,8 +1,7 @@
-DEFINE_BASECLASS( "weapon_hl2mpbase_bludgeon" )
+SWEP.Base = "weapon_hl2mpbase_bludgeon"
 
-SWEP.PrintName = "HL2MP_StunBaton"
+SWEP.PrintName = "#HL2MP_StunBaton"
 SWEP.Spawnable = true
-
 SWEP.Slot = 0
 SWEP.SlotPos = 1
 

@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "hl1s_basehl1combatweapon" )
+SWEP.Base = "hl1s_basehl1combatweapon"
 
---- GSBase
 SWEP.PrintName = "#HL1_Glock"
 SWEP.Spawnable = true
 SWEP.Slot = 1
@@ -11,8 +10,8 @@ SWEP.HoldType = "pistol"
 SWEP.Weight = 10
 
 SWEP.Activities = {
-	primary_empty = ACT_GLOCK_SHOOTEMPTY,
-	secondary = {
+	shoot_empty = ACT_GLOCK_SHOOTEMPTY,
+	altfire = {
 		ACT_VM_PRIMARYATTACK,
 		idle = {10, 15} -- FIXME: Is this right?
 	},
@@ -21,13 +20,13 @@ SWEP.Activities = {
 
 SWEP.Sounds = {
 	-- The CS:S glock scape has higher priority, so we need to redefine HL1's
-	primary = {
+	shoot = {
 		name = "HL_Weapon_Glock.Single",
 		level = SNDLEVEL_GUNFIRE,
 		pitch = {95, 105},
 		sound = "weapons/pl_gun3.wav"
 	},
-	secondary = "HL_Weapon_Glock.Single"
+	altfire = "HL_Weapon_Glock.Single"
 }
 
 SWEP.Primary = {
@@ -35,8 +34,8 @@ SWEP.Primary = {
 	ClipSize = 17,
 	DefaultClip = 34,
 	Cooldown = 0.3,
-	PunchAngle = Angle(-2, 0, 0),
-	Spread = Vector(0.01, 0.01, 0.01)
+	Spread = Vector(0.01, 0.01, 0.01),
+	PunchAngle = Angle(-2, 0, 0)
 }
 
 SWEP.Secondary = {
@@ -50,10 +49,9 @@ if ( CLIENT ) then
 	SWEP.Category = "Half-Life: Source"
 end
 
---- GSBase
 function SWEP:SecondaryAttack()
 	if ( self:CanSecondaryAttack() ) then
-		self:Shoot( true, 0 )
+		self:Shoot( true, 0, "altfire" )
 		
 		return true
 	end

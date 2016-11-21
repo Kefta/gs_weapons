@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "weapon_csbase_autosniper" )
+SWEP.Base = "weapon_csbase_autosniper"
 
---- GSBase
 SWEP.PrintName = "#CStrike_SG550"
 SWEP.Spawnable = true
 
@@ -8,18 +7,29 @@ SWEP.ViewModel = "models/weapons/v_snip_sg550.mdl"
 SWEP.WorldModel = "models/weapons/w_snip_sg550.mdl"
 
 SWEP.Sounds = {
-	primary = "Weapon_SG550.Single"
+	shoot = "Weapon_SG550.Single"
 }
 
 SWEP.Primary = {
-	Ammo = "556mmRound",
+	Ammo = "556mm",
 	ClipSize = 30,
 	DefaultClip = 120,
 	Damage = 70,
-	Spread = {
-		Base = 0.05,
-		Crouch = 0.04
-	}
+	Spread = Vector(0.05, 0.05),
+	SpreadCrouch = Vector(0.04, 0.04)
+}
+
+SWEP.Penetration = 2
+
+SWEP.Accuracy = {
+	Additive = 0.65,
+	Time = 0.35
+}
+
+SWEP.PunchRand = {
+	Name = "SG550",
+	XMin = 0.75,
+	XMax = 1.25
 }
 
 if ( CLIENT ) then
@@ -33,19 +43,3 @@ if ( CLIENT ) then
 	
 	SWEP.MuzzleFlashScale = 1.6
 end
-
---- CSBase_Gun
-SWEP.Penetration = 2
-
---- CSBase_AutoSniper
-SWEP.Accuracy = {
-	Additive = 0.65,
-	Time = 0.35
-}
-
-SWEP.Alias = "SG550"
-
-SWEP.Random = {
-	XMin = 0.75,
-	XMax = 1.25
-}

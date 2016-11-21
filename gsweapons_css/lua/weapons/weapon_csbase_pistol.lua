@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "weapon_csbase_gun" )
+SWEP.Base = "weapon_csbase_gun"
 
---- GSBase
 SWEP.PrintName = "CSBase_Pistol"
 SWEP.Slot = 1
 
@@ -13,20 +12,26 @@ SWEP.Sounds = {
 SWEP.Primary = {
 	Automatic = false,
 	Range = 4096,
-	Spread = {
-		Air = 0,
-		Move = 0,
-		Crouch = 0
-	}
+	SpreadAir = vector_origin,
+	SpreadMove = vector_origin,
+	SpreadCrouch = vector_origin
 }
 
 SWEP.Secondary = {
-	Spread = {
-		Air = -1,
-		Move = -1,
-		Crouch = -1
-	}
+	SpreadAir = -1,
+	SpreadMove = -1,
+	SpreadCrouch = -1
 }
+
+SWEP.Accuracy = {
+	Base = 0,
+	Decay = 0,
+	Time = 0,
+	Min = 0,
+	Speed = 5/250
+}
+
+SWEP.PunchIntensity = -2
 
 if ( CLIENT ) then
 	SWEP.Category = "Counter-Strike: Source"
@@ -36,23 +41,12 @@ if ( CLIENT ) then
 	}
 end
 
---- CSBase_Pistol
-SWEP.Accuracy = {
-	Base = 0,
-	Decay = 0,
-	Time = 0,
-	Min = 0,
-	Speed = 5/250
-}
+local BaseClass = baseclass.Get( SWEP.Base )
 
-SWEP.PunchIntensity = 2
-
---- GSBase
 function SWEP:Initialize()
 	BaseClass.Initialize( self )
 	
 	self.m_flAccuracy = self.Accuracy.Base
-	self.m_flLastFire = CurTime()
 end
 
 function SWEP:SharedDeploy( bDelayed )
@@ -65,13 +59,12 @@ function SWEP:FinishReload()
 	self.m_flAccuracy = self.Accuracy.Base
 end
 
-function SWEP:Shoot( bSecondary, iIndex, iClipDeduction )
-	BaseClass.Shoot( self, bSecondary, iIndex, iClipDeduction )
+function SWEP:Shoot( bSecondary, iIndex, sPlay, iClipDeduction )
 	
 	// Mark the time of this shot and determine the accuracy modifier based on the last shot fired...
-	local flCurTime = CurTime()
-	local flAccuracy = self.m_flAccuracy - self.Accuracy.Decay * (self.Accuracy.Time - (flCurTime - self.m_flLastFire))
-	self.m_flLastFire = flCurTime
+	local flAccuracy = self.m_flAccuracy - self.Accuracy.Decay * (self.Accuracy.Time - (CurTime() - self:GetLastShootTime()))
+	
+	BaseClass.Shoot( self, bSecondary, iIndex, sPlay, iClipDeduction )
 	
 	if ( flAccuracy > self.Accuracy.Base ) then
 		self.m_flAccuracy = self.Accuracy.Base
@@ -85,49 +78,28 @@ end
 function SWEP:Punch()
 	local pPlayer = self:GetOwner()
 	local aPunch = pPlayer:GetViewPunchAngles()
-	aPunch.x = aPunch.x - self.PunchIntensity
+	aPunch[1] = aPunch[1] + self.PunchIntensity
 	pPlayer:SetViewPunchAngles( aPunch )
 end
 
---- CSBase_Gun
-function SWEP:GetSpread( bSecondary )
-	local pPlayer = self:GetOwner()
-	
-	if ( not pPlayer:OnGround() ) then
-		if ( bSecondary ) then
-			local flSpecial = self.Secondary.Spread.Air
-			
-			if ( flSpecial ~= -1 ) then
-				return flSpecial * (1 - self.m_flAccuracy)
-			end
+function SWEP:GetSpecialKey( sKey, bSecondary, bNoConVar )
+	if ( sKey == "Spread" ) then
+		local pPlayer = self:GetOwner()
+		
+		if ( not pPlayer:OnGround() ) then
+			return BaseClass.GetSpecialKey( self, "SpreadAir", bSecondary, bNoConVar ) * (1 - self.m_flAccuracy)
 		end
 		
-		return self.Primary.Spread.Air * (1 - self.m_flAccuracy)
-	end
-	
-	if ( pPlayer:_GetAbsVelocity():Length2DSqr() > (pPlayer:GetWalkSpeed() * self.Accuracy.Speed) ^ 2 ) then
-		if ( bSecondary ) then
-			local flSpecial = self.Secondary.Spread.Move
-			
-			if ( flSpecial ~= -1 ) then
-				return flSpecial * (1 - self.m_flAccuracy)
-			end
+		if ( pPlayer:_GetAbsVelocity():Length2DSqr() > (pPlayer:GetWalkSpeed() * self.Accuracy.Speed) ^ 2 ) then
+			return BaseClass.GetSpecialKey( self, "SpreadMove", bSecondary, bNoConVar ) * (1 - self.m_flAccuracy)
 		end
 		
-		return self.Primary.Spread.Move * (1 - self.m_flAccuracy)
-	end
-	
-	if ( pPlayer:Crouching() ) then
-		if ( bSecondary ) then
-			local flSpecial = self.Secondary.Spread.Crouch
-			
-			if ( flSpecial ~= -1 ) then
-				return flSpecial * (1 - self.m_flAccuracy)
-			end
+		if ( pPlayer:Crouching() ) then
+			return BaseClass.GetSpecialKey( self, "SpreadCrouch", bSecondary, bNoConVar ) * (1 - self.m_flAccuracy)
 		end
 		
-		return self.Primary.Spread.Crouch * (1 - self.m_flAccuracy)
+		return BaseClass.GetSpecialKey( self, sKey, bSecondary, bNoConVar ) * (1 - self.m_flAccuracy)
 	end
 	
-	return BaseClass.GetSpread( self, bSecondary ) * (1 - self.m_flAccuracy)
+	return BaseClass.GetSpecialKey( self, sKey, bSecondary, bNoConVar )
 end

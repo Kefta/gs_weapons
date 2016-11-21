@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "hl1s_basehl1combatweapon" )
+SWEP.Base = "hl1s_basehl1combatweapon"
 
---- GSBase
 SWEP.PrintName = "#HL1_HandGrenade"
 SWEP.Slot = 4
 
@@ -25,7 +24,9 @@ SWEP.Primary = {
 	Automatic = false
 }
 
-if ( SERVER ) then
+if ( CLIENT ) then
+	SWEP.Category = "Half-Life: Source"
+else
 	SWEP.Grenade = {
 		--Delay = 0.5,
 		Class = "grenade_hand",
@@ -36,12 +37,10 @@ if ( SERVER ) then
 		Gravity = 400,
 		Friction = 0.8
 	}
-else
-	SWEP.Category = "Half-Life 1"
 end
 
 function SWEP:PrimaryAttack()
-	if ( not self:CanPrimaryAttack() ) then
+	if ( not self:CanPrimaryAttack(0) ) then
 		return false
 	end
 	
@@ -50,16 +49,24 @@ function SWEP:PrimaryAttack()
 	return true
 end
 
+local BaseClass = baseclass.Get( SWEP.Base )
+
 function SWEP:GetActivitySuffix( sActivity, iIndex )
+	local sSuffix = BaseClass.GetActivitySuffix( self, sActivity, iIndex )
+	
 	if ( sActivity == "idle" ) then
-		random.SetSeed( pPlayer:GetMD5Seed() % 0x100 )
+		if ( self.m_tDryFire[iIndex] and sSuffix == "empty" ) then
+			return sSuffix
+		end
 		
-		if ( random.RandomFloat(0, 1) > 0.75 ) then
+		gsrand:SetSeed( pPlayer:GetMD5Seed() % 0x100 )
+		
+		if ( gsrand:RandomFloat(0, 1) > 0.75 ) then
 			return "alt"
 		end
 	end
 	
-	return BaseClass.GetActivitySuffix( sActivity, iIndex )
+	return sSuffix
 end
 
 local flThrowUp = 8/9
@@ -93,7 +100,7 @@ function SWEP:EmitGrenade()
 		local pGrenade = ents.Create( self.Entity )
 		pGrenade:SetPos( pPlayer:EyePos() + vForward * 16 )
 		pGrenade:_SetAbsVelocity( vForward * (flVel > 500 and 500 or flVel) + pPlayer:_GetAbsVelocity() )
-		pGrenade:ApplyLocalAngularVelocityImpulse( Vector( random.RandomInt(-1200, 1200), 0, 600 ))
+		pGrenade:ApplyLocalAngularVelocityImpulse( Vector( gsrand:RandomInt(-1200, 1200), 0, 600 ))
 		pGrenade:Spawn()
 		pGrenade:SetOwner( pPlayer )
 		pGrenade:StartDetonation( tGrenade.Timer )]]
@@ -101,4 +108,3 @@ function SWEP:EmitGrenade()
 		return NULL
 	end
 end
-

@@ -1,46 +1,33 @@
-DEFINE_BASECLASS( "weapon_csbase_rifle" )
+SWEP.Base = "weapon_csbase_rifle"
 
---- GSBase
 SWEP.PrintName = "#CStrike_Galil"
 SWEP.Spawnable = true
 
 SWEP.ViewModel = "models/weapons/v_rif_galil.mdl"
-SWEP.ViewModelFlip = false
 SWEP.WorldModel = "models/weapons/w_rif_galil.mdl"
 
 SWEP.Sounds = {
-	primary = "Weapon_Galil.Single"
+	shoot = "Weapon_Galil.Single"
 }
 
 SWEP.Primary = {
-	Ammo = "556mmRound",
+	Ammo = "556mm",
 	ClipSize = 35,
 	DefaultClip = 125,
 	Damage = 30,
 	Cooldown = 0.09,
 	WalkSpeed = 215/250,
 	FireUnderwater = false,
-	Spread = {
-		Base = 0.0375,
-		Air = 0.3,
-		Move = 0.07
-	}
+	Spread = Vector(0.0375, 0.0375),
+	SpreadAir = Vector(0.3, 0.3),
+	SpreadMove = Vector(0.07, 0.07)
 }
 
-if ( CLIENT ) then
-	SWEP.Category = "Counter-Strike: Source"
-	SWEP.KillIcon = 'v'
-	SWEP.SelectionIcon = 'v'
-	
-	SWEP.MuzzleFlashScale = 1.6
-end
-
---- CSBase_SMG
 SWEP.Accuracy = {
 	Divisor = 200,
 	Offset = 0.35,
 	Max = 1.25,
-	Additive = 0.04
+	Additive = Vector(0.04, 0.04)
 }
 
 SWEP.Kick = {
@@ -81,3 +68,13 @@ SWEP.Kick = {
 		DirectionChange = 7
 	}
 }
+
+if ( CLIENT ) then
+	SWEP.Category = "Counter-Strike: Source"
+	SWEP.KillIcon = 'v'
+	SWEP.SelectionIcon = 'v'
+	
+	SWEP.MuzzleFlashScale = 1.6
+	
+	SWEP.ViewModelFlip = false
+end

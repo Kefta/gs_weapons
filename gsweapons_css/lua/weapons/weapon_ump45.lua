@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "weapon_csbase_smg" )
+SWEP.Base = "weapon_csbase_smg"
 
---- GSBase
 SWEP.PrintName = "#CStrike_UMP45"
 SWEP.Spawnable = true
 
@@ -8,36 +7,22 @@ SWEP.ViewModel = "models/weapons/v_smg_ump45.mdl"
 SWEP.WorldModel = "models/weapons/w_smg_ump45.mdl"
 
 SWEP.Sounds = {
-	primary = "Weapon_UMP45.Single"
+	shoot = "Weapon_UMP45.Single"
 }
 
 SWEP.Primary = {
-	Ammo = "45ACP",
+	Ammo = "45acp",
 	ClipSize = 25,
 	DefaultClip = 125,
 	Damage = 30,
 	Cooldown = 0.105,
 	RangeModifier = 0.82,
-	Spread = {
-		Base = 0.04,
-		Air = 0.24,
-		Move = 0.04
-	}
+	Spread = Vector(0.04, 0.04),
+	SpreadAir = Vector(0.24, 0.24)
 }
 
-if ( CLIENT ) then
-	SWEP.Category = "Counter-Strike: Source"
-	SWEP.KillIcon = 'q'
-	SWEP.SelectionIcon = 'q'
-	
-	SWEP.CSSCrosshair = {
-		Min = 6
-	}
-	
-	SWEP.MuzzleFlashScale = 1.15
-end
+SWEP.Primary.SpreadMove = SWEP.Primary.Spread
 
---- CSBase_SMG
 SWEP.Accuracy = {
 	Base = 0,
 	Divisor = 210,
@@ -84,3 +69,15 @@ SWEP.Kick = {
 		DirectionChange = 10
 	}
 }
+
+if ( CLIENT ) then
+	SWEP.Category = "Counter-Strike: Source"
+	SWEP.KillIcon = 'q'
+	SWEP.SelectionIcon = 'q'
+	
+	SWEP.CSSCrosshair = {
+		Min = 6
+	}
+	
+	SWEP.MuzzleFlashScale = 1.15
+end

@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "weapon_csbase_smg" )
+SWEP.Base = "weapon_csbase_smg"
 
---- GSBase
 SWEP.PrintName = "#CStrike_Mac10"
 SWEP.Spawnable = true
 
@@ -8,36 +7,22 @@ SWEP.ViewModel = "models/weapons/v_smg_mac10.mdl"
 SWEP.WorldModel = "models/weapons/w_smg_mac10.mdl"
 
 SWEP.Sounds = {
-	primary = "Weapon_MAC10.Single"
+	shoot = "Weapon_MAC10.Single"
 }
 
 SWEP.Primary = {
-	Ammo = "45ACP",
+	Ammo = "45acp",
 	ClipSize = 30,
 	DefaultClip = 130,
 	Damage = 29,
 	Cooldown = 0.075,
 	RangeModifier = 0.82,
-	Spread = {
-		Base = 0.03,
-		Air = 0.375,
-		Move = 0.03
-	}
+	Spread = Vector(0.03, 0.03),
+	SpreadAir = Vector(0.375, 0.375)
 }
 
-if ( CLIENT ) then
-	SWEP.Category = "Counter-Strike: Source"
-	SWEP.KillIcon = 'l'
-	SWEP.SelectionIcon = 'l'
-	
-	SWEP.CSSCrosshair = {
-		Min = 9
-	}
-	
-	SWEP.MuzzleFlashScale = 1.1
-end
+SWEP.Primary.SpreadMove = SWEP.Primary.Spread
 
---- CSBase_SMG
 SWEP.Accuracy = {
 	Base = 0.15,
 	Divisor = 200,
@@ -83,3 +68,15 @@ SWEP.Kick = {
 		DirectionChange = 9
 	}
 }
+
+if ( CLIENT ) then
+	SWEP.Category = "Counter-Strike: Source"
+	SWEP.KillIcon = 'l'
+	SWEP.SelectionIcon = 'l'
+	
+	SWEP.CSSCrosshair = {
+		Min = 9
+	}
+	
+	SWEP.MuzzleFlashScale = 1.1
+end

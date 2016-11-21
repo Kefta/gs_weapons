@@ -1,21 +1,15 @@
-DEFINE_BASECLASS( "weapon_hl2mp_base" )
+SWEP.Base = "weapon_hl2mp_base"
 
---- GSBase
 SWEP.PrintName = "HL2MPBase_MachineGun"
 
-if ( CLIENT ) then
-	SWEP.Category = "Half-Life 2 MP"
-end
-
 SWEP.Activities = {
-	primary2 = ACT_VM_RECOIL1,
-	primary3 = ACT_VM_RECOIL2,
-	primary4 = ACT_VM_RECOIL3
+	shoot_alt = ACT_VM_RECOIL1,
+	shoot_alt2 = ACT_VM_RECOIL2,
+	shoot_alt3 = ACT_VM_RECOIL3
 }
 
 SWEP.Primary.Spread = VECTOR_CONE_3DEGREES
 
---- HL2MPBase_MachineGun
 SWEP.PunchAngle = {
 	Min = Vector(0.2, 0.2, 0.1), // Degrees
 	Clip = Angle(24, 3, 1),
@@ -24,7 +18,12 @@ SWEP.PunchAngle = {
 	SlideLimit = 1 // Seconds
 }
 
---- GSBase
+if ( CLIENT ) then
+	SWEP.Category = "Half-Life 2 MP"
+end
+
+local BaseClass = baseclass.Get( SWEP.Base )
+
 function SWEP:SetupDataTables()
 	BaseClass.SetupDataTables( self )
 	
@@ -43,19 +42,19 @@ function SWEP:ItemFrame()
 	end
 end
 
-function SWEP:ReloadClips( iIndex --[[= nil]] )
-	BaseClass.ReloadClips( self, iIndex )
+function SWEP:ReloadClips()
+	BaseClass.ReloadClips( self )
 	
 	self.dt.FireDuration = 0
 end
 
-function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], iClipDeduction --[[= 1]] )
-	BaseClass.Shoot( self, bSecondary, iIndex, iClipDeduction )
+function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], sPlay, iClipDeduction --[[= 1]] )
+	BaseClass.Shoot( self, bSecondary, iIndex, sPlay, iClipDeduction )
 	
 	local iLevel = self.dt.AnimLevel
 	
 	-- Don't update the networked value if we don't need to
-	if ( iLevel ~= 4 ) then
+	if ( iLevel ~= 5 ) then
 		self.dt.AnimLevel = iLevel + 1
 	end
 end
@@ -69,7 +68,7 @@ function SWEP:Punch( bSecondary )
 	-- Random seed is reset here
 	-- The "iSeed" var is actually incremented after the first RandomInt
 	-- But RandomSeed isn't called again. Probably an oversight
-	random.SetSeed( pPlayer:GetMD5Seed() % 0x100 )
+	gsrand:SetSeed( pPlayer:GetMD5Seed() % 0x100 )
 	
 	// Apply this to the view angles as well
 	local tPunch = self.PunchAngle
@@ -78,9 +77,9 @@ function SWEP:Punch( bSecondary )
 	local flKick = (self.dt.FireDuration > flSlide and flSlide or self.dt.FireDuration) / flSlide * tPunch.VerticalKick
 	local aPunch = Angle( -(vKick[1] + flKick),
 		// Wobble left and right
-		(vKick[2] + flKick) * (random.RandomInt(-1, 1) == -1 and -1 or 1) / 3,
+		(vKick[2] + flKick) * (gsrand:RandomInt(-1, 1) == -1 and -1 or 1) / 3,
 		// Wobble up and down
-		(vKick[3] + flKick) * (random.RandomInt(-1, 1) == -1 and -1 or 1) / 8 )
+		(vKick[3] + flKick) * (gsrand:RandomInt(-1, 1) == -1 and -1 or 1) / 8 )
 	
 	// Clip this to out desired min/max
 	aPunch:ClipPunchAngleOffset( pPlayer:GetPunchAngle(), tPunch.Clip )
@@ -89,11 +88,11 @@ function SWEP:Punch( bSecondary )
 	pPlayer:ViewPunch( aPunch * tPunch.Dampening )
 end
 
-function SWEP:PlayActivity( sActivity, iIndex, flRate )
-	if ( sActivity == "primary" and self:Clip1() ~= 0 ) then
+function SWEP:PlayActivity( sActivity, iIndex, flRate, bStrictPrefix, bStrictSuffix )
+	if ( sActivity == "shoot" and self:GetShootClip( self:SpecialActive() ) ~= 0 ) then
 		local iShotsFired = self.dt.AnimLevel
 		
-		return BaseClass.PlayActivity( self, iShotsFired == 0 and "primary" or iShotsFired == 1 and "primary" or iShotsFired == 2 and "primary2" or iShotsFired == 3 and "primary3" or "primary4", iIndex, flRate )
+		return BaseClass.PlayActivity( self, (iShotsFired == 0 or iShotsFired == 1) and "shoot" or iShotsFired == 2 and "shoot_alt" or iShotsFired == 3 and "shoot_alt2" or "shoot_alt3", iIndex, flRate )
 	end
 	
 	return BaseClass.PlayActivity( self, sActivity, iIndex, flRate )

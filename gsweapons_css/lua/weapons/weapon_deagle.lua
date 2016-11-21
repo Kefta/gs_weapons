@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "weapon_csbase_pistol" )
+SWEP.Base = "weapon_csbase_pistol"
 
---- GSBase
 SWEP.PrintName = "#CStrike_DEagle"
 SWEP.Spawnable = true
 
@@ -9,7 +8,7 @@ SWEP.WorldModel = "models/weapons/w_pist_deagle.mdl"
 SWEP.Weight = 7
 
 SWEP.Sounds = {
-	primary = "Weapon_DEagle.Single"
+	shoot = "Weapon_DEagle.Single"
 }
 
 SWEP.Primary = {
@@ -19,12 +18,19 @@ SWEP.Primary = {
 	Damage = 54,
 	Cooldown = 0.225,
 	RangeModifier = 0.81,
-	Spread = {
-		Base = 0.13,
-		Air = 1.5,
-		Move = 0.25,
-		Crouch = 0.115
-	}
+	Spread = Vector(0.13, 0.13),
+	SpreadAir = Vector(1.5, 1.5),
+	SpreadMove = Vector(0.25, 0.25),
+	SpreadCrouch = Vector(0.115, 0.115)
+}
+
+SWEP.Penetration = 2
+
+SWEP.Accuracy = {
+	Base = 0.9,
+	Decay = 0.35,
+	Time = 0.4,
+	Min = 0.55
 }
 
 if ( CLIENT ) then
@@ -34,14 +40,3 @@ if ( CLIENT ) then
 	
 	SWEP.MuzzleFlashScale = 1.2
 end
-
---- CSBase_Gun
-SWEP.Penetration = 2
-
---- CSBase_Pistol
-SWEP.Accuracy = {
-	Base = 0.9,
-	Decay = 0.35,
-	Time = 0.4,
-	Min = 0.55
-}

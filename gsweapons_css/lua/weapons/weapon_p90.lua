@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "weapon_csbase_smg" )
+SWEP.Base = "weapon_csbase_smg"
 
---- GSBase
 SWEP.PrintName = "#CStrike_P90"
 SWEP.Spawnable = true
 
@@ -9,45 +8,22 @@ SWEP.WorldModel = "models/weapons/w_smg_p90.mdl"
 SWEP.Weight = 26
 
 SWEP.Sounds = {
-	primary = "Weapon_P90.Single"
+	shoot = "Weapon_P90.Single"
 }
 
 SWEP.Primary = {
-	Ammo = "57mmRound",
+	Ammo = "57mm",
 	ClipSize = 50,
 	DefaultClip = 150,
 	Cooldown = 0.07,
 	Damage = 26,
 	WalkSpeed = 245/250,
 	RangeModifier = 0.84,
-	Spread = {
-		Base = 0.045,
-		Air = 0.3,
-		Move = 0.115
-	}
+	Spread = Vector(0.045, 0.045),
+	SpreadAir = Vector(0.3, 0.3),
+	SpreadMove = Vector(0.115, 0.115)
 }
 
-if ( CLIENT ) then
-	SWEP.Category = "Counter-Strike: Source"
-	SWEP.KillIcon = 'm'
-	SWEP.SelectionIcon = 'm'
-	
-	SWEP.CSSCrosshair = {
-		Min = 7
-	}
-	
-	SWEP.MuzzleFlashScale = 1.2
-	
-	SWEP.EventStyle = {
-		-- CS:S muzzle flash
-		[5001] = "css_x",
-		[5011] = "css_x",
-		[5021] = "css_x",
-		[5031] = "css_x"
-	}
-end
-
---- CSBase_SMG
 SWEP.Accuracy = {
 	Divisor = 175,
 	Offset = 0.45,
@@ -93,3 +69,23 @@ SWEP.Kick = {
 		DirectionChange = 8
 	}
 }
+
+if ( CLIENT ) then
+	SWEP.Category = "Counter-Strike: Source"
+	SWEP.KillIcon = 'm'
+	SWEP.SelectionIcon = 'm'
+	
+	SWEP.CSSCrosshair = {
+		Min = 7
+	}
+	
+	SWEP.MuzzleFlashScale = 1.2
+	
+	SWEP.EventStyle = {
+		-- CS:S muzzle flash
+		[5001] = "css_x",
+		[5011] = "css_x",
+		[5021] = "css_x",
+		[5031] = "css_x"
+	}
+end

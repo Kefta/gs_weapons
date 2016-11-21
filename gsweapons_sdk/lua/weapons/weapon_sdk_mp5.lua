@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "weapon_sdk_base" )
+SWEP.Base = "weapon_sdk_base"
 
---- GSBase
 SWEP.PrintName = "#SDK_MP5"
 SWEP.Spawnable = true
 SWEP.AdminOnly = true
@@ -8,18 +7,17 @@ SWEP.AdminOnly = true
 SWEP.ViewModel = "models/weapons/v_smg_mp5.mdl"
 SWEP.WorldModel = "models/weapons/w_smg_mp5.mdl"
 SWEP.HoldType = "smg"
-
 SWEP.Weight = 25
 
 SWEP.Activities = {
-	primary = {
+	shoot = {
 		ACT_VM_PRIMARYATTACK,
 		idle = 5
 	}
 }
 
 SWEP.Sounds = {
-	primary = "Weapon_MP5Navy.Single"
+	shoot = "Weapon_MP5Navy.Single"
 }
 
 SWEP.Primary = {
@@ -27,10 +25,8 @@ SWEP.Primary = {
 	DefaultClip = 60,
 	Damage = 26,
 	Cooldown = 0.075,
-	Spread = {
-		Base = 0.01,
-		Air = 0.05
-	}
+	Spread = Vector(0.01, 0.01),
+	SpreadAir = Vector(0.05, 0.05)
 }
 
 SWEP.EmptyCooldown = 0.2
@@ -41,19 +37,12 @@ if ( CLIENT ) then
 	SWEP.SelectionIcon = 'x'
 end
 
---- SDKBase
-function SWEP:GetSpread( bSecondary )
-	if ( not self:GetOwner():OnGround() ) then
-		if ( bSecondary ) then
-			local flSpecial = self.Secondary.Spread.Air
-			
-			if ( flSpecial ~= -1 ) then
-				return flSpecial
-			end
-		end
-		
-		return self.Primary.Spread.Air
+local BaseClass = baseclass.Get( SWEP.Base )
+
+function SWEP:GetSpecialKey( sKey, bSecondary, bNoConVar )
+	if ( sKey == "Spread" and not self:GetOwner():OnGround() ) then
+		return BaseClass.GetSpecialKey( self, "SpreadAir", bSecondary, bNoConVar )
 	end
 	
-	return BaseClass.GetSpread( self, bSecondary )
+	return BaseClass.GetSpecialKey( self, sKey, bSecondary, bNoConVar )
 end

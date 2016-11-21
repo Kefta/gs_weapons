@@ -1,22 +1,18 @@
 -- This is the only machine gun in CS:S. It spreads like a rifle but kicks like an SMG
--- Which is why I made it inherit from Rifle (since it has extra accuracy variables for GetSpread)
--- But copy the Punch method from SMG
-DEFINE_BASECLASS( "weapon_csbase_rifle" )
+SWEP.Base = "weapon_csbase_rifle"
 
---- GSBase
 SWEP.PrintName = "#CStrike_M249"
 SWEP.Spawnable = true
 
 SWEP.ViewModel = "models/weapons/v_mach_m249para.mdl"
-SWEP.ViewModelFlip = false
 SWEP.WorldModel = "models/weapons/w_mach_m249para.mdl"
 
 SWEP.Sounds = {
-	primary = "Weapon_M249.Single"
+	shoot = "Weapon_M249.Single"
 }
 
 SWEP.Primary = {
-	Ammo = "556mmRound_Box",
+	Ammo = "556mm_Box",
 	ClipSize = 100,
 	DefaultClip = 300,
 	Damage = 35,
@@ -24,39 +20,16 @@ SWEP.Primary = {
 	Cooldown = 0.08,
 	WalkSpeed = 220/250,
 	RangeModifier = 0.97,
-	Spread = {
-		Base = 0.03,
-		Air = 0.5,
-		Move = 0.095
-	}
+	Spread = Vector(0.03, 0.03),
+	SpreadAir = Vector(0.5, 0.5),
+	SpreadMove = Vector(0.095, 0.095)
 }
 
-if ( CLIENT ) then
-	SWEP.Category = "Counter-Strike: Source"
-	SWEP.KillIcon = 'z'
-	SWEP.SelectionIcon = 'z'
-	
-	SWEP.CSSCrosshair = {
-		Min = 6
-	}
-	
-	SWEP.MuzzleFlashScale = 1.5
-	
-	SWEP.EventStyle = {
-		-- CS:S muzzle flash
-		[5001] = "css_x",
-		[5011] = "css_x",
-		[5021] = "css_x",
-		[5031] = "css_x"
-	}
-end
-
---- CSBase_Rifle
 SWEP.Accuracy = {
 	Divisor = 175,
 	Offset = 0.4,
 	Max = 0.9,
-	Additive = 0.045
+	Additive = Vector(0.045, 0.045)
 }
 
 SWEP.Kick = {
@@ -98,14 +71,27 @@ SWEP.Kick = {
 	}
 }
 
---- GSBase
+if ( CLIENT ) then
+	SWEP.Category = "Counter-Strike: Source"
+	SWEP.KillIcon = 'z'
+	SWEP.SelectionIcon = 'z'
+	
+	SWEP.CSSCrosshair = {
+		Min = 6
+	}
+	
+	SWEP.MuzzleFlashScale = 1.5
+	
+	SWEP.ViewModelFlip = false
+end
+
 // GOOSEMAN : Kick the view..
 function SWEP:Punch()
 	local pPlayer = self:GetOwner()
 	local tKick = self.Kick
 	
 	// Kick the gun based on the state of the player.
-	-- Speed first, ground second
+	-- Ground first, speed second
 	if ( not pPlayer:OnGround() ) then
 		tKick = tKick.Air
 	elseif ( pPlayer:_GetAbsVelocity():Length2DSqr() > (pPlayer:GetWalkSpeed() * tKick.Speed) ^ 2 ) then
@@ -116,40 +102,31 @@ function SWEP:Punch()
 		tKick = tKick.Base
 	end
 	
-	local flKickUp = tKick.UpBase
-	local flKickLateral = tKick.LateralBase
 	local iShotsFired = self:GetShotsFired()
+	local aPunch = pPlayer:GetViewPunchAngles()
 	
-	-- Not the first round fired
-	if ( iShotsFired > 1 ) then
-		flKickUp = flKickUp + iShotsFired * tKick.UpModifier
-		flKickLateral = flKickLateral + iShotsFired * tKick.LateralModifier
-	end
+	aPunch[1] = aPunch[1] - (tKick.UpBase + iShotsFired * tKick.UpModifier)
+	local flUpMin = -tKick.UpMax
 	
-	local ang = pPlayer:GetViewPunchAngles()
-	
-	ang.p = ang.p - flKickUp
-	local flUpMax = tKick.UpMax
-	
-	if ( ang.p < -1 * flUpMax ) then
-		ang.p = -1 * flUpMax
+	if ( aPunch[1] < flUpMin ) then
+		aPunch[1] = flUpMin
 	end
 	
 	local bDirection = pPlayer.dt.PunchDirection
 	
 	if ( bDirection ) then
-		ang.y = ang.y + flKickLateral
+		aPunch[2] = aPunch[2] + (tKick.LateralBase + iShotsFired * tKick.LateralModifier)
 		local flLateralMax = tKick.LateralMax
 		
-		if ( ang.y > flLateralMax ) then
-			ang.y = flLateralMax
+		if ( aPunch[2] > flLateralMax ) then
+			aPunch[2] = flLateralMax
 		end
 	else
-		ang.y = ang.y - flKickLateral
-		local flLateralMax = tKick.LateralMax
+		aPunch[2] = aPunch[2] - (tKick.LateralBase + iShotsFired * tKick.LateralModifier)
+		local flLateralMin = -tKick.LateralMax
 		
-		if ( ang.y < -1 * flLateralMax ) then
-			ang.y = -1 * flLateralMax
+		if ( aPunch[2] < flLateralMin ) then
+			aPunch[2] = flLateralMin
 		end
 	end
 	
@@ -157,5 +134,5 @@ function SWEP:Punch()
 		pPlayer.dt.PunchDirection = not bDirection
 	end
 	
-	pPlayer:SetViewPunchAngles( ang )
+	pPlayer:SetViewPunchAngles( aPunch )
 end

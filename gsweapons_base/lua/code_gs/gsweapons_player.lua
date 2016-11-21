@@ -2,8 +2,7 @@ if ( SERVER or not game.SinglePlayer() ) then
 	-- Handles weapon switching
 	hook.Add( "StartCommand", "GSWeapons-Shared SelectWeapon", function( pPlayer, cmd )
 		if ( pPlayer.m_pNewWeapon ) then
-			-- https://github.com/Facepunch/garrysmod-issues/issues/2906
-			if ( (--[[not pPlayer.m_pNULLWeapon and]] pPlayer.m_pNewWeapon == NULL) or pPlayer.m_pNewWeapon == pPlayer:GetActiveWeapon() ) then
+			if ( pPlayer.m_pNewWeapon == NULL or pPlayer.m_pNewWeapon == pPlayer:GetActiveWeapon() ) then
 				pPlayer.m_pNewWeapon = nil
 			else
 				-- Sometimes does not work the first time
@@ -12,6 +11,7 @@ if ( SERVER or not game.SinglePlayer() ) then
 		end
 	end )
 	
+	-- https://github.com/Facepunch/garrysmod-issues/issues/2887
 	-- Scales the player's movement speeds based on their weapon
 	hook.Add( "Move", "GSWeapons-Punch decay and move speed", function( pPlayer, mv )
 		local pActiveWeapon = pPlayer:GetActiveWeapon()
@@ -20,9 +20,9 @@ if ( SERVER or not game.SinglePlayer() ) then
 			pPlayer.dt.LastPunchAngle = pPlayer:GetViewPunchAngles()
 		end]]
 		
-		if ( pActiveWeapon.GetWalkSpeed ) then
+		if ( pActiveWeapon.GetSpecialKey ) then
 			local flOldSpeed = mv:GetMaxSpeed() *
-				(pPlayer:KeyDown( IN_SPEED ) and pActiveWeapon:GetRunSpeed( pActiveWeapon:SpecialActive() ) or pActiveWeapon:GetWalkSpeed( pActiveWeapon:SpecialActive() ))
+				(pPlayer:KeyDown( IN_SPEED ) and pActiveWeapon:GetSpecialKey( "RunSpeed", pActiveWeapon:SpecialActive() ) or pActiveWeapon:GetSpecialKey( "WalkSpeed", pActiveWeapon:SpecialActive() ))
 			
 			mv:SetMaxSpeed( flOldSpeed )
 			mv:SetMaxClientSpeed( flOldSpeed )
@@ -32,23 +32,15 @@ if ( SERVER or not game.SinglePlayer() ) then
 	--[[hook.Add( "FinishMove", "GSWeapons-Punch decay", function( pPlayer )
 		local fPunchDecay = pPlayer:GetActiveWeapon().PunchDecayFunction
 		
-		if ( fPunchDecay ) then
+		if ( fPunchDecay and pPlayer.dt.LastPunchAngle ) then
 			pPlayer:SetViewPunchAngles( fPunchDecay( pPlayer, pPlayer.dt.LastPunchAngle ))
 		end
 	end )]]
 end
 
-local ENTITY = FindMetaTable( "Entity" )
 local PLAYER = FindMetaTable( "Player" )
 
-function PLAYER:InstallDataTable()
-	if ( not self.m_bInstalledDataTable ) then
-		ENTITY.InstallDataTable( self )
-		self.m_bInstalledDataTable = true
-	end
-end
-
-function PLAYER:SetupWeaponDataTables()
+function PLAYER:GS_SetupDataTables()
 	-- For CS:S ViewPunching
 	self:DTVar( "Bool", 0, "PunchDirection" )
 	self:DTVar( "Angle", 0, "LastPunchAngle" )
@@ -59,20 +51,15 @@ function PLAYER:SetupWeaponDataTables()
 end
 
 -- Shared version of SelectWeapon
-function PLAYER:SwitchWeapon( Weapon )
-	if ( isstring( Weapon )) then
-		local pWeapon = self:GetWeapon( Weapon )
+function PLAYER:SwitchWeapon( weapon )
+	if ( isstring( weapon )) then
+		local pWeapon = self:GetWeapon( weapon )
 		
 		if ( pWeapon ~= NULL ) then
 			self.m_pNewWeapon = pWeapon
-			self.m_pNULLWeapon = false
 		end
-	elseif ( Weapon == NULL ) then
-		self.m_pNewWeapon = Weapon
-		self.m_pNULLWeapon = true
-	elseif ( Weapon:GetOwner() == self ) then
-		self.m_pNewWeapon = Weapon
-		self.m_pNULLWeapon = false
+	elseif ( weapon:GetOwner() == self ) then
+		self.m_pNewWeapon = weapon
 	end
 end
 
@@ -84,39 +71,39 @@ function PLAYER:CSDecayPunchAngle( aPunch )
 end
 
 function PLAYER:SharedRandomFloat( sName, flMin, flMax, iAdditionalSeed )
-	random.SetSeed( util.SeedFileLineHash( self:GetMD5Seed() % 0x80000000, sName, iAdditionalSeed ))
+	gsrand:SetSeed( util.SeedFileLineHash( self:GetMD5Seed() % 0x80000000, sName, iAdditionalSeed ))
 	
-	return random.RandomFloat( flMin, flMax )
+	return gsrand:RandomFloat( flMin, flMax )
 end
 
 function PLAYER:SharedRandomInt( sName, iMin, iMax, iAdditionalSeed )
-	random.SetSeed( util.SeedFileLineHash( self:GetMD5Seed() % 0x80000000, sName, iAdditionalSeed ))
+	gsrand:SetSeed( util.SeedFileLineHash( self:GetMD5Seed() % 0x80000000, sName, iAdditionalSeed ))
 	
-	return random.RandomInt( iMin, iMax )
+	return gsrand:RandomInt( iMin, iMax )
 end
 
 function PLAYER:SharedRandomVector( sName, flMin, flMax, iAdditionalSeed )
-	random.SetSeed( util.SeedFileLineHash( self:GetMD5Seed() % 0x80000000, sName, iAdditionalSeed ))
+	gsrand:SetSeed( util.SeedFileLineHash( self:GetMD5Seed() % 0x80000000, sName, iAdditionalSeed ))
 
-	return Vector( random.RandomFloat( flMin, flMax ), 
-			random.RandomFloat( flMin, flMax ), 
-			random.RandomFloat( flMin, flMax ) )
+	return Vector( gsrand:RandomFloat( flMin, flMax ), 
+			gsrand:RandomFloat( flMin, flMax ), 
+			gsrand:RandomFloat( flMin, flMax ) )
 end
 
 function PLAYER:SharedRandomAngle( sName, flMin, flMax, iAdditionalSeed )
-	random.SetSeed( util.SeedFileLineHash( self:GetMD5Seed() % 0x80000000, sName, iAdditionalSeed ))
+	gsrand:SetSeed( util.SeedFileLineHash( self:GetMD5Seed() % 0x80000000, sName, iAdditionalSeed ))
 
-	return Angle( random.RandomFloat( flMin, flMax ), 
-			random.RandomFloat( flMin, flMax ), 
-			random.RandomFloat( flMin, flMax ))
+	return Angle( gsrand:RandomFloat( flMin, flMax ), 
+			gsrand:RandomFloat( flMin, flMax ), 
+			gsrand:RandomFloat( flMin, flMax ))
 end
 
 function PLAYER:SharedRandomColor( sName, flMin, flMax, iAdditionalSeed )
-	random.SetSeed( util.SeedFileLineHash( self:GetMD5Seed() % 0x80000000, sName, iAdditionalSeed ))
+	gsrand:SetSeed( util.SeedFileLineHash( self:GetMD5Seed() % 0x80000000, sName, iAdditionalSeed ))
 	
-	return Color( random.RandomFloat( flMin, flMax ), 
-			random.RandomFloat( flMin, flMax ), 
-			random.RandomFloat( flMin, flMax ))
+	return Color( gsrand:RandomFloat( flMin, flMax ), 
+			gsrand:RandomFloat( flMin, flMax ), 
+			gsrand:RandomFloat( flMin, flMax ))
 end
 
 if ( SERVER ) then

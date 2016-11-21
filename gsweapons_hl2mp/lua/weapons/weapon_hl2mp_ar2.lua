@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "weapon_hl2mp_machinegun" )
+SWEP.Base = "weapon_hl2mp_machinegun"
 
---- GSBase
 SWEP.PrintName = "#HL2MP_Pulse_Rifle"
 SWEP.Spawnable = true
 SWEP.Slot = 2
@@ -12,7 +11,7 @@ SWEP.HoldType = "ar2"
 SWEP.Weight = 5
 
 SWEP.Activities = {
-	primary_empty = ACT_INVALID,
+	shoot_empty = ACT_INVALID,
 	empty = ACT_VM_DRYFIRE,
 	charge = ACT_VM_FIDGET
 }
@@ -20,8 +19,8 @@ SWEP.Activities = {
 SWEP.Sounds = {
 	reload = "Weapon_AR2.Reload",
 	empty = "Weapon_IRifle.Empty",
-	primary = "Weapon_AR2.Single",
-	secondary = "Weapon_IRifle.Single",
+	shoot = "Weapon_AR2.Single",
+	altfire = "Weapon_IRifle.Single",
 	charge = "Weapon_CombineGuard.Special1"
 }
 
@@ -38,11 +37,25 @@ SWEP.Primary = {
 SWEP.Secondary = {
 	Ammo = "AR2AltFire",
 	DefaultClip = 2, -- Fix
-	Cooldown = 1,
+	Cooldown = 0.5,
 	FireUnderwater = false
 }
 
 SWEP.TracerName = "AR2Tracer"
+
+SWEP.PunchAngle = {
+	VerticalKick = 8,
+	SlideLimit = 5
+}
+
+SWEP.PunchRand = {
+	XMin = -8,
+	XMax = -12,
+	YMin = 1,
+	YMax = 2
+}
+
+SWEP.GrenadeClass = "prop_combine_ball"
 
 if ( CLIENT ) then
 	SWEP.Category = "Half-Life 2 MP"
@@ -50,14 +63,7 @@ if ( CLIENT ) then
 	SWEP.SelectionIcon = 'l'
 end
 
---- HL2MPBase_MachineGun
-SWEP.PunchAngle = {
-	VerticalKick = 8,
-	SlideLimit = 5
-}
-
---- AR2
-SWEP.SecondaryClass = "prop_combine_ball"
+local BaseClass = baseclass.Get( SWEP.Base )
 
 function SWEP:ItemFrame()
 	BaseClass.ItemFrame( self )
@@ -66,7 +72,7 @@ function SWEP:ItemFrame()
 	
 	if ( pViewModel ~= NULL ) then
 		-- Fix; replace all Lerps, Remaps, Clamps, maxs, and mins
-		pViewModel:SetPoseParameter( "VentPoses", math.Remap( self.dt.ShotsFired, 0, 5, 0, 1 ))
+		pViewModel:SetPoseParameter( "VentPoses", math.Remap( self.dt.AnimLevel, 0, 5, 0, 1 ))
 	end
 end
 
@@ -81,7 +87,7 @@ function SWEP:SecondaryAttack()
 	self:SetNextSecondaryFire(-1)
 	self:SetNextReload(-1)
 	
-	local flCooldown = self:GetCooldown( true ) / 2
+	local flCooldown = self:GetSpecialKey( "Cooldown", true )
 	
 	self:AddEvent( "charge", flCooldown, function()
 		local pPlayer = self:GetOwner()
@@ -90,8 +96,8 @@ function SWEP:SecondaryAttack()
 		
 		// Register a muzzleflash for the AI
 		self:DoMuzzleFlash()
-		self:PlaySound( "secondary" )
-		self:PlayActivity( "secondary" )
+		self:PlaySound( "altfire" )
+		self:PlayActivity( "altfire" )
 		self:Punch( true )
 		
 		local flNextTime = CurTime() + flCooldown
@@ -103,7 +109,7 @@ function SWEP:SecondaryAttack()
 			pPlayer:ScreenFade( SCREENFADE.IN, color_white, 0.1, 0 )
 			
 			// Create the grenade
-			local pBall = ents.Create( self.SecondaryClass )
+			local pBall = ents.Create( self.GrenadeClass )
 			
 			if ( pBall ~= NULL ) then
 				pBall:SetPos( self:GetShootSrc() )
@@ -131,14 +137,15 @@ function SWEP:Punch( bSecondary )
 		local pPlayer = self:GetOwner()
 		--[[local aPunch = pPlayer:GetLocalAngles()
 		
-		aPunch.x = aPunch.x + random.RandomInt(-4, 4)
-		aPunch.y = aPunch.y + random.RandomInt(-4, 4)
+		aPunch.x = aPunch.x + gsrand:RandomInt(-4, 4)
+		aPunch.y = aPunch.y + gsrand:RandomInt(-4, 4)
 		aPunch.z = 0
 		
 		pPlayer:SetEyeAngles( aPunch )]]
 		
 		-- Yes, the min/max are out of order on the pitch in the original weapon, too
-		pPlayer:ViewPunch( Angle( pPlayer:SharedRandomInt( "ar2pax", -8, -12 ), pPlayer:SharedRandomInt( "ar2pay", 1, 2 ), 0 ))
+		local tPunch = self.PunchRand
+		pPlayer:ViewPunch( Angle( pPlayer:SharedRandomInt( "ar2pax", tPunch.XMin, tPunch.XMax ), pPlayer:SharedRandomInt( "ar2pay", tPunch.YMin, tPunch.YMax ), 0 ))
 	else
 		BaseClass.Punch( self, false )
 	end

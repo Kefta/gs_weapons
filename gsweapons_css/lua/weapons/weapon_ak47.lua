@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "weapon_csbase_rifle" )
+SWEP.Base = "weapon_csbase_rifle"
 
---- GSBase
 SWEP.PrintName = "#CStrike_AK47"
 SWEP.Spawnable = true
 
@@ -8,41 +7,26 @@ SWEP.ViewModel = "models/weapons/v_rif_ak47.mdl"
 SWEP.WorldModel = "models/weapons/w_rif_ak47.mdl"
 
 SWEP.Sounds = {
-	primary = "Weapon_AK47.Single"
+	shoot = "Weapon_AK47.Single"
 }
 
 SWEP.Primary = {
-	Ammo = "762mmRound",
+	Ammo = "762mm",
 	ClipSize = 30,
 	DefaultClip = 120,
 	Damage = 36,
 	Cooldown = 0.1,
 	WalkSpeed = 221/250,
-	Spread = {
-		Base = 0.0275,
-		Air = 0.4,
-		Move = 0.07
-	}
+	Spread = Vector(0.0275, 0.0275),
+	SpreadAir = Vector(0.4, 0.4),
+	SpreadMove = Vector(0.07, 0.07)
 }
 
-if ( CLIENT ) then
-	SWEP.Category = "Counter-Strike: Source"
-	SWEP.KillIcon = 'b'
-	SWEP.SelectionIcon = 'b'
-	
-	SWEP.CSSCrosshair = {
-		Delta = 4
-	}
-	
-	SWEP.MuzzleFlashScale = 1.6
-end
-
---- CSBase_SMG
 SWEP.Accuracy = {
 	Divisor = 200,
 	Offset = 0.35,
 	Max = 1.25,
-	Additive = 0.04
+	Additive = Vector(0.04, 0.04)
 }
 
 SWEP.Kick = {
@@ -83,3 +67,15 @@ SWEP.Kick = {
 		DirectionChange = 8
 	}
 }
+
+if ( CLIENT ) then
+	SWEP.Category = "Counter-Strike: Source"
+	SWEP.KillIcon = 'b'
+	SWEP.SelectionIcon = 'b'
+	
+	SWEP.CSSCrosshair = {
+		Delta = 4
+	}
+	
+	SWEP.MuzzleFlashScale = 1.6
+end

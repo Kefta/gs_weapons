@@ -1,5 +1,3 @@
-require( "random" )
-
 if ( CLIENT ) then
 	local sLang = "code_gs/lang/gsweapons_" .. GetConVar( "gmod_language" ):GetString():sub(-2):lower() .. ".lua"
 
@@ -15,12 +13,16 @@ if ( CLIENT ) then
 		end
 	end
 	
-	-- FIXME: Add loading system
-	include( "code_gs/gsweapons_ammo.lua" )
+	gsrand = include( "code_gs/minstd.lua" )
+	
+	if ( not gslib ) then
+		include( "code_gs/gsweapons_gslib.lua" )
+	end
+	
 	include( "code_gs/gsweapons_base.lua" )
 	include( "code_gs/gsweapons_player.lua" )
 	include( "code_gs/gsweapons_util.lua" )
-	include( "code_gs/gsweapons_dash.lua" )
+	include( "code_gs/gsweapons_ammo.lua" )
 	
 	DevMsg( 1, string.format( language.GetPhrase( "GSWeapons_Loaded" ), language.GetPhrase( "language" )))
 else
@@ -31,16 +33,22 @@ else
 		AddCSLuaFile( sLang .. tFiles[i] )
 	end
 	
-	AddCSLuaFile( "code_gs/gsweapons_ammo.lua" )
-	include( "code_gs/gsweapons_ammo.lua" )
+	AddCSLuaFile( "code_gs/minstd.lua" )
+	gsrand = include( "code_gs/minstd.lua" )
+	
+	if ( not gslib ) then
+		AddCSLuaFile( "code_gs/gsweapons_gslib.lua" )
+		include( "code_gs/gsweapons_gslib.lua" )
+	end
+	
 	AddCSLuaFile( "code_gs/gsweapons_base.lua" )
 	include( "code_gs/gsweapons_base.lua" )
 	AddCSLuaFile( "code_gs/gsweapons_player.lua" )
 	include( "code_gs/gsweapons_player.lua" )
 	AddCSLuaFile( "code_gs/gsweapons_util.lua" )
 	include( "code_gs/gsweapons_util.lua" )
-	AddCSLuaFile( "code_gs/gsweapons_dash.lua" )
-	include( "code_gs/gsweapons_dash.lua" )
+	AddCSLuaFile( "code_gs/gsweapons_ammo.lua" )
+	include( "code_gs/gsweapons_ammo.lua" )
 	
 	MsgN( "[GSWeapons] Loaded!" )
 end

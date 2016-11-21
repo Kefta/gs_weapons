@@ -1,4 +1,4 @@
-DEFINE_BASECLASS( "weapon_hl2mp_base" )
+SWEP.Base = "weapon_hl2mp_base"
 
 SWEP.PrintName = "#HL2MP_Grenade"
 SWEP.Spawnable = true
@@ -8,32 +8,34 @@ SWEP.ViewModel = "models/weapons/v_grenade.mdl"
 SWEP.WorldModel = "models/weapons/w_grenade.mdl"
 SWEP.HoldType = "grenade"
 
+SWEP.Weight = 1
+
 SWEP.Primary = {
 	Ammo = "grenade",
 	DefaultClip = 1,
 	Automatic = false
 }
 
-SWEP.Weight = 1
-
-if ( SERVER ) then
+if ( CLIENT ) then
+	SWEP.Category = "Half-Life 2 MP"
+	SWEP.SelectionIcon = 'k'
+else
 	SWEP.Grenade = {
 		Radius = 250
 	}
-else
-	SWEP.Category = "Half-Life 2 MP"
-	SWEP.SelectionIcon = 'k'
 end
 
 function SWEP:PrimaryAttack()
-	if ( not self:CanPrimaryAttack() ) then
-		return false
+	if ( self:CanPrimaryAttack() ) then	
+		self:Throw( GRENADE_THROW, 0 )
+		
+		return true
 	end
 	
-	self:Throw( GRENADE_THROW, 0 )
-	
-	return true
+	return false
 end
+
+local BaseClass = baseclass.Get( SWEP.Base )
 
 if ( SERVER ) then
 	function SWEP:EmitGrenade( iLevel )

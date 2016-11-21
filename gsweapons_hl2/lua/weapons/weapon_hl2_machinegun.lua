@@ -1,21 +1,15 @@
-DEFINE_BASECLASS( "hl2_basehlcombatweapon" )
+SWEP.Base = "hl2_basehlcombatweapon"
 
---- GSBase
 SWEP.PrintName = "HL2Base_MachineGun"
 
-if ( CLIENT ) then
-	SWEP.Category = "Half-Life 2 SP"
-end
-
 SWEP.Activities = {
-	primary2 = ACT_VM_RECOIL1,
-	primary3 = ACT_VM_RECOIL2,
-	primary4 = ACT_VM_RECOIL3
+	shoot_alt = ACT_VM_RECOIL1,
+	shoot_alt2 = ACT_VM_RECOIL2,
+	shoot_alt3 = ACT_VM_RECOIL3
 }
 
 SWEP.Primary.Spread = VECTOR_CONE_3DEGREES
 
---- HL2Base_MachineGun
 SWEP.PunchAngle = {
 	Min = Vector(0.2, 0.2, 0.1), // Degrees
 	Clip = Angle(24, 3, 1),
@@ -25,7 +19,12 @@ SWEP.PunchAngle = {
 	EasyDampening = 0.5 -- Angle multiplier to use for Easy skill level
 }
 
---- GSBase
+if ( CLIENT ) then
+	SWEP.Category = "Half-Life 2 SP"
+end
+
+local BaseClass = baseclass.Get( SWEP.Base )
+
 function SWEP:SetupDataTables()
 	BaseClass.SetupDataTables( self )
 	
@@ -44,24 +43,24 @@ function SWEP:ItemFrame()
 	end
 end
 
-function SWEP:ReloadClips( iIndex --[[= nil]] )
-	BaseClass.ReloadClips( self, iIndex )
+function SWEP:ReloadClips()
+	BaseClass.ReloadClips( self )
 	
 	self.dt.FireDuration = 0
 end
 
-function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], iClipDeduction --[[= 1]] )
-	BaseClass.Shoot( self, bSecondary, iIndex, iClipDeduction )
+function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], sPlay, iClipDeduction --[[= 1]] )
+	BaseClass.Shoot( self, bSecondary, iIndex, sPlay, iClipDeduction )
 	
 	local iLevel = self.dt.AnimLevel
 	
 	-- Don't update the networked value if we don't need to
-	if ( iLevel ~= 4 ) then
+	if ( iLevel ~= 5 ) then
 		self.dt.AnimLevel = iLevel + 1
 	end
 end
 
-function SWEP:Punch( bSecondary )
+function SWEP:Punch()
 	local pPlayer = self:GetOwner()
 	
 	// Do this to get a hard discontinuity, clear out anything under 10 degrees punch
@@ -75,9 +74,9 @@ function SWEP:Punch( bSecondary )
 	local iMultiplier = game.GetSkillLevel() == 1 and self.PunchAngle.EasyDampening or 1
 	local aPunch = Angle( -(vKick[1] + flKick) * iMultiplier,
 		// Wobble left and right
-		(vKick[2] + flKick) * (random.RandomInt(-1, 1) == -1 and -iMultiplier or iMultiplier) / 3,
+		(vKick[2] + flKick) * (gsrand:RandomInt(-1, 1) == -1 and -iMultiplier or iMultiplier) / 3,
 		// Wobble up and down
-		(vKick[3] + flKick) * (random.RandomInt(-1, 1) == -1 and -iMultiplier or iMultiplier) / 8 )
+		(vKick[3] + flKick) * (gsrand:RandomInt(-1, 1) == -1 and -iMultiplier or iMultiplier) / 8 )
 	
 	// Clip this to out desired min/max
 	aPunch:ClipPunchAngleOffset( pPlayer:GetPunchAngle(), tPunch.Clip )
@@ -86,12 +85,12 @@ function SWEP:Punch( bSecondary )
 	pPlayer:ViewPunch( aPunch * tPunch.Dampening )
 end
 -- FIXME: Check dryfire
-function SWEP:PlayActivity( sActivity, iIndex, flRate )
-	if ( sActivity == "primary" and self:Clip1() ~= 0 ) then
+function SWEP:PlayActivity( sActivity, iIndex, flRate, bStrictPrefix, bStrictSuffix )
+	if ( sActivity == "shoot" and self:GetShootClip() ~= 0 ) then
 		local iShotsFired = self.dt.AnimLevel
 		
-		return BaseClass.PlayActivity( self, iShotsFired == 0 and "primary" or iShotsFired == 1 and "primary" or iShotsFired == 2 and "primary2" or iShotsFired == 3 and "primary3" or "primary4", iIndex, flRate )
+		return BaseClass.PlayActivity( self, (iShotsFired == 0 or iShotsFired == 1) and "shoot" or iShotsFired == 2 and "shoot_alt" or iShotsFired == 3 and "shoot_alt2" or "shoot_alt3", iIndex, flRate, bStrictPrefix, bStrictSuffix )
 	end
 	
-	return BaseClass.PlayActivity( self, sActivity, iIndex, flRate )
+	return BaseClass.PlayActivity( self, sActivity, iIndex, flRate, bStrictPrefix, bStrictSuffix )
 end

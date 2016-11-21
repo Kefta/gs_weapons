@@ -1,9 +1,12 @@
+local minstd = {}
+minstd.__index = minstd
+
 local floor = math.floor
 local time = os.time
 local sqrt = math.sqrt
 local log = math.log
 
-module( "random" )
+--module( "minstd" )
 
 -- MINSTD parameters
 local NTAB = 32
@@ -19,20 +22,14 @@ local AM = 1/IM
 local EPS = 1.2e-7
 local RNMX = 1-EPS
 
-local m_idum = 0
-local m_iy = 0
-local m_iv = {}
-
-local bTimeSeeded = false
-
-function SetSeed( iSeed )
-	bTimeSeeded = false
-	m_idum = iSeed < 0 and iSeed or -iSeed
-	m_iy = 0
+function minstd:SetSeed( iSeed )
+	self.m_bTimeSeeded = false
+	self.m_idum = iSeed < 0 and iSeed or -iSeed
+	self.m_iy = 0
 end
 
-function SetTimeSeed( iSeed )
-	bTimeSeeded = true
+function minstd:SetTimeSeed( iSeed )
+	self.m_bTimeSeeded = true
 	
 	if ( iSeed == 0 ) then
 		idum = time()
@@ -43,45 +40,45 @@ end
 
 -- Modified Lehmer random number generator
 -- Returns integer [1, 2147483647)
-function RandomNumber()
+function minstd:RandomNumber()
 	local j = 0
 	local k = 0
 	
-	if (m_idum <= 0 or m_iy == 0) then
-		if (-m_idum < 1) then
-			m_idum = 1
+	if (self.m_idum <= 0 or self.m_iy == 0) then
+		if (-self.m_idum < 1) then
+			self.m_idum = 1
 		else
-			m_idum = -m_idum
+			self.m_idum = -self.m_idum
 		end
 			
 		for j=NTAB+8, 1, -1 do
-			k = floor(m_idum/IQ)
-			m_idum = IA*(m_idum-k*IQ)-IR*k
-			if (m_idum < 0) then
-				m_idum = m_idum+IM
+			k = floor(self.m_idum/IQ)
+			self.m_idum = IA*(self.m_idum-k*IQ)-IR*k
+			if (self.m_idum < 0) then
+				self.m_idum = self.m_idum+IM
 			end
 			if (j <= NTAB) then
-				m_iv[j] = m_idum
+				self.m_iv[j] = self.m_idum
 			end
 		end
-		m_iy = m_iv[1]
+		self.m_iy = self.m_iv[1]
 	end
-	k = floor(m_idum/IQ)
-	m_idum = IA*(m_idum-k*IQ)-IR*k
-	if (m_idum < 0) then
-		m_idum = m_idum+IM
+	k = floor(self.m_idum/IQ)
+	self.m_idum = IA*(self.m_idum-k*IQ)-IR*k
+	if (self.m_idum < 0) then
+		self.m_idum = self.m_idum+IM
 	end
-	j = floor(m_iy/NDIV)
-	m_iy = m_iv[j+1]
-	m_iv[j+1] = m_idum
+	j = floor(self.m_iy/NDIV)
+	self.m_iy = self.m_iv[j+1]
+	self.m_iv[j+1] = self.m_idum
 
-	return m_iy
+	return self.m_iy
 end
 
 -- Returns float [flLow, flHigh)
-function RandomFloat( flLow --[[= 0]], flHigh --[[= 1]] )
-	if ( bTimeSeeded and m_idum == 0 ) then
-		SetTimeSeed(0)
+function minstd:RandomFloat( flLow --[[= 0]], flHigh --[[= 1]] )
+	if ( self.m_bTimeSeeded and self.m_idum == 0 ) then
+		self:SetTimeSeed(0)
 	end
 	
 	if ( not flLow ) then
@@ -89,7 +86,7 @@ function RandomFloat( flLow --[[= 0]], flHigh --[[= 1]] )
 	end
 	
 	// float in [0,1)
-	local fl = AM * RandomNumber()
+	local fl = AM * self:RandomNumber()
 	
 	-- Obey Source float limits
 	if (fl > RNMX) then
@@ -102,16 +99,16 @@ function RandomFloat( flLow --[[= 0]], flHigh --[[= 1]] )
 end
 
 -- Returns float [flLow, flHigh)
-function RandomFloatExp( flLow --[[= 0]], flHigh --[[= 1]], flExponent --[[= 1]] )
-	if ( bTimeSeeded and m_idum == 0 ) then
-		SetTimeSeed(0)
+function minstd:RandomFloatExp( flLow --[[= 0]], flHigh --[[= 1]], flExponent --[[= 1]] )
+	if ( self.m_bTimeSeeded and self.m_idum == 0 ) then
+		self:SetTimeSeed(0)
 	end
 	
 	if ( not flLow ) then
 		flLow = 0
 	end
 	
-	local fl = AM * RandomNumber()
+	local fl = AM * self:RandomNumber()
 	
 	if (fl > RNMX) then
 		fl = RNMX
@@ -123,9 +120,9 @@ function RandomFloatExp( flLow --[[= 0]], flHigh --[[= 1]], flExponent --[[= 1]]
 end
 
 -- Returns double [flLow, flHigh)
-function RandomDouble( flLow --[[= 0]], flHigh --[[= 1]] )
-	if ( bTimeSeeded and m_idum == 0 ) then
-		SetTimeSeed(0)
+function minstd:RandomDouble( flLow --[[= 0]], flHigh --[[= 1]] )
+	if ( self.m_bTimeSeeded and self.m_idum == 0 ) then
+		self:SetTimeSeed(0)
 	end
 	
 	if ( not flLow ) then
@@ -135,7 +132,7 @@ function RandomDouble( flLow --[[= 0]], flHigh --[[= 1]] )
 	-- double in [1/IM, 1)
 	-- MINSTD is not widely distributed enough to go past double limits
 	-- So we have to set the min value to 0
-	local fl = AM * RandomNumber()
+	local fl = AM * self:RandomNumber()
 	
 	if (fl == AM) then
 		fl = 0
@@ -145,16 +142,16 @@ function RandomDouble( flLow --[[= 0]], flHigh --[[= 1]] )
 end
 
 -- Returns double [flLow, flHigh)
-function RandomDoubleExp( flLow --[[= 0]], flHigh --[[= 1]], flExponent --[[= 1]] )
-	if ( bTimeSeeded and m_idum == 0 ) then
-		SetTimeSeed(0)
+function minstd:RandomDoubleExp( flLow --[[= 0]], flHigh --[[= 1]], flExponent --[[= 1]] )
+	if ( self.m_bTimeSeeded and self.m_idum == 0 ) then
+		self:SetTimeSeed(0)
 	end
 	
 	if ( not flLow ) then
 		flLow = 0
 	end
 	
-	local fl = AM * RandomNumber()
+	local fl = AM * self:RandomNumber()
 	
 	if (fl == AM) then
 		fl = 0
@@ -164,9 +161,9 @@ function RandomDoubleExp( flLow --[[= 0]], flHigh --[[= 1]], flExponent --[[= 1]
 end
 
 -- Returns integer [iLow, iHigh]
-function RandomInt( iLow --[[= 0]], iHigh --[[= 1]] )
-	if ( bTimeSeeded and m_idum == 0 ) then
-		SetTimeSeed(0)
+function minstd:RandomInt( iLow --[[= 0]], iHigh --[[= 1]] )
+	if ( self.m_bTimeSeeded and self.m_idum == 0 ) then
+		self:SetTimeSeed(0)
 	end
 	
 	//assert(lLow <= lHigh)
@@ -191,7 +188,7 @@ function RandomInt( iLow --[[= 0]], iHigh --[[= 1]] )
 	local n
 	
 	repeat
-		n = RandomNumber()
+		n = self:RandomNumber()
 	until (n <= iMaxAcceptable)
 
 	return iLow + n % x
@@ -205,38 +202,44 @@ end
 // gaussian-distributed numbers at once)
 //
 //-----------------------------------------------------------------------------
-local m_bHaveValue = false
-local m_flRandomValue = 0
-
-function RandomGaussianFloat( flMean --[[= 0]], flStdDev --[[= 1]] )
-	if (m_bHaveValue) then
-		m_bHaveValue = false
+function minstd:RandomGaussianFloat( flMean --[[= 0]], flStdDev --[[= 1]] )
+	if (self.m_bHaveValue) then
+		self.m_bHaveValue = false
 		
-		return (flStdDev or 1) * m_flRandomValue + (flMean or 0)
-	else
-		if ( bTimeSeeded and m_idum == 0 ) then
-			SetTimeSeed(0)
-		end
-		
-		// Pick 2 random #s from -1 to 1
-		// Make sure they lie inside the unit circle. If they don't, try again
-		local v1
-		local v2
-		local rsq
-		
-		repeat
-			v1 = 2 * RandomFloat() - 1
-			v2 = 2 * RandomFloat() - 1
-			rsq = v1*v1 + v2*v2
-		until (rsq <= 1 and rsq ~= 0)
-		
-		// The box-muller transformation to get the two gaussian numbers
-		local fac = sqrt( -2 * log(rsq) / rsq )
-		
-		// Store off one value for later use
-		m_flRandomValue = v1 * fac
-		m_bHaveValue = true
-		
-		return (flStdDev or 1) * (v2 * fac) + (flMean or 0)
+		return (flStdDev or 1) * self.m_flRandomValue + (flMean or 0)
 	end
+	
+	if ( self.m_bTimeSeeded and self.m_idum == 0 ) then
+		SetTimeSeed(0)
+	end
+	
+	// Pick 2 random #s from -1 to 1
+	// Make sure they lie inside the unit circle. If they don't, try again
+	local v1
+	local v2
+	local rsq
+	
+	repeat
+		v1 = 2 * self:RandomFloat() - 1
+		v2 = 2 * self:RandomFloat() - 1
+		rsq = v1*v1 + v2*v2
+	until (rsq <= 1 and rsq ~= 0)
+	
+	// The box-muller transformation to get the two gaussian numbers
+	local fac = sqrt( -2 * log(rsq) / rsq )
+	
+	// Store off one value for later use
+	self.m_flRandomValue = v1 * fac
+	self.m_bHaveValue = true
+	
+	return (flStdDev or 1) * (v2 * fac) + (flMean or 0)
 end
+
+return setmetatable({
+	m_idum = 0,
+	m_iy = 0,
+	m_iv = {},
+	m_bTimeSeeded = false,
+	m_bHaveValue = false,
+	m_flRandomValue = 0
+}, minstd )

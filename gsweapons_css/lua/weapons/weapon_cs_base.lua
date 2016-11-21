@@ -1,15 +1,6 @@
-DEFINE_BASECLASS( "weapon_gs_base" )
+SWEP.Base = "weapon_gs_base"
 
---- GSBase
 SWEP.PrintName = "CSBase"
-
-SWEP.ViewModelFlip = true
-SWEP.ViewModelFOV = 90
-
-SWEP.Primary = {
-	BobScale = CLIENT and 0.8 or nil,
-	SwayScale = CLIENT and 0.5 or nil
-}
 
 SWEP.UnderwaterCooldown = 0.15
 
@@ -23,10 +14,18 @@ if ( CLIENT ) then
 	SWEP.KillIconFont = "CSSKillIcon"
 	SWEP.SelectionFont = "CSSSelection"
 	
+	SWEP.ViewModelFlip = true
+	SWEP.ViewModelFOV = 74
 	SWEP.BobStyle = "css"
 	SWEP.CrosshairStyle = "css"
+	
+	SWEP.Primary = {
+		BobScale = 0.8,
+		SwayScale = 0.5
+	}
 end
 
+local BaseClass = baseclass.Get( SWEP.Base )
 local PLAYER = FindMetaTable( "Player" )
 
 function SWEP:Initialize()
@@ -36,7 +35,7 @@ function SWEP:Initialize()
 end
 
 function SWEP:CanPrimaryAttack( iIndex )
-	if ( self:GetNextPrimaryFire() == -1 ) then
+	if ( self:EventActive( "fire" ) or self:GetNextPrimaryFire() == -1 ) then
 		return false
 	end
 	
@@ -49,39 +48,46 @@ function SWEP:CanPrimaryAttack( iIndex )
 	local iClip = self:Clip1()
 	local iWaterLevel = pPlayer:WaterLevel()
 	
+	if ( iWaterLevel == 0 and not (self.Primary.FireInAir or pPlayer:OnGround()) ) then
+		return false
+	end
+	
+	local bEmpty = pPlayer:GetAmmoCount( self:GetPrimaryAmmoName() ) == 0
+	
 	if ( self:EventActive( "reload" )) then
+		if ( iClip == 0 or bEmpty and iClip == -1 ) then
+			return false
+		end
+		
 		if ( self.SingleReload.Enable and self.SingleReload.QueuedFire ) then
-			local flNextTime = self:SequenceEnd( iIndex )
-			self:RemoveEvent( "reload" )
-			
-			self:AddEvent( "fire", flNextTime, function()
+			self:AddEvent( "fire", self:SequenceEnd( iIndex ), function()
 				self:PrimaryAttack()
+				self:RemoveEvent( "reload" )
+				self.dt.Reloading = false
 				
 				return true
 			end )
 			
-			flNextTime = CurTime() + flNextTime + 0.1
-			self:SetNextPrimaryFire( flNextTime )
-			self:SetNextSecondaryFire( flNextTime )
-			self:SetNextReload( flNextTime )
-			
-			return false
-		elseif ( self.Primary.InterruptReload and iClip ~= 0 and (self.Primary.FireUnderwater or iWaterLevel ~= 3) ) then
-			self:SetNextReload( CurTime() - 0.1 )
-			self:RemoveEvent( "reload" )
-		else
 			return false
 		end
+		
+		if ( not self.Primary.InterruptReload or not self.Primary.FireUnderwater and iWaterLevel == 3 ) then
+			return false
+		end
+		
+		self:SetNextReload( CurTime() )
+		self:RemoveEvent( "reload" )
+		self.dt.Reloading = false
 	end
 	
-	-- In CS:S weapons, water has priority over the clip
+	-- CS:S gives priority to underwater over empty clip
 	if ( not self.Primary.FireUnderwater and iWaterLevel == 3 ) then
 		self:HandleFireUnderwater( false, iIndex )
 		
 		return false
 	end
 	
-	if ( iClip == 0 or iClip == -1 and self:GetDefaultClip1() ~= -1 and pPlayer:GetAmmoCount( self:GetPrimaryAmmoName() ) == 0 ) then
+	if ( iClip == 0 or bEmpty and iClip == -1 and self:GetDefaultClip1() ~= -1 ) then
 		self:HandleFireOnEmpty( false, iIndex )
 		
 		return false
@@ -91,7 +97,7 @@ function SWEP:CanPrimaryAttack( iIndex )
 end
 
 function SWEP:CanSecondaryAttack( iIndex )
-	if ( self:GetNextSecondaryFire() == -1 ) then
+	if ( self:EventActive( "fire" ) or self:GetNextSecondaryFire() == -1 ) then
 		return false
 	end
 	
@@ -101,44 +107,49 @@ function SWEP:CanSecondaryAttack( iIndex )
 		return false
 	end
 	
-	local iClip = self.UseClip1ForSecondary and self:Clip1() or self:Clip2()
+	local iClip = self.CheckClip1ForSecondary and self:Clip1() or self:Clip2()
 	local iWaterLevel = pPlayer:WaterLevel()
-	local bEmpty = pPlayer:GetAmmoCount( self.UseClip1ForSecondary and self:GetPrimaryAmmoName() or self:GetSecondaryAmmoName() ) == 0
+	
+	if ( iWaterLevel == 0 and not (self.Secondary.FireInAir or pPlayer:OnGround()) ) then
+		return false
+	end
+	
+	local bEmpty = pPlayer:GetAmmoCount( self.CheckClip1ForSecondary and self:GetPrimaryAmmoName() or self:GetSecondaryAmmoName() ) == 0
 	
 	if ( self:EventActive( "reload" )) then
+		if ( iClip == 0 or bEmpty and iClip == -1 ) then
+			return false
+		end
+		
 		if ( self.SingleReload.Enable and self.SingleReload.QueuedFire ) then
-			local flNextTime = self:SequenceEnd( iIndex )
-			self:RemoveEvent( "reload" )
-			
-			self:AddEvent( "fire", flNextTime, function()
+			self:AddEvent( "fire", self:SequenceEnd( iIndex ), function()
 				self:SecondaryAttack()
+				self:RemoveEvent( "reload" )
+				self.dt.Reloading = false
 				
 				return true
 			end )
 			
-			flNextTime = CurTime() + flNextTime + 0.1
-			self:SetNextPrimaryFire( flNextTime )
-			self:SetNextSecondaryFire( flNextTime )
-			self:SetNextReload( flNextTime )
-			
-			return false
-		elseif ( self.Secondary.InterruptReload and iClip ~= 0 and (iClip ~= -1 or not bEmpty)
-		and (self.Secondary.FireUnderwater or iWaterLevel ~= 3) ) then
-			self:SetNextReload( CurTime() - 0.1 )
-			self:RemoveEvent( "reload" )
-		else
 			return false
 		end
+		
+		if ( not self.Secondary.InterruptReload or not self.Secondary.FireUnderwater and iWaterLevel == 3 ) then
+			return false
+		end
+		
+		self:SetNextReload( CurTime() )
+		self:RemoveEvent( "reload" )
+		self.dt.Reloading = false
 	end
 	
-	if ( not self.Secondary.FireUnderwater and iWaterLevel == 3 ) then
-		self:HandleFireUnderwater( true, iIndex )
+	if ( iClip == 0 or bEmpty and iClip == -1 and (self.CheckClip1ForSecondary and self:GetDefaultClip1() or self:GetDefaultClip2()) ~= -1 ) then
+		self:HandleFireOnEmpty( true, iIndex )
 		
 		return false
 	end
 	
-	if ( iClip == 0 or iClip == -1 and bEmpty and (self.UseClip1ForSecondary and self:GetDefaultClip1() or self:GetDefaultClip2()) ~= -1 ) then
-		self:HandleFireOnEmpty( true, iIndex )
+	if ( not self.Secondary.FireUnderwater and iWaterLevel == 3 ) then
+		self:HandleFireUnderwater( true, iIndex )
 		
 		return false
 	end

@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "weapon_csbase_rifle" )
+SWEP.Base = "weapon_csbase_rifle"
 
---- GSBase
 SWEP.PrintName = "#CStrike_M4A1"
 SWEP.Spawnable = true
 
@@ -9,45 +8,32 @@ SWEP.WorldModel = "models/weapons/w_rif_m4a1.mdl"
 SWEP.SilencerModel = "models/weapons/w_rif_m4a1_silencer.mdl"
 
 SWEP.Sounds = {
-	primary = "Weapon_M4A1.Single",
-	secondary = "Weapon_M4A1.Silencer_On",
-	s_primary = "Weapon_M4A1.Silenced",
-	s_secondary = "Weapon_M4A1.Silencer_Off"
+	shoot = "Weapon_M4A1.Single",
+	--silence = "Weapon_M4A1.Silencer_On",
+	s_shoot = "Weapon_M4A1.Silenced",
+	--s_silence = "Weapon_M4A1.Silencer_Off"
 }
 
 SWEP.Primary = {
-	Ammo = "556mmRound",
+	Ammo = "556mm",
 	ClipSize = 30,
 	DefaultClip = 120,
 	Damage = 33,
 	Cooldown = 0.09,
 	WalkSpeed = 230/250,
 	RangeModifier = 0.97,
-	Spread = {
-		Base = 0.02,
-		Air = 0.4,
-		Move = 0.07
-	}
+	Spread = Vector(0.02, 0.02),
+	SpreadAir = Vector(0.4, 0.4),
+	SpreadMove = Vector(0.07, 0.07)
 }
 
-SWEP.Secondary.Spread = {
-	Base = 0.025
-}
+SWEP.Secondary.Spread = Vector(0.025, 0.025)
 
-if ( CLIENT ) then
-	SWEP.Category = "Counter-Strike: Source"
-	SWEP.KillIcon = 'w'
-	SWEP.SelectionIcon = 'w'
-	
-	SWEP.MuzzleFlashScale = 1.6
-end
-
---- CSBase_SMG
 SWEP.Accuracy = {
 	Divisor = 220,
 	Offset = 0.3,
 	Max = 1,
-	Additive = 0.035
+	Additive = Vector(0.035, 0.035)
 }
 
 SWEP.Kick = {
@@ -88,6 +74,14 @@ SWEP.Kick = {
 		DirectionChange = 7
 	}
 }
+
+if ( CLIENT ) then
+	SWEP.Category = "Counter-Strike: Source"
+	SWEP.KillIcon = 'w'
+	SWEP.SelectionIcon = 'w'
+	
+	SWEP.MuzzleFlashScale = 1.6
+end
 
 function SWEP:SecondaryAttack()
 	if ( self:CanSecondaryAttack(0) ) then

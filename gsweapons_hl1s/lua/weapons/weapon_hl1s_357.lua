@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "hl1s_basehl1combatweapon" )
+SWEP.Base = "hl1s_basehl1combatweapon"
 
---- GSBase
 SWEP.PrintName = "#HL1_357"
 SWEP.Spawnable = true
 SWEP.Slot = 1
@@ -15,7 +14,7 @@ SWEP.Activities = {
 }
 
 SWEP.Sounds = {
-	primary = "Weapon_357.Single"
+	shoot = "Weapon_357.Single"
 }
 
 SWEP.Primary = {
@@ -25,8 +24,8 @@ SWEP.Primary = {
 	Automatic = false,
 	Cooldown = 0.75,
 	FireUnderwater = false,
-	PunchAngle = Angle(-10, 0, 0),
-	Spread = VECTOR_CONE_1DEGREES
+	Spread = VECTOR_CONE_1DEGREES,
+	PunchAngle = Angle(-10, 0, 0)
 }
 
 SWEP.Zoom = {
@@ -47,6 +46,7 @@ end
 
 local sv_cheats = GetConVar( "sv_cheats" )
 local bMultiPlayer = not game.SinglePlayer()
+local BaseClass = baseclass.Get( SWEP.Base )
 
 function SWEP:CanSecondaryAttack()
 	return (bMultiPlayer or sv_cheats:GetBool()) and BaseClass.CanSecondaryAttack( self )
@@ -63,17 +63,19 @@ function SWEP:SecondaryAttack()
 end
 
 function SWEP:GetActivitySuffix( sActivity, iIndex )
+	local sSuffix = BaseClass.GetActivitySuffix( self, sActivity, iIndex )
+	
 	if ( sActivity == "idle" ) then
-		if ( self.m_tDryFire[iIndex] and BaseClass.GetActivitySuffix( self, sActivity, iIndex ) == "empty" ) then
-			return "empty"
+		if ( self.m_tDryFire[iIndex] and sSuffix == "empty" ) then
+			return sSuffix
 		end
 		
-		random.SetSeed( self:GetOwner():GetMD5Seed() % 0x100 )
+		gsrand:SetSeed( self:GetOwner():GetMD5Seed() % 0x100 )
 		
-		if ( random.RandomFloat(0, 1) > 0.9 ) then
+		if ( gsrand:RandomFloat(0, 1) > 0.9 ) then
 			return "alt"
 		end
 	end
 	
-	return BaseClass.GetActivitySuffix( self, sActivity, iIndex )
+	return sSuffix
 end

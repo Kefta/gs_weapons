@@ -5,7 +5,7 @@ AddCSLuaFile( "cl_init.lua" )
 --- GSBase
 function ENT:ItemFrame()
 	if ( self:IsInWorld() ) then
-		self:SetNextThink( CurTime() + 0.2 )
+		self:SetNextItemFrame( CurTime() + 0.2 )
 		
 		if ( self:WaterLevel() ~= 0 ) then
 			self:_SetAbsVelocity( self:_GetAbsVelocity() / 2 )
@@ -91,7 +91,7 @@ function ENT:Touch( pEnt )
 			local ang = tr.HitNormal:Angle()
 			
 			// rotate randomly in yaw
-			ang.y = random.RandomFloat(0, 360)
+			ang.y = gsrand:RandomFloat(0, 360)
 			
 			// TODO: rotate around trace.plane.normal
 			

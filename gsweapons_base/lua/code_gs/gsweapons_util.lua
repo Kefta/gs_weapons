@@ -72,11 +72,7 @@ local fLastShootTime = WEAPON.LastShootTime
 
 -- https://github.com/Facepunch/garrysmod-requests/issues/825
 function WEAPON:LastShootTime()
-	if ( self.GetLastShootTime ) then
-		return self:GetLastShootTime()
-	end
-	
-	return fLastShootTime( self )
+	return self.GetLastShootTime and self:GetLastShootTime() or fLastShootTime( self )
 end
 
 if ( CLIENT ) then

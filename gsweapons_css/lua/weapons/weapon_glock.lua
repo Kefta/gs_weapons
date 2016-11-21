@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "weapon_csbase_pistol" )
+SWEP.Base = "weapon_csbase_pistol"
 
---- GSBase
 SWEP.PrintName = "#CStrike_Glock"
 SWEP.Spawnable = true
 
@@ -12,33 +11,40 @@ SWEP.Activities = {
 }
 
 SWEP.Sounds = {
-	primary = "Weapon_Glock.Single"
+	shoot = "Weapon_Glock.Single"
 }
 
 SWEP.Primary = {
-	Ammo = "9mmRound_CSS",
+	Ammo = "9mm",
 	ClipSize = 20,
 	DefaultClip = 140,
 	Damage = 25,
 	RangeModifier = 0.75,
-	Spread = {
-		Base = 0.1,
-		Air = 1,
-		Move = 0.165,
-		Crouch = 0.075
-	}
+	Spread = Vector(0.1, 0.1),
+	SpreadAir = Vector(1, 1),
+	SpreadMove = Vector(0.165, 0.165),
+	SpreadCrouch = Vector(0.075, 0.075)
 }
 
 SWEP.Secondary = {
 	Cooldown = 0.3,
 	Damage = 18,
 	RangeModifier = 0.9,
-	Spread = {
-		Base = 0.3,
-		Air = 1.2,
-		Move = 0.185,
-		Crouch = 0.095
-	}
+	Spread = Vector(0.3, 0.3),
+	SpreadAir = Vector(1.2, 1.2),
+	SpreadMove = Vector(0.185, 0.185),
+	SpreadCrouch = Vector(0.095, 0.095)
+}
+
+SWEP.Burst = {
+	SingleActivity = true
+}
+
+SWEP.Accuracy = {
+	Base = 0.9,
+	Decay = 0.275,
+	Time = 0.325,
+	Min = 0.6
 }
 
 if ( CLIENT ) then
@@ -47,15 +53,6 @@ if ( CLIENT ) then
 	SWEP.SelectionIcon = 'c'
 end
 
---- CSBase_Pistol
-SWEP.Accuracy = {
-	Base = 0.9,
-	Decay = 0.275,
-	Time = 0.325,
-	Min = 0.6
-}
--- FIXME: Fix burst activities -- merge with primary? This is messy
---- GSBase
 function SWEP:SecondaryAttack()
 	if ( self:CanSecondaryAttack(0) ) then
 		self:ToggleBurst(0)
@@ -66,6 +63,8 @@ function SWEP:SecondaryAttack()
 	return false
 end
 
-function SWEP:PlayActivity( sActivity, iIndex, flRate )
-	return BaseClass.PlayActivity( self, sActivity == "primary" and self:BurstEnabled() and self:Clip1() ~= 0 and "secondary" or sActivity, iIndex, flRate )
+local BaseClass = baseclass.Get( SWEP.Base )
+
+function SWEP:PlayActivity( sActivity, iIndex, flRate, bStrictPrefix, bStrictSuffix )
+	return BaseClass.PlayActivity( self, sActivity == "shoot" and self:BurstEnabled( iIndex ) and self:GetShootClip( true ) ~= 0 and "altfire" or sActivity, iIndex, flRate, bStrictPrefix, bStrictSuffix )
 end

@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "weapon_csbase_gun" )
+SWEP.Base = "weapon_csbase_gun"
 
---- GSBase
 SWEP.PrintName = "CSBase_Shotgun"
 SWEP.Slot = 3
 
@@ -21,32 +20,27 @@ SWEP.SingleReload = {
 	InitialRound = false
 }
 
-
-if ( CLIENT ) then
-	SWEP.Category = "Counter-Strike: Source"
-end
-
---- CSBase_Shotgun
-SWEP.Alias = "Shotgun"
-
-SWEP.Random = {
+SWEP.PunchRand = {
+	Alias = "Shotgun",
 	GroundMin = 0,
 	GroundMax = 0,
 	AirMin = 0,
 	AirMax = 0
 }
 
+if ( CLIENT ) then
+	SWEP.Category = "Counter-Strike: Source"
+end
+
 function SWEP:Punch()
 	local pPlayer = self:GetOwner()
 	
 	// Update punch angles.
 	local aPunch = pPlayer:GetViewPunchAngles()
+	local tRandom = self.PunchRand
 	
-	if ( pPlayer:OnGround() ) then
-		aPunch.p = aPunch.p - pPlayer:SharedRandomInt( self.Alias .. "PunchAngleGround", self.Random.GroundMin, self.Random.GroundMax )
-	else
-		aPunch.p = aPunch.p - pPlayer:SharedRandomInt( self.Alias .. "PunchAngleAir", self.Random.AirMin, self.Random.AirMax )
-	end
+	aPunch[1] = aPunch[1] - (pPlayer:OnGround() and pPlayer:SharedRandomInt( tRandom.Alias .. "PunchAngleGround", tRandom.GroundMin, tRandom.GroundMax )
+		or pPlayer:SharedRandomInt( tRandom.Alias .. "PunchAngleAir", tRandom.AirMin, tRandom.AirMax ))
 	
 	pPlayer:SetViewPunchAngles( aPunch )
 end

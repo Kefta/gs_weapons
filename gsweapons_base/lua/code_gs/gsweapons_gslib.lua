@@ -1,3 +1,35 @@
+if ( SERVER ) then
+	local fSetSkillLevel = game.SetSkillLevel
+
+	function game.SetSkillLevel( iLevel )
+		game.UpdateSkillConVars( iLevel )
+		fSetSkillLevel( iLevel )
+	end
+
+	local tSkillConVars = {}
+
+	function game.RegisterSkillConVar( sConVar, tVals )
+		tSkillConVars[sConVar] = tVals
+	end
+
+	function game.UpdateSkillConVars( iLevel )
+		for sVar, tVal in pairs( tSkillConVars ) do
+			local Val = tVal[iLevel]
+			
+			while ( Val == nil and iLevel ~= 0 ) do
+				iLevel = iLevel - 1
+				Val = tVal[iLevel]
+			end
+			
+			RunConsoleCommand( sVar, tostring( Val ))
+		end
+	end
+
+	hook.Add( "InitPostEntity", "GSLib-Update skill convars", function()
+		game.UpdateSkillConVars( game.GetSkillLevel() )
+	end )
+end
+
 local ENTITY = FindMetaTable( "Entity" )
 local PLAYER = FindMetaTable( "Player" )
 local WEAPON = FindMetaTable( "Weapon" )
@@ -92,14 +124,16 @@ FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS = 0x4 // If the shot hits water surface
 -- However, this cannot be accessed from the Lua state
 --FIRE_BULLETS_TEMPORARY_DANGER_SOUND = 0x8 // Danger sounds added from this impact can be stomped immediately if another is queued
 
-local ai_shot_bias_min = GetConVar( "ai_shot_bias_min" )
-local ai_shot_bias_max = GetConVar( "ai_shot_bias_max" )
 local ai_debug_shoot_positions = GetConVar( "ai_debug_shoot_positions" )
 local phys_pushscale = GetConVar( "phys_pushscale" )
 local sv_showimpacts = CreateConVar( "sv_showimpacts", "0", FCVAR_REPLICATED, "Shows client (red) and server (blue) bullet impact point (1=both, 2=client-only, 3=server-only)" )
 local sv_showpenetration = CreateConVar( "sv_showpenetration", "0", FCVAR_REPLICATED, "Shows penetration trace (if applicable) when the weapon fires" )
 local sv_showplayerhitboxes = CreateConVar( "sv_showplayerhitboxes", "0", FCVAR_REPLICATED, "Show lag compensated hitboxes for the specified player index whenever a player fires." )
 
+local vDefaultMax = Vector(3, 3, 3)
+local vDefaultMin = -vDefaultMax
+
+local nWhizTracer = bit.bor( 0x0002, 0x0001 )
 local iTracerCount = 0 -- Instance global to interact with FireBullets functions
 
 -- Player only as NPCs could not be overrided to use this function
@@ -107,6 +141,8 @@ function PLAYER:FireLuaBullets( bullets )
 	if ( hook.Run( "EntityFireBullets", self, bullets ) == false ) then
 		return
 	end
+	
+	self:LagCompensation( true )
 	
 	local pWeapon = self:GetActiveWeapon()
 	local bWeaponInvalid = pWeapon == NULL
@@ -134,13 +170,11 @@ function PLAYER:FireLuaBullets( bullets )
 	local Filter = bullets.Filter or self
 	local iFlags = bullets.Flags or 0
 	local flForce = bullets.Force or 1
-	local flHullSize = bullets.HullSize or 3
 	local pInflictor = bullets.Inflictor and bullets.Inflictor ~= NULL and bullets.Inflictor or bWeaponInvalid and self or pWeapon
 	local iMask = bullets.Mask or MASK_SHOT
 	local iNPCDamage = bullets.NPCDamage or 0
 	local iNum = bullets.Num or 1
 	local iPlayerDamage = bullets.PlayerDamage or 0
-	local vSpread = bullets.Spread or vector_origin
 	local vSrc = bullets.Src or self:GetShootPos()
 	local iTracerFreq = bullets.Tracer or 1
 	local sTracerName = bullets.TracerName or "Tracer"
@@ -172,22 +206,48 @@ function PLAYER:FireLuaBullets( bullets )
 	local bShowPenetration = sv_showpenetration:GetBool()
 	local bStartedInWater = bit.band( util.PointContents( vSrc ), MASK_WATER ) ~= 0
 	local bFirstTimePredicted = IsFirstTimePredicted()
-	local flShotBias, flFlatness, flSpreadX, flSpreadY, vFireBulletMax, vFireBulletMin, vSpreadRight, vSpreadUp
+	local flSpreadBias, flFlatness, flSpreadX, flSpreadY, bNegBias, vFireBulletMax, vFireBulletMin, vSpreadRight, vSpreadUp
 	
 	// Wrap it for network traffic so it's the same between client and server
 	local iSeed = self:GetMD5Seed() % 0x100 - 1
 	
 	-- Don't calculate stuff we won't end up using
 	if ( bFirstShotInaccurate or iNum ~= 1 ) then
-		local flBiasMin = ai_shot_bias_min:GetFloat()
-		flShotBias = (ai_shot_bias_max:GetFloat() - flBiasMin) * (bullets.SpreadBias or 1) + flBiasMin
-		flFlatness = flShotBias / (flShotBias < 0 and -2 or 2)
-		flSpreadX = vSpread.x
-		flSpreadY = vSpread.y
-		vFireBulletMax = Vector( flHullSize, flHullSize, flHullSize )
-		vFireBulletMin = -vFireBulletMax
+		flSpreadBias = bullets.SpreadBias or 0.5
+		bNegBias = false
+		
+		if ( flSpreadBias > 1 ) then
+			flSpreadBias = 1
+			bNegBias = true
+			flSpreadBias = -flSpreadBias
+		elseif ( flSpreadBias < -1 ) then
+			flSpreadBias = -1
+			bNegBias = false
+		else
+			bNegBias = flSpreadBias < 0
+			
+			if ( bNegBias ) then
+				flSpreadBias = -flSpreadBias
+			end
+		end
+		
+		local vSpread = bullets.Spread or vector_origin
+		flSpreadX = vSpread[1]
+		flSpreadY = vSpread[2]
 		vSpreadRight = vSpread:Right()
 		vSpreadUp = vSpread:Up()
+		
+		if ( iNum ~= 1 ) then
+			local flHullSize = bullets.HullSize
+			
+			if ( flHullSize ) then
+				vFireBulletMax = Vector( flHullSize, flHullSize, flHullSize )
+				vFireBulletMin = -vFireBulletMax
+			else
+				vFireBulletMax = vDefaultMax
+				vFireBulletMin = vDefaultMin
+			end
+		end
 	end
 	
 	//Adrian: visualize server/client player positions
@@ -204,26 +264,24 @@ function PLAYER:FireLuaBullets( bullets )
 	
 	iHitNum = sv_showimpacts:GetInt()
 	
-	self:LagCompensation( true )
-	
 	for iShot = 1, iNum do
 		local vShotDir
 		iSeed = iSeed + 1 // use new seed for next bullet
-		random.SetSeed( iSeed ) // init random system with this seed
+		gsrand:SetSeed( iSeed ) // init random system with this seed
 		
 		// If we're firing multiple shots, and the first shot has to be ba on target, ignore spread
-		if ( iShot ~= 1 or bFirstShotInaccurate ) then
+		if ( bFirstShotInaccurate or iShot ~= 1 ) then
 			local x
 			local y
 			local z
 
 			repeat
-				x = random.RandomFloat(-1, 1) * flFlatness + random.RandomFloat(-1, 1) * (1 - flFlatness)
-				y = random.RandomFloat(-1, 1) * flFlatness + random.RandomFloat(-1, 1) * (1 - flFlatness)
+				x = gsrand:RandomFloat(-1, 1) * flSpreadBias + gsrand:RandomFloat(-1, 1) * (1 - flSpreadBias)
+				y = gsrand:RandomFloat(-1, 1) * flSpreadBias + gsrand:RandomFloat(-1, 1) * (1 - flSpreadBias)
 
-				if ( flShotBias < 0 ) then
-					x = x < 0 and -1 - x or 1 - x
-					y = y < 0 and -1 - y or 1 - y
+				if ( bNegBias ) then
+					x = x < 0 and -(1 + x) or 1 - x
+					y = y < 0 and -(1 + y) or 1 - y
 				end
 
 				z = x * x + y * y
@@ -260,7 +318,7 @@ function PLAYER:FireLuaBullets( bullets )
 				})
 			
 			--[[if ( SERVER ) then
-				if ( bHitWater ) then
+				if ( bStartedInWater ) then
 					local flLengthSqr = vSrc:DistToSqr( tr.HitPos )
 					
 					if ( flLengthSqr > SHOT_UNDERWATER_BUBBLE_DIST * SHOT_UNDERWATER_BUBBLE_DIST ) then
@@ -291,65 +349,35 @@ function PLAYER:FireLuaBullets( bullets )
 			local pEntity = tr.Entity
 			local vHitPos = tr.HitPos
 			vFinalHit = vHitPos
-			local bHitWater = bStartedInWater
+			
 			local bEndNotWater = bit.band( util.PointContents( tr.HitPos ), MASK_WATER ) == 0
-			
-			-- The bullet left the water
-			if ( bHitWater and bEndNotWater ) then
-				if ( bFirstTimePredicted ) then
-					local data = EffectData()
-						local vSplashPos = util.TraceLine({
-							start = tr.HitPos,
-							endpos = vNewSrc,
-							mask = MASK_WATER
-						}).HitPos
-						
-						data:SetOrigin( vSplashPos )
-						data:SetScale( random.RandomFloat( iAmmoMinSplash, iAmmoMaxSplash ))
-						
-						if ( bit.band( util.PointContents( vSplashPos ), CONTENTS_SLIME ) ~= 0 ) then
-							data:SetFlags( FX_WATER_IN_SLIME )
-						end
-						
-					util.Effect( "gunshotsplash", data )
-				end
+			local trSplash = bStartedInWater and bEndNotWater and
+				util.TraceLine({
+					start = vHitPos,
+					endpos = vSrc,
+					mask = MASK_WATER
+				})
 			// See if the bullet ended up underwater + started out of the water
-			elseif ( not bHitWater and not bEndNotWater ) then
-				if ( bFirstTimePredicted ) then
-					local data = EffectData()
-						local vSplashPos = util.TraceLine({
-							start = vNewSrc,
-							endpos = tr.HistPos,
-							mask = MASK_WATER
-						}).HitPos
-						
-						data:SetOrigin( vSplashPos )
-						data:SetScale( random.RandomFloat( iAmmoMinSplash, iAmmoMaxSplash ))
-						
-						if ( bit.band( util.PointContents( vSplashPos ), CONTENTS_SLIME ) ~= 0 ) then
-							data:SetFlags( FX_WATER_IN_SLIME )
-						end
-						
-					util.Effect( "gunshotsplash", data )
-					
-					--[[local pWaterBullet = ents.Create( "waterbullet" )
-					
-					if ( pWaterBullet ~= NULL ) then
-						pWaterBullet:SetPos( trWater.HitPos )
-						pWaterBullet:_SetAbsVelocity( vDir * 1500 )
-						
-						-- Re-use EffectData
-							data:SetStart( trWater.HitPos )
-							data:SetOrigin( trWater.HitPos + vDir * 400 )
-							data:SetFlags( TRACER_TYPE_WATERBULLET )
-						util.Effect( "TracerSound", data )
-					end]]
-				end
+			or not (bStartedInWater or bEndNotWater) and
+				util.TraceLine({
+					start = vSrc,
+					endpos = vHitPos,
+					mask = MASK_WATER
+				})
 			
-				bHitWater = true
+			if ( trSplash and (bWeaponInvalid or not (pWeapon.DoSplashEffect and pWeapon:DoSplashEffect( trSplash ))) and bFirstTimePredicted ) then
+				local data = EffectData()
+					data:SetOrigin( trSplash.HitPos )
+					data:SetScale( gsrand:RandomFloat( iAmmoMinSplash, iAmmoMaxSplash ))
+					
+					if ( bit.band( util.PointContents( trSplash.HitPos ), CONTENTS_SLIME ) ~= 0 ) then
+						data:SetFlags( FX_WATER_IN_SLIME )
+					end
+					
+				util.Effect( "gunshotsplash", data )
 			end
 			
-			if ( tr.HitSky or tr.Fraction == 1 or pEntity == NULL ) then
+			if ( tr.Fraction == 1 or pEntity == NULL ) then
 				break // we didn't hit anything, stop tracing shoot
 			end
 			
@@ -362,7 +390,7 @@ function PLAYER:FireLuaBullets( bullets )
 			-- https://github.com/Facepunch/garrysmod-issues/issues/2741
 			bHitGlass = --[[tr.MatType == MAT_GLASS]] pEntity:GetClass():find( "func_breakable", 1, true ) and not pEntity:HasSpawnFlags( SF_BREAK_NO_BULLET_PENETRATION )
 			
-			if ( not bHitWater or bit.band( iFlags, FIRE_BULLETS_DONT_HIT_UNDERWATER ) == 0 ) then
+			if ( not bStartedWater and bEndNotWater or bit.band( iFlags, FIRE_BULLETS_DONT_HIT_UNDERWATER ) == 0 ) then
 				-- The engine considers this a float
 				-- Even though no values assigned to it are
 				local iActualDamage = iDamage
@@ -409,9 +437,9 @@ function PLAYER:FireLuaBullets( bullets )
 					fCallback( pAttacker, tr, info )
 				end
 				
-				if ( bFirstTimePredicted ) then
-					if ( not bHitWater or bStartedInWater or bit.band( iFlags, FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS ) ~= 0 ) then
-						if ( bWeaponInvalid or not pWeapon:DoImpactEffect( tr, iAmmoDamageType )) then
+				if ( bEndNotWater or bit.band( iFlags, FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS ) ~= 0 ) then
+					if ( bWeaponInvalid or not pWeapon.DoImpactEffect or not pWeapon:DoImpactEffect( tr, iAmmoDamageType )) then
+						if ( bFirstTimePredicted ) then
 							local data = EffectData()
 								data:SetOrigin( tr.HitPos )
 								data:SetStart( vSrc )
@@ -420,8 +448,8 @@ function PLAYER:FireLuaBullets( bullets )
 								data:SetHitBox( tr.HitBox )
 								data:SetEntity( pEntity )
 							util.Effect( "Impact", data )
-						end	
-					else
+						end
+					elseif ( bFirstTimePredicted ) then
 						// We may not impact, but we DO need to affect ragdolls on the client
 						local data = EffectData()
 							data:SetOrigin( tr.HitPos )
@@ -471,7 +499,7 @@ function PLAYER:FireLuaBullets( bullets )
 				end
 				
 				// bullet did penetrate object, exit Decal
-				if ( bFirstTimePredicted and (bWeaponInvalid or not pWeapon:DoImpactEffect( tr, iAmmoDamageType ))) then
+				if ( (bWeaponInvalid or not pWeapon.DoImpactEffect or not pWeapon:DoImpactEffect( tr, iAmmoDamageType )) and bFirstTimePredicted ) then
 					local data = EffectData()
 						data:SetOrigin( tr.HitPos )
 						data:SetStart( tr.StartPos )
@@ -493,19 +521,21 @@ function PLAYER:FireLuaBullets( bullets )
 		if ( bFirstTimePredicted and iTracerFreq > 0 ) then
 			if ( iTracerCount % iTracerFreq == 0 ) then
 				local data = EffectData()
-					data:SetStart( self:ComputeTracerStartPosition( vSrc ))
+					local iAttachment
+					
+					if ( bWeaponInvalid ) then
+						data:SetStart( self:ComputeTracerStartPosition( vSrc, 1 ))
+						data:SetAttachment(1)
+					else
+						local iAttachment = pWeapon.GetMuzzleAttachment and pWeapon:GetMuzzleAttachment() or 1
+						data:SetStart( pWeapon.GetTracerOrigin and pWeapon:GetTracerOrigin() or self:ComputeTracerStartPosition( vSrc, iAttachment ))
+						data:SetAttachment( iAttachment )
+					end
+					
 					data:SetOrigin( vFinalHit )
 					data:SetScale(0)
 					data:SetEntity( bWeaponInvalid and self or pWeapon )
-					data:SetAttachment( bWeaponInvalid and 1 or pWeapon.GetMuzzleAttachment and pWeapon:GetMuzzleAttachment() or 1 )
-					
-					local iFlags = TRACER_FLAG_USEATTACHMENT
-					
-					if ( iAmmoTracerType == TRACER_LINE_AND_WHIZ ) then
-						iFlags = bit.bor( iFlags, TRACER_FLAG_WHIZ )
-					end
-					
-					data:SetFlags( iFlags )
+					data:SetFlags( iAmmoTracerType == TRACER_LINE_AND_WHIZ and nWhizTracer or 0x0002 )
 				util.Effect( sTracerName, data )
 			end
 			
@@ -580,6 +610,8 @@ function PLAYER:FireCSSBullets( bullets )
 		return
 	end
 	
+	self:LagCompensation( true )
+	
 	local pWeapon = self:GetActiveWeapon()
 	local bWeaponInvalid = pWeapon == NULL
 	
@@ -635,8 +667,6 @@ function PLAYER:FireCSSBullets( bullets )
 	local iPenetration = bullets.Penetration or 0
 	local flRangeModifier = bullets.RangeModifier or 1
 	local aShootAngles = bullets.ShootAngles or self:EyeAngles()
-	local flSpread = bullets.Spread or 0
-	local flSpreadBias = bullets.SpreadBias or 0.5
 	local vSrc = bullets.Src or self:GetShootPos()
 	local iTracerFreq = bullets.Tracer or 1
 	local sTracerName = bullets.TracerName or "Tracer"
@@ -660,15 +690,17 @@ function PLAYER:FireCSSBullets( bullets )
 	local bShowPenetration = sv_showpenetration:GetBool()
 	local bStartedInWater = bit.band( util.PointContents( vSrc ), MASK_WATER ) ~= 0
 	local bFirstTimePredicted = IsFirstTimePredicted()
-	local vShootRight, vShootUp
+	local vShootRight, vShootUp, flSpreadBias
 	
 	// Wrap it for network traffic so it's the same between client and server
 	local iSeed = self:GetMD5Seed() % 0x100
 	
 	-- Don't calculate stuff we won't end up using
 	if ( bFirstShotInaccurate or iNum ~= 1 ) then
-		vShootRight = flSpread * aShootAngles:Right()
-		vShootUp = flSpread * aShootAngles:Up()
+		local vSpread = bullets.Spread or vector_origin
+		flSpreadBias = bullets.SpreadBias or 0.5
+		vShootRight = vSpread[1] * aShootAngles:Right()
+		vShootUp = vSpread[2] * aShootAngles:Up()
 	end
 	
 	//Adrian: visualize server/client player positions
@@ -685,12 +717,10 @@ function PLAYER:FireCSSBullets( bullets )
 	
 	iHitNum = sv_showimpacts:GetInt()
 	
-	self:LagCompensation( true )
-	
 	for iShot = 1, iNum do
 		local vShotDir
 		iSeed = iSeed + 1 // use new seed for next bullet
-		random.SetSeed( iSeed ) // init random system with this seed
+		gsrand:SetSeed( iSeed ) // init random system with this seed
 		
 		-- Loop values
 		local flCurrentDamage = iDamage	// damage of the bullet at it's current trajectory
@@ -699,9 +729,9 @@ function PLAYER:FireCSSBullets( bullets )
 		local vFinalHit
 		
 		// add the spray 
-		if ( iShot ~= 1 or bFirstShotInaccurate ) then
-			vShotDir = vShootForward + vShootRight * (random.RandomFloat( -flSpreadBias, flSpreadBias ) + random.RandomFloat( -flSpreadBias, flSpreadBias ))
-			+ vShootUp * (random.RandomFloat( -flSpreadBias, flSpreadBias ) + random.RandomFloat( -flSpreadBias, flSpreadBias ))
+		if ( bFirstShotInaccurate or iShot ~= 1 ) then
+			vShotDir = vShootForward + vShootRight * (gsrand:RandomFloat( -flSpreadBias, flSpreadBias ) + gsrand:RandomFloat( -flSpreadBias, flSpreadBias ))
+			+ vShootUp * (gsrand:RandomFloat( -flSpreadBias, flSpreadBias ) + gsrand:RandomFloat( -flSpreadBias, flSpreadBias ))
 			vShotDir:Normalize()
 		else
 			vShotDir = vShootForward
@@ -723,65 +753,35 @@ function PLAYER:FireCSSBullets( bullets )
 			local pEntity = tr.Entity
 			local vHitPos = tr.HitPos
 			vFinalHit = vHitPos
-			local bHitWater = bStartedInWater
-			local bEndNotWater = bit.band( util.PointContents( vHitPos ), MASK_WATER ) == 0
 			
-			-- The bullet left the water
-			if ( bHitWater and bEndNotWater ) then
-				if ( bFirstTimePredicted ) then
-					local data = EffectData()
-						local vSplashPos = util.TraceLine({
-							start = tr.HitPos,
-							endpos = vNewSrc,
-							mask = MASK_WATER
-						}).HitPos
-						
-						data:SetOrigin( vSplashPos )
-						data:SetScale( random.RandomFloat( iAmmoMinSplash, iAmmoMaxSplash ))
-						
-						if ( bit.band( util.PointContents( vSplashPos ), CONTENTS_SLIME ) ~= 0 ) then
-							data:SetFlags( FX_WATER_IN_SLIME )
-						end
-						
-					util.Effect( "gunshotsplash", data )
-				end
+			local bEndNotWater = bit.band( util.PointContents( tr.HitPos ), MASK_WATER ) == 0
+			local trSplash = bStartedInWater and bEndNotWater and
+				util.TraceLine({
+					start = vHitPos,
+					endpos = vSrc,
+					mask = MASK_WATER
+				})
 			// See if the bullet ended up underwater + started out of the water
-			elseif ( not bHitWater and not bEndNotWater ) then
-				if ( bFirstTimePredicted ) then
-					local data = EffectData()
-						local vSplashPos = util.TraceLine({
-							start = vNewSrc,
-							endpos = tr.HitPos,
-							mask = MASK_WATER
-						}).HitPos
-						
-						data:SetOrigin( vSplashPos )
-						data:SetScale( random.RandomFloat( iAmmoMinSplash, iAmmoMaxSplash ))
-						
-						if ( bit.band( util.PointContents( vSplashPos ), CONTENTS_SLIME ) ~= 0 ) then
-							data:SetFlags( FX_WATER_IN_SLIME )
-						end
-						
-					util.Effect( "gunshotsplash", data )
-					
-					--[[local pWaterBullet = ents.Create( "waterbullet" )
-					
-					if ( pWaterBullet ~= NULL ) then
-						pWaterBullet:SetPos( trWater.HitPos )
-						pWaterBullet:_SetAbsVelocity( vDir * 1500 )
-						
-						-- Re-use EffectData
-							data:SetStart( trWater.HitPos )
-							data:SetOrigin( trWater.HitPos + vDir * 400 )
-							data:SetFlags( TRACER_TYPE_WATERBULLET )
-						util.Effect( "TracerSound", data )
-					end]]
-				end
+			or not (bStartedInWater or bEndNotWater) and
+				util.TraceLine({
+					start = vSrc,
+					endpos = vHitPos,
+					mask = MASK_WATER
+				})
 			
-				bHitWater = true
+			if ( trSplash and (bWeaponInvalid or not (pWeapon.DoSplashEffect and pWeapon:DoSplashEffect( trSplash ))) and bFirstTimePredicted ) then
+				local data = EffectData()
+					data:SetOrigin( trSplash.HitPos )
+					data:SetScale( gsrand:RandomFloat( iAmmoMinSplash, iAmmoMaxSplash ))
+					
+					if ( bit.band( util.PointContents( trSplash.HitPos ), CONTENTS_SLIME ) ~= 0 ) then
+						data:SetFlags( FX_WATER_IN_SLIME )
+					end
+					
+				util.Effect( "gunshotsplash", data )
 			end
 			
-			if ( tr.HitSky or tr.Fraction == 1 or pEntity == NULL ) then
+			if ( tr.Fraction == 1 or pEntity == NULL ) then
 				break // we didn't hit anything, stop tracing shoot
 			end
 			
@@ -809,7 +809,7 @@ function PLAYER:FireCSSBullets( bullets )
 				iPenetration = 0
 			end
 			
-			if ( not bHitWater or bit.band( iFlags, FIRE_BULLETS_DONT_HIT_UNDERWATER ) == 0 ) then
+			if ( not bStartedWater and bEndNotWater or bit.band( iFlags, FIRE_BULLETS_DONT_HIT_UNDERWATER ) == 0 ) then
 				// add damage to entity that we hit
 				local info = DamageInfo()
 					info:SetAttacker( pAttacker )
@@ -826,9 +826,9 @@ function PLAYER:FireCSSBullets( bullets )
 					fCallback( pAttacker, tr, info )
 				end
 				
-				if ( bFirstTimePredicted ) then
-					if ( not bHitWater or bStartedInWater or bit.band( iFlags, FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS ) ~= 0 ) then
-						if ( bWeaponInvalid or not pWeapon:DoImpactEffect( tr, iAmmoDamageType )) then
+				if ( bEndNotWater or bit.band( iFlags, FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS ) ~= 0 ) then
+					if ( bWeaponInvalid or not pWeapon.DoImpactEffect or not pWeapon:DoImpactEffect( tr, iAmmoDamageType )) then
+						if ( bFirstTimePredicted ) then
 							local data = EffectData()
 								data:SetOrigin( tr.HitPos )
 								data:SetStart( vSrc )
@@ -837,8 +837,8 @@ function PLAYER:FireCSSBullets( bullets )
 								data:SetHitBox( tr.HitBox )
 								data:SetEntity( pEntity )
 							util.Effect( "Impact", data )
-						end	
-					else
+						end
+					elseif ( bFirstTimePredicted ) then
 						// We may not impact, but we DO need to affect ragdolls on the client
 						local data = EffectData()
 							data:SetOrigin( tr.HitPos )
@@ -948,7 +948,7 @@ function PLAYER:FireCSSBullets( bullets )
 			end
 			
 			// bullet did penetrate object, exit Decal
-			if ( bFirstTimePredicted and (bWeaponInvalid or not pWeapon:DoImpactEffect( tr, iAmmoDamageType ))) then
+			if ( (bWeaponInvalid or not pWeapon.DoImpactEffect or not pWeapon:DoImpactEffect( tr, iAmmoDamageType )) and bFirstTimePredicted ) then
 				local data = EffectData()
 					data:SetOrigin( tr.HitPos )
 					data:SetStart( tr.StartPos )
@@ -1000,19 +1000,21 @@ function PLAYER:FireCSSBullets( bullets )
 		if ( bFirstTimePredicted and iTracerFreq > 0 ) then
 			if ( iTracerCount % iTracerFreq == 0 ) then
 				local data = EffectData()
-					data:SetStart( self:ComputeTracerStartPosition( vSrc ))
+					local iAttachment
+					
+					if ( bWeaponInvalid ) then
+						data:SetStart( self:ComputeTracerStartPosition( vSrc, 1 ))
+						data:SetAttachment(1)
+					else
+						local iAttachment = pWeapon.GetMuzzleAttachment and pWeapon:GetMuzzleAttachment() or 1
+						data:SetStart( pWeapon.GetTracerOrigin and pWeapon:GetTracerOrigin() or self:ComputeTracerStartPosition( vSrc, iAttachment ))
+						data:SetAttachment( iAttachment )
+					end
+					
 					data:SetOrigin( vFinalHit )
 					data:SetScale(0)
 					data:SetEntity( bWeaponInvalid and self or pWeapon )
-					data:SetAttachment( bWeaponInvalid and 1 or pWeapon.GetMuzzleAttachment and pWeapon:GetMuzzleAttachment() or 1 )
-					
-					local iFlags = TRACER_FLAG_USEATTACHMENT
-					
-					if ( iAmmoTracerType == TRACER_LINE_AND_WHIZ ) then
-						iFlags = bit.bor( iFlags, TRACER_FLAG_WHIZ )
-					end
-					
-					data:SetFlags( iFlags )
+					data:SetFlags( iAmmoTracerType == TRACER_LINE_AND_WHIZ and nWhizTracer or 0x0002 )
 				util.Effect( sTracerName, data )
 			end
 			
@@ -1029,10 +1031,11 @@ function PLAYER:FireSDKBullets( bullets )
 		return
 	end
 	
+	self:LagCompensation( true )
+	
 	local pWeapon = self:GetActiveWeapon()
 	local bWeaponInvalid = pWeapon == NULL
 	
-	-- FireCSSBullets info
 	local sAmmoType
 	local iAmmoType
 	
@@ -1059,8 +1062,6 @@ function PLAYER:FireSDKBullets( bullets )
 	local iNum = bullets.Num or 1
 	local flRangeModifier = bullets.RangeModifier or 0.85
 	local aShootAngles = bullets.ShootAngles or self:EyeAngles()
-	local flSpread = bullets.Spread or 0
-	local flSpreadBias = bullets.SpreadBias or 0.5
 	local vSrc = bullets.Src or self:GetShootPos()
 	local iTracerFreq = bullets.Tracer or 1
 	local sTracerName = bullets.TracerName or "Tracer"
@@ -1081,15 +1082,17 @@ function PLAYER:FireSDKBullets( bullets )
 	local vShootForward = aShootAngles:Forward()
 	local bStartedInWater = bit.band( util.PointContents( vSrc ), MASK_WATER ) ~= 0
 	local bFirstTimePredicted = IsFirstTimePredicted()
-	local vShootRight, vShootUp
+	local vShootRight, vShootUp, flSpreadBias
 	
 	// Wrap it for network traffic so it's the same between client and server
 	local iSeed = self:GetMD5Seed() % 0x100
 	
 	-- Don't calculate stuff we won't end up using
 	if ( bFirstShotInaccurate or iNum ~= 1 ) then
-		vShootRight = flSpread * aShootAngles:Right()
-		vShootUp = flSpread * aShootAngles:Up()
+		local vSpread = bullets.Spread or vector_origin
+		flSpreadBias = bullets.SpreadBias or 0.5
+		vShootRight = vSpread[1] * aShootAngles:Right()
+		vShootUp = vSpread[2] * aShootAngles:Up()
 	end
 	
 	//Adrian: visualize server/client player positions
@@ -1106,17 +1109,15 @@ function PLAYER:FireSDKBullets( bullets )
 	
 	iHitNum = sv_showimpacts:GetInt()
 	
-	self:LagCompensation( true )
-	
 	for iShot = 1, iNum do
 		local vShotDir
 		iSeed = iSeed + 1 // use new seed for next bullet
-		random.SetSeed( iSeed ) // init random system with this seed
+		gsrand:SetSeed( iSeed ) // init random system with this seed
 		
 		// add the spray 
-		if ( iShot ~= 1 or bFirstShotInaccurate ) then
-			vShotDir = vShootForward + vShootRight * (random.RandomFloat( -flSpreadBias, flSpreadBias ) + random.RandomFloat( -flSpreadBias, flSpreadBias ))
-			+ vShootUp * (random.RandomFloat( -flSpreadBias, flSpreadBias ) + random.RandomFloat( -flSpreadBias, flSpreadBias ))
+		if ( bFirstShotInaccurate or iShot ~= 1 ) then
+			vShotDir = vShootForward + vShootRight * (gsrand:RandomFloat( -flSpreadBias, flSpreadBias ) + gsrand:RandomFloat( -flSpreadBias, flSpreadBias ))
+			+ vShootUp * (gsrand:RandomFloat( -flSpreadBias, flSpreadBias ) + gsrand:RandomFloat( -flSpreadBias, flSpreadBias ))
 			vShotDir:Normalize()
 		else
 			vShotDir = vShootForward
@@ -1133,65 +1134,37 @@ function PLAYER:FireSDKBullets( bullets )
 		
 		local pEntity = tr.Entity
 		local vHitPos = tr.HitPos
-		local bHitWater = bStartedInWater
-		local bEndNotWater = bit.band( util.PointContents( vHitPos ), MASK_WATER ) == 0
 		
-		-- The bullet left the water
-		if ( bHitWater and bEndNotWater ) then
-			if ( bFirstTimePredicted ) then
-				local data = EffectData()
-					local vSplashPos = util.TraceLine({
-						start = tr.HitPos,
-						endpos = vSrc,
-						mask = MASK_WATER
-					}).HitPos
-					
-					data:SetOrigin( vSplashPos )
-					data:SetScale( random.RandomFloat( iAmmoMinSplash, iAmmoMaxSplash ))
-					
-					if ( bit.band( util.PointContents( vSplashPos ), CONTENTS_SLIME ) ~= 0 ) then
-						data:SetFlags( FX_WATER_IN_SLIME )
-					end
-					
-				util.Effect( "gunshotsplash", data )
-			end
+		local bEndNotWater = bit.band( util.PointContents( tr.HitPos ), MASK_WATER ) == 0
+		local trSplash = bStartedInWater and bEndNotWater and
+			util.TraceLine({
+				start = vHitPos,
+				endpos = vSrc,
+				mask = MASK_WATER
+			})
 		// See if the bullet ended up underwater + started out of the water
-		elseif ( not bHitWater and not bEndNotWater ) then
+		or not (bStartedInWater or bEndNotWater) and
+			util.TraceLine({
+				start = vSrc,
+				endpos = vHitPos,
+				mask = MASK_WATER
+			})
+		
+		if ( trSplash and (bWeaponInvalid or not (pWeapon.DoSplashEffect and pWeapon:DoSplashEffect( trSplash ))) and bFirstTimePredicted ) then
 			if ( bFirstTimePredicted ) then
 				local data = EffectData()
-					local vSplashPos = util.TraceLine({
-						start = vSrc,
-						endpos = tr.HitPos,
-						mask = MASK_WATER
-					}).HitPos
+					data:SetOrigin( trSplash.HitPos )
+					data:SetScale( gsrand:RandomFloat( iAmmoMinSplash, iAmmoMaxSplash ))
 					
-					data:SetOrigin( vSplashPos )
-					data:SetScale( random.RandomFloat( iAmmoMinSplash, iAmmoMaxSplash ))
-					
-					if ( bit.band( util.PointContents( vSplashPos ), CONTENTS_SLIME ) ~= 0 ) then
+					if ( bit.band( util.PointContents( trSplash.HitPos ), CONTENTS_SLIME ) ~= 0 ) then
 						data:SetFlags( FX_WATER_IN_SLIME )
 					end
 					
 				util.Effect( "gunshotsplash", data )
-				
-				--[[local pWaterBullet = ents.Create( "waterbullet" )
-				
-				if ( pWaterBullet ~= NULL ) then
-					pWaterBullet:SetPos( trWater.HitPos )
-					pWaterBullet:_SetAbsVelocity( vDir * 1500 )
-					
-					-- Re-use EffectData
-						data:SetStart( trWater.HitPos )
-						data:SetOrigin( trWater.HitPos + vDir * 400 )
-						data:SetFlags( TRACER_TYPE_WATERBULLET )
-					util.Effect( "TracerSound", data )
-				end]]
 			end
-		
-			bHitWater = true
 		end
 		
-		if ( tr.HitSky or tr.Fraction == 1 or pEntity == NULL ) then
+		if ( tr.Fraction == 1 or pEntity == NULL ) then
 			break // we didn't hit anything, stop tracing shoot
 		end
 		
@@ -1200,7 +1173,7 @@ function PLAYER:FireSDKBullets( bullets )
 			debugoverlay.Box( vHitPos, vector_debug_min, vector_debug_max, DEBUG_LENGTH, color_debug )
 		end
 		
-		if ( not bHitWater or bit.band( iFlags, FIRE_BULLETS_DONT_HIT_UNDERWATER ) == 0 ) then
+		if ( not bStartedWater and bEndNotWater or bit.band( iFlags, FIRE_BULLETS_DONT_HIT_UNDERWATER ) == 0 ) then
 			// add damage to entity that we hit
 			local info = DamageInfo()
 				info:SetAttacker( pAttacker )
@@ -1217,9 +1190,9 @@ function PLAYER:FireSDKBullets( bullets )
 				fCallback( pAttacker, tr, info )
 			end
 			
-			if ( bFirstTimePredicted ) then
-				if ( not bHitWater or bStartedInWater or bit.band( iFlags, FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS ) ~= 0 ) then
-					if ( bWeaponInvalid or not pWeapon:DoImpactEffect( tr, iAmmoDamageType )) then
+			if ( bEndNotWater or bit.band( iFlags, FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS ) ~= 0 ) then
+				if ( bWeaponInvalid or not pWeapon.DoImpactEffect or not pWeapon:DoImpactEffect( tr, iAmmoDamageType )) then
+					if ( bFirstTimePredicted ) then
 						local data = EffectData()
 							data:SetOrigin( tr.HitPos )
 							data:SetStart( vSrc )
@@ -1228,8 +1201,8 @@ function PLAYER:FireSDKBullets( bullets )
 							data:SetHitBox( tr.HitBox )
 							data:SetEntity( pEntity )
 						util.Effect( "Impact", data )
-					end	
-				else
+					end
+				elseif ( bFirstTimePredicted ) then
 					// We may not impact, but we DO need to affect ragdolls on the client
 					local data = EffectData()
 						data:SetOrigin( tr.HitPos )
@@ -1252,19 +1225,21 @@ function PLAYER:FireSDKBullets( bullets )
 		if ( bFirstTimePredicted and iTracerFreq > 0 ) then
 			if ( iTracerCount % iTracerFreq == 0 ) then
 				local data = EffectData()
-					data:SetStart( self:ComputeTracerStartPosition( vSrc ))
+					local iAttachment
+					
+					if ( bWeaponInvalid ) then
+						data:SetStart( self:ComputeTracerStartPosition( vSrc, 1 ))
+						data:SetAttachment(1)
+					else
+						local iAttachment = pWeapon.GetMuzzleAttachment and pWeapon:GetMuzzleAttachment() or 1
+						data:SetStart( pWeapon.GetTracerOrigin and pWeapon:GetTracerOrigin() or self:ComputeTracerStartPosition( vSrc, iAttachment ))
+						data:SetAttachment( iAttachment )
+					end
+					
 					data:SetOrigin( vHitPos )
 					data:SetScale(0)
 					data:SetEntity( bWeaponInvalid and self or pWeapon )
-					data:SetAttachment( bWeaponInvalid and 1 or pWeapon.GetMuzzleAttachment and pWeapon:GetMuzzleAttachment() or 1 )
-					
-					local iFlags = TRACER_FLAG_USEATTACHMENT
-					
-					if ( iAmmoTracerType == TRACER_LINE_AND_WHIZ ) then
-						iFlags = bit.bor( iFlags, TRACER_FLAG_WHIZ )
-					end
-					
-					data:SetFlags( iFlags )
+					data:SetFlags( iAmmoTracerType == TRACER_LINE_AND_WHIZ and nWhizTracer or 0x0002 )
 				util.Effect( sTracerName, data )
 			end
 			
@@ -1482,9 +1457,6 @@ TE_EXPLFLAG_NOFIREBALLSMOKE = 0x80	// do not draw smoke with the fireball
 
 MUZZLEFLASH_FIRSTPERSON = 0x100
 
-TRACER_FLAG_WHIZ = 0x0001
-TRACER_FLAG_USEATTACHMENT = 0x0002
-
 function ENTITY:ApplyLocalAngularVelocityImpulse( vImpulse )
 	if ( vImpulse ~= vector_origin ) then
 		if ( self:GetMoveType() == MOVETYPE_VPHYSICS ) then
@@ -1495,8 +1467,8 @@ function ENTITY:ApplyLocalAngularVelocityImpulse( vImpulse )
 	end
 end
 
-function ENTITY:ComputeTracerStartPosition( vSrc )
-	local tAttachment = self:GetAttachment(1)
+function ENTITY:ComputeTracerStartPosition( vSrc, iAttachment )
+	local tAttachment = self:GetAttachment( iAttachment or 1 )
 	
 	if ( tAttachment ) then
 		return tAttachment.Pos
@@ -1894,7 +1866,7 @@ if ( SERVER ) then
 						// This simulates features that usually vary from
 						// person-to-person variables such as bodyweight,
 						// which are all indentical for characters using the same model.
-						infoAdjusted:SetDamageForce( vTarget * flForceScale * random.RandomFloat(0.85, 1.15) * phys_pushscale:GetFloat() * 1.5 )
+						infoAdjusted:SetDamageForce( vTarget * flForceScale * gsrand:RandomFloat(0.85, 1.15) * phys_pushscale:GetFloat() * 1.5 )
 					else
 						// Assume the force passed in is the maximum force. Decay it based on falloff.
 						infoAdjusted:SetDamageForce( vTarget * vForce:Length() * flFalloff )
@@ -2029,7 +2001,7 @@ if ( SERVER ) then
 						// This simulates features that usually vary from
 						// person-to-person variables such as bodyweight,
 						// which are all indentical for characters using the same model.
-						infoAdjusted:SetDamageForce( vTarget * flForceScale * random.RandomFloat(0.85, 1.15) * phys_pushscale:GetFloat() * 1.5 )
+						infoAdjusted:SetDamageForce( vTarget * flForceScale * gsrand:RandomFloat(0.85, 1.15) * phys_pushscale:GetFloat() * 1.5 )
 					else
 						// Assume the force passed in is the maximum force. Decay it based on falloff.
 						infoAdjusted:SetDamageForce( vTarget * vForce:Length() * flFalloff )
@@ -2528,26 +2500,17 @@ function util.FindHullIntersection( tbl, tr )
 	return tr
 end
 
-function util.SeedFileLineHash( iSeed, sName, iAdditionalSeed /*=0*/ )
-	return tonumber( util.CRC(( "%i%i%s" ):format( iSeed, iAdditionalSeed or 0, sName )))
-end
+local sCRC = "%i%i%s"
 
-local fLastShootTime = WEAPON.LastShootTime
-
--- https://github.com/Facepunch/garrysmod-requests/issues/825
-function WEAPON:LastShootTime()
-	if ( self.GetLastShootTime ) then
-		return self:GetLastShootTime()
-	end
-	
-	return fLastShootTime( self )
+function util.SeedFileLineHash( iSeed, sName, iAdditionalSeed --[[= 0]] )
+	return tonumber( util.CRC( sCRC:format( iSeed, iAdditionalSeed or 0, sName )))
 end
 
 -- https://github.com/Facepunch/garrysmod-issues/issues/2543
 function WEAPON:GetActivityBySequence( iIndex )
-	local vm = self:GetOwner():GetViewModel( iIndex )
+	local pViewModel = self:GetOwner():GetViewModel( iIndex )
 	
-	return vm == NULL and ACT_INVALID or vm:GetSequenceActivity( vm:GetSequence() )
+	return pViewModel == NULL and ACT_INVALID or pViewModel:GetSequenceActivity( pViewModel:GetSequence() )
 end
 
 -- https://github.com/Facepunch/garrysmod-requests/issues/703
@@ -2688,16 +2651,4 @@ function WEAPON:SequenceLength( iIndex, iSequence )
 	end
 	
 	return 0
-end
-
-function WEAPON:SetVisible( bVisible, iIndex --[[= 0]] )
-	local pPlayer = self:GetOwner()
-	
-	if ( pPlayer ~= NULL ) then
-		local vm = pPlayer:GetViewModel( iIndex )
-		
-		if ( vm ~= NULL ) then
-			vm:SetVisible( bVisible )
-		end
-	end
 end

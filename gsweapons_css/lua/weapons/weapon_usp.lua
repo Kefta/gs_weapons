@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "weapon_csbase_pistol" )
+SWEP.Base = "weapon_csbase_pistol"
 
---- GSBase
 SWEP.PrintName = "#CStrike_USP"
 SWEP.Spawnable = true
 
@@ -8,39 +7,38 @@ SWEP.ViewModel = "models/weapons/v_pist_usp.mdl"
 SWEP.WorldModel = "models/weapons/w_pist_usp.mdl"
 SWEP.SilencerModel = "models/weapons/w_pist_usp_silencer.mdl"
 
-SWEP.Activities = {
-	secondary = ACT_VM_ATTACH_SILENCER
-}
-
 SWEP.Sounds = {
-	primary = "Weapon_USP.Single",
-	secondary = "Weapon_USP.AttachSilencer",
-	s_primary = "Weapon_USP.SilencedShot",
-	s_secondary = "Weapon_USP.DetachSilencer"
+	shoot = "Weapon_USP.Single",
+	--silence = "Weapon_USP.AttachSilencer",
+	s_shoot = "Weapon_USP.SilencedShot",
+	--s_silence = "Weapon_USP.DetachSilencer"
 }
 
 SWEP.Primary = {
-	Ammo = "45ACP",
+	Ammo = "45acp",
 	ClipSize = 12,
 	DefaultClip = 112,
 	Damage = 34,
 	RangeModifier = 0.79,
-	Spread = {
-		Base = 0.1,
-		Air = 1.2,
-		Move = 0.225,
-		Crouch = 0.08
-	}
+	Spread = Vector(0.1, 0.1),
+	SpreadAir = Vector(1.2, 1.2),
+	SpreadMove = Vector(0.225, 0.225),
+	SpreadCrouch = Vector(0.08, 0.08)
 }
 
 SWEP.Secondary = {
 	Damage = 30,
-	Spread = {
-		Base = 0.15,
-		Air = 1.3,
-		Move = 0.25,
-		Crouch = 0.125
-	}
+	Spread = Vector(0.15, 0.15),
+	SpreadAir = Vector(1.3, 1.3),
+	SpreadMove = Vector(0.25, 0.25),
+	SpreadCrouch = Vector(0.125, 0.125)
+}
+
+SWEP.Accuracy = {
+	Base = 0.92,
+	Decay = 0.275,
+	Time = 0.3,
+	Min = 0.6
 }
 
 if ( CLIENT ) then
@@ -48,14 +46,6 @@ if ( CLIENT ) then
 	SWEP.KillIcon = 'a'
 	SWEP.SelectionIcon = 'a'
 end
-
---- CSBase_Pistol
-SWEP.Accuracy = {
-	Base = 0.92,
-	Decay = 0.275,
-	Time = 0.3,
-	Min = 0.6
-}
 
 function SWEP:SecondaryAttack()
 	if ( self:CanSecondaryAttack(0) ) then

@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "weapon_csbase_smg" )
+SWEP.Base = "weapon_csbase_smg"
 
---- GSBase
 SWEP.PrintName = "#CStrike_MP5Navy"
 SWEP.Spawnable = true
 
@@ -8,37 +7,22 @@ SWEP.ViewModel = "models/weapons/v_smg_mp5.mdl"
 SWEP.WorldModel = "models/weapons/w_smg_mp5.mdl"
 
 SWEP.Sounds = {
-	primary = "Weapon_MP5Navy.Single"
+	shoot = "Weapon_MP5Navy.Single"
 }
 
 SWEP.Primary = {
-	Ammo = "9mmRound_CSS",
+	Ammo = "9mm",
 	ClipSize = 30,
 	DefaultClip = 150,
 	Cooldown = 0.08,
 	Damage = 26,
 	RangeModifier = 0.84,
-	Spread = {
-		Base = 0.04,
-		Air = 0.2,
-		Move = 0.04
-	}
+	Spread = Vector(0.04, 0.04),
+	SpreadAir = Vector(0.2, 0.2)
 }
 
-if ( CLIENT ) then
-	SWEP.Category = "Counter-Strike: Source"
-	SWEP.KillIcon = 'x'
-	SWEP.SelectionIcon = 'x'
-	
-	SWEP.CSSCrosshair = {
-		Min = 6,
-		Delta = 2
-	}
-	
-	SWEP.MuzzleFlashScale = 1.1
-end
+SWEP.Primary.SpreadMove = SWEP.Primary.Spread
 
---- CSBase_SMG
 SWEP.Accuracy = {
 	Base = 0,
 	Divisor = 220,
@@ -84,3 +68,16 @@ SWEP.Kick = {
 		DirectionChange = 10
 	}
 }
+
+if ( CLIENT ) then
+	SWEP.Category = "Counter-Strike: Source"
+	SWEP.KillIcon = 'x'
+	SWEP.SelectionIcon = 'x'
+	
+	SWEP.CSSCrosshair = {
+		Min = 6,
+		Delta = 2
+	}
+	
+	SWEP.MuzzleFlashScale = 1.1
+end

@@ -93,7 +93,7 @@ function ENT:Precache()
 end
 
 function ENT:SetupDataTables()
-	self:AddNWVar( "Float", "NextThink" )
+	self:AddNWVar( "Float", "NextItemFrame" )
 end
 
 function ENT:OnRemove()
@@ -142,7 +142,7 @@ function ENT:Think()
 		end
 	end
 	
-	local flNextThink = self:GetNextThink()
+	local flNextThink = self:GetNextItemFrame()
 	
 	if ( flNextThink ~= -1 and flNextThink <= flCurTime ) then
 		self:ItemFrame()
@@ -200,12 +200,4 @@ end
 
 function ENT:PlaySound( sName )
 	self:EmitSound( self:LookupSound( sName ))
-end
-
-function ENT:GetNextThink()
-	return self.dt.NextThink
-end
-
-function ENT:SetNextThink( flTime )
-	self.dt.NextThink = flTime
 end

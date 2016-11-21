@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "weapon_hl2mp_base" )
+SWEP.Base = "weapon_hl2mp_base"
 
---- GSBase
 SWEP.PrintName = "#HL2MP_357Handgun"
 SWEP.Spawnable = true
 SWEP.Slot = 1
@@ -12,7 +11,7 @@ SWEP.Weight = 7
 
 SWEP.Sounds = {
 	empty = "Weapon_Pistol.Empty",
-	primary = "Weapon_357.Single"
+	shoot = "Weapon_357.Single"
 }
 
 SWEP.Primary = {
@@ -31,16 +30,15 @@ if ( CLIENT ) then
 	SWEP.SelectionIcon = 'e'
 end
 
---- GSBase
 function SWEP:Punch()
 	local pPlayer = self:GetOwner()
 	
 	// Disorient the player
 	local aPlayer = pPlayer:GetLocalAngles()
-	aPlayer.p = aPlayer.p + random.RandomInt(-1, 1)
-	aPlayer.y = aPlayer.y + random.RandomInt(-1, 1)
-	aPlayer.r = 0
+	aPlayer[1] = aPlayer[1] + gsrand:RandomInt(-1, 1)
+	aPlayer[2] = aPlayer[2] + gsrand:RandomInt(-1, 1)
+	aPlayer[3] = 0
 	
 	pPlayer:SetEyeAngles( aPlayer )
-	pPlayer:ViewPunch( Angle( -8, random.RandomFloat(-2, 2), 0 ))
+	pPlayer:ViewPunch( Angle( -8, gsrand:RandomFloat(-2, 2), 0 ))
 end

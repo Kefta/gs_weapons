@@ -1,4 +1,4 @@
-DEFINE_BASECLASS( "hl2_basehlcombatweapon" )
+SWEP.Base = "hl2_basehlcombatweapon"
 
 SWEP.PrintName = "#HL2SP_Grenade"
 SWEP.Spawnable = true
@@ -22,11 +22,11 @@ if ( CLIENT ) then
 end
 
 function SWEP:PrimaryAttack()
-	if ( not self:CanPrimaryAttack() ) then
-		return false
+	if ( self:CanPrimaryAttack() ) then
+		self:Throw( GRENADE_THROW, 0 )
+		
+		return true
 	end
 	
-	self:Throw( GRENADE_THROW, 0 )
-	
-	return true
+	return false
 end

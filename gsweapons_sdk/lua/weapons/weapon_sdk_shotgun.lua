@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "weapon_sdk_base" )
+SWEP.Base = "weapon_sdk_base"
 
---- GSBase
 SWEP.PrintName = "#SDK_Shotgun"
 SWEP.Spawnable = true
 SWEP.AdminOnly = true
@@ -8,14 +7,17 @@ SWEP.AdminOnly = true
 SWEP.ViewModel = "models/weapons/v_shot_m3super90.mdl"
 SWEP.WorldModel = "models/weapons/w_shot_m3super90.mdl"
 SWEP.HoldType = "shotgun"
-
 SWEP.Weight = 20
 
 SWEP.Activities = {
-	primary = {
+	shoot = {
 		ACT_VM_PRIMARYATTACK,
 		idle = 2.5
 	}
+}
+
+SWEP.Sounds = {
+	shoot = "Weapon_M3.Single"
 }
 
 SWEP.Primary = {
@@ -26,9 +28,7 @@ SWEP.Primary = {
 	Cooldown = 0.875,
 	ReloadOnEmptyFire = true,
 	InterruptReload = true,
-	Spread = {
-		Base = 0.0675
-	}
+	Spread = Vector(0.0675, 0.0675)
 }
 
 SWEP.SingleReload = {
@@ -40,28 +40,38 @@ SWEP.SingleReload = {
 SWEP.EmptyCooldown = 0.2
 SWEP.UnderwaterCooldown = 0.15
 
+SWEP.PunchRand = {
+	GroundMin = 4,
+	GroundMax = 8,
+	AirMin = 8,
+	AirMax = 11
+}
+
 if ( CLIENT ) then
 	SWEP.Category = "Source"
 	SWEP.KillIcon = 'k'
 	SWEP.SelectionIcon = 'k'
 end
 
-function SWEP:Shoot( bSecondary, iIndex, iClipDeduction )
-	BaseClass.Shoot( self, bSecondary, iIndex, iClipDeduction )
+local BaseClass = baseclass.Get( SWEP.Base )
+
+function SWEP:Shoot( bSecondary, iIndex, sPlay, iClipDeduction )
+	BaseClass.Shoot( self, bSecondary, iIndex, sPlay, iClipDeduction )
 	
-	if ( self:Clip1() == 0 ) then
-		self:SetNextIdle( CurTime() + self:GetCooldown() )
+	if ( self:GetShootClip() == 0 ) then
+		self:SetNextIdle( CurTime() + self:GetSpecialKey( "Cooldown", bSecondary ))
 	end
 end
 
 function SWEP:Punch()
 	local pPlayer = self:GetOwner()
-	local ang = pPlayer:GetViewPunchAngles()
+	local aPunch = pPlayer:GetViewPunchAngles()
+	local tPunch = self.PunchRand
 	
-	ang[1] = ang[1] - (pPlayer:OnGround() and pPlayer:SharedRandomInt( "ShotgunPunchAngleGround", 4, 6 )
-		or pPlayer:SharedRandomInt( "ShotgunPunchAngleAir", 8, 11 ))
+	aPunch[1] = aPunch[1] - (pPlayer:OnGround() and pPlayer:SharedRandomInt( "ShotgunPunchAngleGround", tPunch.GroundMin, tPunch.GroundMax )
+		or pPlayer:SharedRandomInt( "ShotgunPunchAngleAir", tPunch.AirMin, tPunch.AirMax ))
 	
-	pPlayer:SetViewPunchAngles( ang )
+	pPlayer:SetViewPunchAngles( aPunch )
 end
 
 function SWEP:GetShootAngles()

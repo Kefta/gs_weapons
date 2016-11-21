@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "weapon_csbase_pistol" )
+SWEP.Base = "weapon_csbase_pistol"
 
---- GSBase
 SWEP.PrintName = "#CStrike_P228"
 SWEP.Spawnable = true
 
@@ -8,21 +7,30 @@ SWEP.ViewModel = "models/weapons/v_pist_p228.mdl"
 SWEP.WorldModel = "models/weapons/w_pist_p228.mdl"
 
 SWEP.Sounds = {
-	primary = "Weapon_P228.Single"
+	shoot = "Weapon_P228.Single"
+}
+
+SWEP.Activities = {
+	shoot_empty = ACT_INVALID -- Broken animation
 }
 
 SWEP.Primary = {
-	Ammo = "357SIG",
+	Ammo = "357sig",
 	ClipSize = 13,
 	DefaultClip = 65,
 	Damage = 40,
 	RangeModifier = 0.8,
-	Spread = {
-		Base = 0.15,
-		Air = 1.5,
-		Move = 0.255,
-		Crouch = 0.075
-	}
+	Spread = Vector(0.15, 0.15),
+	SpreadAir = Vector(1.5, 1.5),
+	SpreadMove = Vector(0.255, 0.255),
+	SpreadCrouch = Vector(0.075, 0.075)
+}
+
+SWEP.Accuracy = {
+	Base = 0.9,
+	Decay = 0.3,
+	Time = 0.325,
+	Min = 0.6
 }
 
 if ( CLIENT ) then
@@ -30,11 +38,3 @@ if ( CLIENT ) then
 	SWEP.KillIcon = 'y'
 	SWEP.SelectionIcon = 'y'
 end
-
---- CSBase_Pistol
-SWEP.Accuracy = {
-	Base = 0.9,
-	Decay = 0.3,
-	Time = 0.325,
-	Min = 0.6
-}

@@ -46,6 +46,18 @@ function game.AddAmmoType( tAmmo )
 	else
 		local sAmmo = tAmmo.name:lower()
 		
+		if ( isstring( tAmmo.plydmg )) then
+			tAmmo.plydmg = GetConVarNumber( tAmmo.plydmg )
+		end
+		
+		if ( isstring( tAmmo.npcdmg )) then
+			tAmmo.npcdmg = GetConVarNumber( tAmmo.npcdmg )
+		end
+		
+		if ( isstring( tAmmo.maxcarry )) then
+			tAmmo.maxcarry = GetConVarNumber( tAmmo.maxcarry )
+		end
+		
 		if ( tAmmoNames[sAmmo] ) then
 			MsgN( string.format( "Ammo %q registered twice; giving priority to later registration", tAmmo.name ))
 			tAmmo.num = tAmmoNames[sAmmo].num or #tAmmoTypes + 1
@@ -87,8 +99,23 @@ function game.GetAmmoForce( sAmmo )
 end
 
 function game.GetAmmoMaxCarry( sAmmo )
-	sAmmo = sAmmo:lower()
-	return tAmmoNames[sAmmo] and (tAmmoNames[sAmmo].maxcarry or 9999) or 0
+	local tAmmo = tAmmoNames[sAmmo:lower()]
+	
+	if ( tAmmo ) then
+		tAmmo = tAmmo.maxcarry
+		
+		if ( tAmmo ) then
+			if ( isstring( tAmmo )) then
+				return GetConVarNumber( tAmmo )
+			end
+			
+			return tAmmo
+		end
+		
+		return 9999
+	end
+	
+	return 0
 end
 
 function game.GetAmmoMaxSplash( sAmmo )
@@ -102,13 +129,43 @@ function game.GetAmmoMinSplash( sAmmo )
 end
 
 function game.GetAmmoNPCDamage( sAmmo )
-	sAmmo = sAmmo:lower()
-	return tAmmoNames[sAmmo] and (tAmmoNames[sAmmo].npcdmg or 10) or 0
+	local tAmmo = tAmmoNames[sAmmo:lower()]
+	
+	if ( tAmmo ) then
+		tAmmo = tAmmo.npcdmg
+		
+		if ( tAmmo ) then
+			if ( isstring( tAmmo )) then
+				return GetConVarNumber( tAmmo )
+			end
+			
+			return tAmmo
+		end
+		
+		return 10
+	end
+	
+	return 0
 end
 
 function game.GetAmmoPlayerDamage( sAmmo )
-	sAmmo = sAmmo:lower()
-	return tAmmoNames[sAmmo] and (tAmmoNames[sAmmo].plydmg or 10) or 0
+	local tAmmo = tAmmoNames[sAmmo:lower()]
+	
+	if ( tAmmo ) then
+		tAmmo = tAmmo.plydmg
+		
+		if ( tAmmo ) then
+			if ( isstring( tAmmo )) then
+				return GetConVarNumber( tAmmo )
+			end
+			
+			return tAmmo
+		end
+		
+		return 10
+	end
+	
+	return 0
 end
 
 function game.GetAmmoTracerType( sAmmo )

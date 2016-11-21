@@ -6,8 +6,19 @@ util.AddNetworkString( "GSWeapons-Holster" )
 util.AddNetworkString( "GSWeapons-Holster animation" )
 util.AddNetworkString( "GSWeapons-Player DTVars" )
 
---- Weapon demeanour
+local bSinglePlayer = game.SinglePlayer()
+
+if ( bSinglePlayer ) then
+	util.AddNetworkString( "GSWeapons-OnDrop" )
+end
+
+--- Weapon behaviour
 SWEP.DisableDuplicator = false -- Block spawning weapon with the duplicator
+
+SWEP.Grenade.Damage = 125 -- Damage value of the grenade
+SWEP.Grenade.Radius = 250 -- Damage radius value of the grenade
+SWEP.Grenade.Class = "npc_grenade_frag" -- Grenade class to throw
+SWEP.Grenade.Timer = 2.5 -- Grenade timer until detonation
 
 --- Attack
 local vHullMax = Vector(6, 6, 6)
@@ -55,7 +66,7 @@ function SWEP:EmitGrenade()
 		
 		if ( pPhysObj ~= NULL ) then
 			pPhysObj:AddVelocity( pPlayer:_GetVelocity() + vForward * 1200 )
-			pPhysObj:AddAngleVelocity( Vector( 600, random.RandomInt(-1200, 1200), 0 ))
+			pPhysObj:AddAngleVelocity( Vector( 600, gsrand:RandomInt(-1200, 1200), 0 ))
 		end
 	end
 	
@@ -78,8 +89,8 @@ function SWEP:KeyValue( sKey, sValue )
 end
 
 SWEP.Inputs = { -- key = function( pWeapon, pActivator, pCaller, sData ) end
-	hideweapon = function( pWeapon ) -- Fix; find a map that uses this and test if it's default
-		pWeapon:SetWeaponVisible( false )
+	hideweapon = function( pWeapon )
+		pWeapon:SetVisible( false ) -- FIXME
 	end,
 	
 	ammo = function( pWeapon, _, _, iValue )
@@ -93,7 +104,7 @@ SWEP.Inputs = { -- key = function( pWeapon, pActivator, pCaller, sData ) end
 }
 
 function SWEP:AcceptInput( sName, pActivator, pCaller, sData )
-	local fInput = self.Inputs[string.lower( sName )]
+	local fInput = self.Inputs[sName:lower()]
 	
 	if ( fInput ) then
 		fInput( self, pActivator, pCaller, sData )
@@ -102,16 +113,27 @@ function SWEP:AcceptInput( sName, pActivator, pCaller, sData )
 	end
 end
 
---- Accessors/Modifiers
-function SWEP:ShouldDropOnDie()
-	return false
+function SWEP:OnDrop()
+	self:Holster( NULL )
+	
+	if ( bSinglePlayer ) then
+		net.Start( "GSWeapons-OnDrop" )
+			net.WriteEntity( self )
+		net.Send( Entity(1) )
+	end
+	
+	if ( self.DroppedModel ~= "" ) then
+		self.WorldModel = self.DroppedModel
+	end
 end
 
 --- Player functions
 hook.Add( "PlayerInitialSpawn", "GSWeapons-Player DTVars", function( pPlayer )
-	pPlayer:InstallDataTable()
-	pPlayer:SetupWeaponDataTables()
-	
-	net.Start( "GSWeapons-Player DTVars" )
-	net.Send( pPlayer )
+	timer.Simple( 0, function()
+		pPlayer:InstallDataTable()
+		pPlayer:GS_SetupDataTables()
+		
+		net.Start( "GSWeapons-Player DTVars" )
+		net.Send( pPlayer )
+	end )
 end )

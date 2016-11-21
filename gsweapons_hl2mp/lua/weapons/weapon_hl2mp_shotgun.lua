@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "weapon_hl2mp_base" )
+SWEP.Base = "weapon_hl2mp_base"
 
---- GSBase
 SWEP.PrintName = "#HL2MP_Shotgun"
 SWEP.Spawnable = true
 SWEP.Slot = 3
@@ -8,13 +7,14 @@ SWEP.Slot = 3
 SWEP.ViewModel = "models/weapons/v_shotgun.mdl"
 SWEP.WorldModel = "models/weapons/w_shotgun.mdl"
 SWEP.HoldType = "shotgun"
+
 SWEP.Weight = 4
 
 SWEP.Sounds = {
 	empty = "Weapon_Shotgun.Empty",
 	reload = "Weapon_Shotgun.Reload",
-	primary = "Weapon_Shotgun.Single",
-	secondary = "Weapon_Shotgun.Double",
+	shoot = "Weapon_Shotgun.Single",
+	altfire = "Weapon_Shotgun.Double",
 	pump = "Weapon_Shotgun.Special"
 }
 
@@ -40,21 +40,31 @@ SWEP.SingleReload = {
 SWEP.DoPump = true
 SWEP.UseClip1ForSecondary = true
 
+SWEP.PunchRand = {
+	XMin = -2,
+	XMax = -1,
+	YMin = -2,
+	YMax = 2,
+	SecXMin = -5,
+	SecXMax = 5
+}
+
 if ( CLIENT ) then
 	SWEP.Category = "Half-Life 2 MP"
 	SWEP.KillIcon = '0'
 	SWEP.SelectionIcon = 'b'
 end
 
---- GSBase
+local BaseClass = baseclass.Get( SWEP.Base )
+
 function SWEP:SharedDeploy( bDelayed )
 	BaseClass.SharedDeploy( self, bDelayed )
 	
 	self:SetBodygroup(1, 1)
 end
 
-function SWEP:ReloadClips( iIndex --[[= nil]] )
-	BaseClass.ReloadClips( self, iIndex )
+function SWEP:ReloadClips()
+	BaseClass.ReloadClips( self )
 	
 	// Make shotgun shell visible
 	self:SetBodygroup(0, 1)
@@ -67,13 +77,13 @@ end
 
 function SWEP:SecondaryAttack()
 	if ( self:Clip1() == 1 ) then
-		self:Shoot( false, 0, 1 )
+		self:Shoot( false, 0 )
 		
-		return false
+		return true
 	end
 	
 	if ( self:CanSecondaryAttack() ) then
-		self:Shoot( true, 0, 2 )
+		self:Shoot( true, 0, "altfire", 2 )
 		
 		return true
 	end
@@ -81,8 +91,8 @@ function SWEP:SecondaryAttack()
 	return false
 end
 
-function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], iClipDeduction --[[= 1]] )
-	BaseClass.Shoot( self, bSecondary, iIndex, iClipDeduction )
+function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], sPlay, iClipDeduction --[[= 1]] )
+	BaseClass.Shoot( self, bSecondary, iIndex, sPlay, iClipDeduction )
 	
 	-- If the reload was interrupted
 	self:SetBodygroup(1, 1)
@@ -90,7 +100,9 @@ end
 
 function SWEP:Punch( bSecondary )
 	local pPlayer = self:GetOwner()
-	pPlayer:ViewPunch( bSecondary and Angle( pPlayer:SharedRandomFloat( "shotgunsax", -5, 5 ), 0, 0 )
-		or Angle( pPlayer:SharedRandomFloat( "shotgunpax", -2, -1 ),
-		pPlayer:SharedRandomFloat( "shotgunpay", -2, 2 ), 0 ))
+	local tPunch = self.PunchRand
+	
+	pPlayer:ViewPunch( bSecondary and Angle( pPlayer:SharedRandomFloat( "shotgunsax", tPunch.SecXMin, tPunch.SecXMax ), 0, 0 )
+		or Angle( pPlayer:SharedRandomFloat( "shotgunpax", tPunch.XMin, tPunch.XMax ),
+		pPlayer:SharedRandomFloat( "shotgunpay", tPunch.YMin, tPunch.YMax ), 0 ))
 end

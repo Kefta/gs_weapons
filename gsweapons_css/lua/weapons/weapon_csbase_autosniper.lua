@@ -1,32 +1,31 @@
-DEFINE_BASECLASS( "weapon_csbase_gun" )
+SWEP.Base = "weapon_csbase_gun"
 
---- GSBase
 SWEP.PrintName = "CSBase_AutoSniper"
 SWEP.Slot = 3
 
 SWEP.HoldType = "ar2"
 SWEP.Weight = 20
 
+SWEP.Sounds = {
+	zoom = "Default.Zoom"
+}
+
 SWEP.Primary = {
 	Range = 8192,
 	Cooldown = 0.25,
 	WalkSpeed = 210/250,
-	Spread = {
-		Air = 0.45,
-		Move = 0.15,
-		Crouch = 0,
-		Additive = 0.025
-	}
+	SpreadAir = Vector(0.45, 0.45),
+	SpreadMove = Vector(0.15, 0.15),
+	SpreadCrouch = vector_origin,
+	SpreadAdditive = Vector(0.025, 0.025)
 }
 
 SWEP.Secondary = {
 	WalkSpeed = 150/250,
-	Spread = {
-		Air = -1,
-		Move = -1,
-		Crouch = -1,
-		Additive = 0
-	}
+	SpreadAir = -1,
+	SpreadMove = -1,
+	SpreadCrouch = -1,
+	SpreadAdditive = vector_origin
 }
 
 SWEP.Zoom = {
@@ -40,8 +39,22 @@ SWEP.Zoom = {
 		0.05
 	},
 	Levels = 2,
-	HideViewModel = true,
-	DrawOverlay = CLIENT and true or nil
+	HideViewModel = true
+}
+
+SWEP.Accuracy = {
+	Base = 0.98,
+	Additive = 0,
+	Time = 0,
+	Speed = 5/250
+}
+
+SWEP.PunchRand = {
+	Name = "AutoSniper",
+	XMin = 0,
+	XMax = 0,
+	YMin = -0.75,
+	YMax = 0.75
 }
 
 if ( CLIENT ) then
@@ -54,31 +67,16 @@ if ( CLIENT ) then
 		[5021] = "css_x",
 		[5031] = "css_x"
 	}
+	
+	SWEP.Zoom.DrawOverlay = true
 end
 
---- CSBase_AutoSniper
-SWEP.Accuracy = {
-	Base = 0.98,
-	Additive = 0,
-	Time = 0,
-	Speed = 5/250
-}
+local BaseClass = baseclass.Get( SWEP.Base )
 
-SWEP.Alias = "AutoSniper"
-
-SWEP.Random = {
-	XMin = 0,
-	XMax = 0,
-	YMin = -0.75,
-	YMax = 0.75
-}
-
---- GSBase
 function SWEP:Initialize()
 	BaseClass.Initialize( self )
 	
 	self.m_flAccuracy = self.Accuracy.Base
-	self.m_flLastFire = CurTime()
 end
 
 function SWEP:SharedDeploy( bDelayed )
@@ -101,13 +99,11 @@ function SWEP:SecondaryAttack()
 	return false
 end
 
-function SWEP:Shoot( bSecondary, iIndex, iClipDeduction )
-	BaseClass.Shoot( self, bSecondary, iIndex, iClipDeduction )
-	
+function SWEP:Shoot( bSecondary, iIndex, sPlay, iClipDeduction )
 	// Mark the time of this shot and determine the accuracy modifier based on the last shot fired...
-	local flCurTime = CurTime()
-	local flAccuracy = self.Accuracy.Additive + self.Accuracy.Time * (flCurTime - self.m_flLastFire)
-	self.m_flLastFire = flCurTime
+	local flAccuracy = self.Accuracy.Additive + self.Accuracy.Time * (CurTime() - self:GetLastShootTime())
+	
+	BaseClass.Shoot( self, bSecondary, iIndex, sPlay, iClipDeduction )
 	
 	if ( flAccuracy > self.Accuracy.Base ) then
 		self.m_flAccuracy = self.Accuracy.Base
@@ -119,54 +115,33 @@ end
 function SWEP:Punch()
 	local pPlayer = self:GetOwner()
 	local aPunch = pPlayer:GetViewPunchAngles()
-	local x = aPunch.x
+	local tRandom = self.PunchRand
+	local x = aPunch[1]
 	
 	// Adjust the punch angle.
-	aPunch.x = x - (pPlayer:SharedRandomFloat( self.Alias .. "PunchAngleX", self.Random.XMin, self.Random.XMax ) + x / 4)
-	aPunch.y = aPunch.y + pPlayer:SharedRandomFloat( self.Alias .. "PunchAngleY", self.Random.YMin, self.Random.YMax )
+	aPunch[1] = x - (pPlayer:SharedRandomFloat( tRandom.Name .. "PunchAngleX", tRandom.XMin, tRandom.XMax ) + x / 4)
+	aPunch[2] = aPunch[2] + pPlayer:SharedRandomFloat( tRandom.Name .. "PunchAngleY", tRandom.YMin, tRandom.YMax )
 	pPlayer:SetViewPunchAngles( aPunch )
 end
 
---- CSBase_Gun
-function SWEP:GetSpread( bSecondary )
-	local flAdditive = bSecondary and self.Secondary.Spread.Additive or self.Primary.Spread.Additive
-	local pPlayer = self:GetOwner()
-	
-	if ( not pPlayer:OnGround() ) then
-		if ( bSecondary ) then
-			local flSpecial = self.Secondary.Spread.Air
-			
-			if ( flSpecial ~= -1 ) then
-				return flSpecial * (1 - self.m_flAccuracy) + flAdditive
-			end
+function SWEP:GetSpecialKey( sKey, bSecondary, bNoConVar )
+	if ( sKey == "Spread" ) then
+		local pPlayer = self:GetOwner()
+		
+		if ( not pPlayer:OnGround() ) then
+			return BaseClass.GetSpecialKey( self, "SpreadAdditive", bSecondary, bNoConVar ) + BaseClass.GetSpecialKey( self, "SpreadAir", bSecondary, bNoConVar ) * (1 - self.m_flAccuracy)
 		end
 		
-		return self.Primary.Spread.Air * (1 - self.m_flAccuracy) + flAdditive
-	end
-	
-	if ( pPlayer:_GetAbsVelocity():Length2DSqr() > (pPlayer:GetWalkSpeed() * self.Accuracy.Speed) ^ 2 ) then
-		if ( bSecondary ) then
-			local flSpecial = self.Secondary.Spread.Move
-			
-			if ( flSpecial ~= -1 ) then
-				return flSpecial + flAdditive
-			end
+		if ( pPlayer:_GetAbsVelocity():Length2DSqr() > (pPlayer:GetWalkSpeed() * self.Accuracy.Speed) ^ 2 ) then
+			return BaseClass.GetSpecialKey( self, "SpreadAdditive", bSecondary, bNoConVar ) + BaseClass.GetSpecialKey( self, "SpreadMove", bSecondary, bNoConVar )
 		end
 		
-		return self.Primary.Spread.Move + flAdditive
-	end
-	
-	if ( pPlayer:Crouching() ) then
-		if ( bSecondary ) then
-			local flSpecial = self.Secondary.Spread.Crouch
-			
-			if ( flSpecial ~= -1 ) then
-				return flSpecial * (1 - self.m_flAccuracy) + flAdditive
-			end
+		if ( pPlayer:Crouching() ) then
+			return BaseClass.GetSpecialKey( self, "SpreadAdditive", bSecondary, bNoConVar ) + BaseClass.GetSpecialKey( self, "SpreadCrouch", bSecondary, bNoConVar ) * (1 - self.m_flAccuracy)
 		end
 		
-		return self.Primary.Spread.Crouch * (1 - self.m_flAccuracy) + flAdditive
+		return BaseClass.GetSpecialKey( self, "SpreadAdditive", bSecondary, bNoConVar ) + BaseClass.GetSpecialKey( self, sKey, bSecondary, bNoConVar ) * (1 - self.m_flAccuracy)
 	end
 	
-	return BaseClass.GetSpread( self, bSecondary ) * (1 - self.m_flAccuracy) + flAdditive
+	return BaseClass.GetSpecialKey( self, sKey, bSecondary, bNoConVar )
 end

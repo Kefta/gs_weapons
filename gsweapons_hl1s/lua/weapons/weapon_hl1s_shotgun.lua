@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "hl1s_basehl1combatweapon" )
+SWEP.Base = "hl1s_basehl1combatweapon"
 
---- GSBase
 SWEP.PrintName = "#HL1_Shotgun"
 SWEP.Spawnable = true
 SWEP.Slot = 3
@@ -17,8 +16,8 @@ SWEP.Activities = {
 }
 
 SWEP.Sounds = {
-	primary = "Weapon_Shotgun.Single",
-	secondary = "Weapon_Shotgun.Double", 
+	shoot = "Weapon_Shotgun.Single",
+	altfire = "Weapon_Shotgun.Double", 
 	reload = "Weapon_Shotgun.Reload",
 	reload_finish = "Weapon_Shotgun.Special1"
 }
@@ -31,7 +30,7 @@ SWEP.Primary = {
 	Cooldown = 0.75,
 	InterruptReload = true,
 	PunchAngle = Angle(-5, 0, 0),
-	Spread = game.SinglePlayer() and VECTOR_CONE_10DEGREES or Vector( 0.08716, 0.04362, 0 ) // 10 degrees by 5 degrees
+	Spread = game.SinglePlayer() and VECTOR_CONE_10DEGREES or Vector(0.08716, 0.04362) // 10 degrees by 5 degrees
 }
 
 SWEP.Secondary = {
@@ -53,15 +52,18 @@ if ( CLIENT ) then
 	SWEP.Category = "Half-Life: Source"
 end
 
---- GSBase
+local BaseClass = baseclass.Get( SWEP.Base )
+
 function SWEP:GetActivitySuffix( sActivity, iIndex )
+	local sSuffix = BaseClass.GetActivitySuffix( self, sActivity, iIndex )
+	
 	if ( sActivity == "idle" ) then
-		if ( self.m_tDryFire[iIndex] and BaseClass.GetActivitySuffix( self, sActivity, iIndex ) == "empty" ) then
+		if ( self.m_tDryFire[iIndex] and sSuffix == "empty" ) then
 			return "empty"
 		end
 		
-		random.SetSeed( self:GetOwner():GetMD5Seed() % 0x100 )
-		local flRand = random.RandomFloat(0, 1)
+		gsrand:SetSeed( self:GetOwner():GetMD5Seed() % 0x100 )
+		local flRand = gsrand:RandomFloat(0, 1)
 		
 		if ( flRand > 0.95 ) then
 			return "alt"
@@ -74,7 +76,7 @@ function SWEP:GetActivitySuffix( sActivity, iIndex )
 		return "alt2"
 	end
 	
-	return BaseClass.GetActivitySuffix( self, sActivity, iIndex )
+	return sSuffix
 end
 
 function SWEP:SecondaryAttack()
@@ -84,8 +86,8 @@ function SWEP:SecondaryAttack()
 		return false
 	end
 	
-	if ( self:CanSecondaryAttack() ) then
-		self:Shoot( true, 0, 2 )
+	if ( self:CanSecondaryAttack(0) ) then
+		self:Shoot( true, 0, "altfire", 2 )
 		
 		return true
 	end

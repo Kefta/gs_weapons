@@ -1,6 +1,8 @@
 -- http://wiki.garrysmod.com/page/Structures/SWEP
-
---- Base; this is the superclass
+-- FIXME: Splash effect doesn't show when scoped
+-- FIXME: Smoke isn't removed
+--- Base
+-- This is the superclass
 SWEP.Base = "weapon_gs_base"
 
 --- Selection/Menu
@@ -15,22 +17,21 @@ SWEP.SlotPos = 0 -- Category in the weapon selection (minus one) this weapon app
 
 --- Weapon demeanour
 SWEP.ViewModel = "models/weapons/v_pistol.mdl" -- First-person model of the weapon
-SWEP.ViewModelFlip = false -- Move the view model to the other side of the screen
 SWEP.ShouldIdle = true -- Play idle animations on the first view model
-SWEP.ViewModelFOV = 75 -- Field-of-view of the view model (how much the screen is stretched)
 SWEP.UseHands = false -- If the gamemode supports it, show player model hands on the weapon (c_models only)
 
-SWEP.ViewModel1 = "" -- Second first-person model: chaing this to anything besides an empty string will display it
-SWEP.ViewModelFlip1 = false
+SWEP.ViewModel1 = "" -- Second first-person model: changing this to anything besides an empty string will display it
 SWEP.ShouldIdle1 = true
+SWEP.UseHands1 = false
 
 SWEP.ViewModel2 = ""
-SWEP.ViewModelFlip2 = false
 SWEP.ShouldIdle2 = true
+SWEP.UseHands2 = false
 
 SWEP.WorldModel = "models/weapons/w_pistol.mdl" -- Third-person view of the weapon
 SWEP.SilencerModel = "" -- World model to use when the weapon is silenced
-SWEP.EmptyModel = "" -- World model to use when the grenades are depleted
+SWEP.DroppedModel = "" -- World model to use when the weapon is dropped. Silencer model takes priotiy
+SWEP.ReloadModel = "" -- World model to use during reload
 SWEP.HoldType = "pistol" -- How the player should hold the weapon in third-person http://wiki.garrysmod.com/page/Hold_Types
 SWEP.HolsterAnimation = true -- Play an animation when the weapon is being holstered. Only works if the weapon has a holster animation
 
@@ -53,15 +54,15 @@ SWEP.Activities = { -- Default activity events
 		-- The third viewmodel will use the sequence duration of its activity for its idle time
 		-- Setting the "idle" key, like "rate", will set the idle time for all viewmodels unless "idle#" is defined
 	}]]
-	primary = ACT_VM_PRIMARYATTACK,
-	primary_empty = ACT_VM_DRYFIRE, -- Used when the last bullet in the clip is fired
-	secondary = ACT_VM_SECONDARYATTACK,
+	shoot = ACT_VM_PRIMARYATTACK,
+	shoot_empty = ACT_VM_DRYFIRE, -- Used when the last bullet in the clip is fired
+	altfire = ACT_VM_SECONDARYATTACK,
 	silence = ACT_VM_ATTACH_SILENCER,
 	reload = ACT_VM_RELOAD,
 	reload_empty = ACT_VM_RELOAD_EMPTY, -- Used when the weapon is reloaded with an empty clip
 	empty = ACT_INVALID, -- Used when the weapon fires with no ammo in the clip
-	deploy = ACT_VM_DRAW,
-	deploy_empty = ACT_VM_DRAW_EMPTY,
+	draw = ACT_VM_DRAW,
+	draw_empty = ACT_VM_DRAW_EMPTY,
 	holster = ACT_VM_HOLSTER,
 	holster_empty = ACT_VM_HOLSTER_EMPTY,
 	idle = ACT_VM_IDLE,
@@ -69,11 +70,11 @@ SWEP.Activities = { -- Default activity events
 	burst = ACT_VM_PRIMARYATTACK,
 	pump = ACT_SHOTGUN_PUMP,
 	-- For silencers. If a silenced activity isn't available, the weapon will fallback to the non-silenced version
-	s_primary = ACT_VM_PRIMARYATTACK_SILENCED,
-	s_primary_empty = ACT_VM_DRYFIRE_SILENCED,
+	s_shoot = ACT_VM_PRIMARYATTACK_SILENCED,
+	s_shoot_empty = ACT_VM_DRYFIRE_SILENCED,
 	s_silence = ACT_VM_DETACH_SILENCER,
 	s_reload = ACT_VM_RELOAD_SILENCED,
-	s_deploy = ACT_VM_DRAW_SILENCED,
+	s_draw = ACT_VM_DRAW_SILENCED,
 	s_idle = ACT_VM_IDLE_SILENCED,
 	-- For single reloading
 	reload_start = ACT_SHOTGUN_RELOAD_START,
@@ -88,7 +89,6 @@ SWEP.Activities = { -- Default activity events
 	throw = ACT_VM_THROW
 }
 
--- https://github.com/Facepunch/garrysmod-issues/issues/2346
 SWEP.Sounds = { -- Default sound events. If a sound isn't available, nothing will play
 	--event = "Sound.Scape",
 	--[[event2 = {
@@ -103,27 +103,27 @@ SWEP.Sounds = { -- Default sound events. If a sound isn't available, nothing wil
 			sound = "Sound.Scape2"
 		}
 	},]]
-	deploy = "",
-	primary = "Weapon_Pistol.Single",
-	secondary = "Weapon_SMG1.Double",
-	silence = "Weapon_USP.AttachSilencer",
-	zoom = "Default.Zoom",
+	draw = "",
+	shoot = "Weapon_Pistol.Single",
+	altfire = "",
+	silence = "",
+	zoom = "",
 	burst = "",
 	reload = "Weapon_Pistol.Reload",
 	empty = "Weapon_Pistol.Empty",
 	holster = "",
-	pump = "Weapon_Shotgun.Special",
+	pump = "",
 	-- For silencers
-	s_deploy = "",
-	s_primary = "Weapon_USP.SilencedShot",
-	s_secondary = "",
-	s_silence = "Weapon_USP.DetachSilencer",
+	s_draw = "",
+	s_shoot = "Weapon_USP.SilencedShot",
+	s_altfire = "",
+	s_silence = "",
 	s_reload = "",
 	s_empty = "",
 	s_holster = "",
 	-- For single reloading
 	reload_start = "",
-	reload_finish = "Weapon_Shotgun.Special1",
+	reload_finish = "",
 	-- For melee weapons
 	hit = "Weapon_Crowbar.Melee_Hit",
 	hitworld = "Weapon_Crowbar.Melee_HitWorld",
@@ -146,13 +146,14 @@ SWEP.Primary = {
 	WalkSpeed = 1, -- Walk speed multiplier to use when the weapon is deployed
 	RunSpeed = 1, -- Run speed multiplier to use when the weapon is deployed
 	FireUnderwater = true, -- Allows firing underwater
+	FireInAir = true, -- Allows firing while off the ground
 	InterruptReload = false, -- Allows interrupting a reload to shoot
 	AutoReloadOnEmpty = true, -- Automatically reload if the clip is empty and the mouse is not being held
 	ReloadOnEmptyFire = false, -- Reload if the weapon is fired with an empty clip
-	Spread = vector_origin, -- Bullet spread
-	-- These are seperated by primary/secondary so ironsights can lower it
-	BobScale = CLIENT and 0.45 or nil, -- Magnitude of the weapon bob
-	SwayScale = CLIENT and 0.5 or nil -- Sway deviation
+	Spread = vector_origin, -- Bullet spread vector
+	SpreadBias = 0.5, -- Amount of variance on the spread. Between -1 and 1
+	TracerFreq = 2, -- How often the tracer effect should show - (1 / SWEP.TracerFreq) frequency
+	TracerName = "Tracer" -- Tracer effect to use
 }
 
 SWEP.Secondary = {
@@ -160,24 +161,25 @@ SWEP.Secondary = {
 	ClipSize = -1,
 	DefaultClip = -1,
 	Automatic = true,
-	Bullets = -1, -- Change for this variable to be returned by the accessor when bSecondary (IsSpecialActive by default) is true. Set to -1 to disable
+	Bullets = -1, -- -1 = disabled. Change for this variable to be returned by the accessor when bSecondary (IsSpecialActive by default) is true
 	Damage = -1,
 	Range = -1,
 	Cooldown = -1,
 	WalkSpeed = -1,
 	RunSpeed = -1,
 	FireUnderwater = true,
+	FireInAir = true,
 	InterruptReload = false,
 	AutoReloadOnEmpty = false,
 	ReloadOnEmptyFire = false,
-	Spread = NULL, -- Set to NULL to disable
-	BobScale = CLIENT and -1 or nil,
-	SwayScale = CLIENT and -1 or nil
+	Spread = -1,
+	TracerFreq = -1,
+	TracerName = -1
 }
 
 SWEP.SingleReload = {
 	Enable = false,  // True if this weapon reloads 1 round at a time (shotguns)
-	QueuedFire = false, -- Queue a primary/secondary fire to activate once the next bullet is put in the chamber
+	QueuedFire = true, -- Queue a primary/secondary fire to activate once the next bullet is put in the chamber
 	InitialRound = true -- Give round for the first reload (HL2) or subsequent reloads only (CS:S)
 }
 
@@ -192,14 +194,15 @@ SWEP.Burst = {
 }
 
 SWEP.Zoom = {
-	FOV = { -- FOVs for each zoom level
+	FOV = { -- FOV for each zoom level
 		55 -- FOV for first zoom level
 	},
 	Times = { -- Times betweeen zoom levels
 		Fire = 0.1, -- Time to unzoom after firing
 		Rezoom = 0.05, -- Time to rezoom after unzooming from fire
-		[0] = 0.15, -- Time to reach the first zoom level
-		0.2 -- Time to loop back to being unzoomed; leave nil to fallback to the zoom time in index 0
+		Holster = 0, -- Time to unzoom after holstering
+		[0] = 0.15, -- Time to loop back to no zoom
+		0.2 -- Time to reach the first zoom level; leave nil to fallback to the zoom time in index 0
 	},
 	Levels = 1, -- Number of zoom levels
 	Cooldown = 0.3, -- Cooldown between zooming
@@ -207,64 +210,55 @@ SWEP.Zoom = {
 	UnzoomOnReload = true, -- Unzoom when the weapon is reloaded
 	HideViewModel = false, -- Hide view model when zoomed
 	FireDuringZoom = true, -- Allow fire during zoom/unzoom
-	DrawOverlay = CLIENT and false or nil -- (Clientside) Draw scope overlay when zoomed
+	PlayIdle = true -- Play idle animations in zoom
 }
 
 SWEP.IronSights = {
-	ZoomTime = 1, -- Time it takes to move viewmodel in
+	Times = {
+		1 -- Time it takes for the first viewmodel to zoom in
+		-- Second and third viewmodels fallback to first time
+	},
+	Pos = {
+		vector_origin -- Local position offset for ironsights to reach
+	},
+	Ang = {
+		angle_zero -- Local angular roation for ironsights to reach
+	},
 	Hold = false, -- Require secondary fire key to be held to use IronSights as opposed to just toggling the state
-	DrawCrosshair = false, -- Draw crosshair when IronSights is active
 	FireInZoom = false, -- Allow fire during zoom/unzoom
-	Pos = CLIENT and vector_origin or nil, -- Local positional translation of the viewmodel
-	Ang = CLIENT and angle_zero or nil -- Local angular translation of the viewmodel
+	PlayIdle = false -- Play idle animations while enabled
 }
 
 SWEP.Grenade = {
 	Delay = -1, -- Set to -1 to disable any delay. 0 is 1 tick delay. The length of delay until the grenade is thrown
-	UpdateHoldType = true, -- Update the holdtype to "normal" when out of grenades
-	Damage = SERVER and 125 or nil, -- (Serverside) Damage value of the grenade
-	Radius = SERVER and 250 or nil, -- (Serverside) Damage radius value of the grenade
-	Class = SERVER and "npc_grenade_frag" or nil, -- (Serverside) Grenade class to throw
-	Timer = SERVER and 2.5 or nil -- (Serverside) Grenade timer until detonation
+	UpdateHoldType = true -- Update the holdtype to "normal" when out of grenades
 }
 
 SWEP.Melee = {
-	DotRange = 0.70721, -- Not sure about this constant, but it's close to 1/sqrt(2)
-	HullRadius = 1.732, -- sqrt(3)
-	TestHull = Vector(16, 16, 16),
-	DamageType = DMG_CLUB,
-	Mask = MASK_SHOT_HULL
-}
-
-SWEP.Bolt = {
-	Class = "crossbow_bolt",
-	WaterVelocity = 1500,
-	AirVelocity = 3500,
-	Attachment = 1,
-	SpriteClass = "env_sprite",
-	SpriteMaterial = "sprites/blueflare1.vmt",
-	DieTime = 0.25
+	DotRange = 0.70721, -- Max dot product for a hull trace to hit. Not sure about this constant, but it's close to 1/sqrt(2)
+	HullRadius = 1.732, -- Test amount of the forward vector for the end point oof the hull trace. sqrt(3)
+	TestHull = Vector(16, 16, 16), -- Test hull mins/maxs
+	DamageType = DMG_CLUB, -- Melee damage type
+	Mask = MASK_SHOT_HULL -- Mask to use for melee trace
 }
 
 SWEP.DoPump = false -- Do a pump animation after shooting
+SWEP.CheckClip1ForSecondary = false -- Check/remove ammo from Clip1 when secondary firing
 
+SWEP.AutoSwitchFrom = true -- Allows auto-switching away from the weapon. This is only checked for engine switching and is ignored by the base when AutoSwitchOnEmpty is true
+SWEP.AutoSwitchTo = true -- Allows auto-switching to this weapon
 SWEP.AutoSwitchOnEmpty = false -- Automatically switch away if the weapon is completely empty and the mouse is not being held. Ignores AutoSwitchFrom
 SWEP.SwitchOnEmptyFire = false -- Switch away if the weapon is fired with no ammo
 SWEP.RemoveOnEmpty = false -- Remove the weapon when it runs out of ammo
-SWEP.UseClip1ForSecondary = false -- Check/remove ammo from Clip1 when secondary firing
-
-SWEP.AutoSwitchFrom = true -- Allows auto-switching away from the weapon. This is only checked for engine switching and is ignored when AutoSwitchOnEmpty is true
-SWEP.AutoSwitchTo = true -- Allows auto-switching to the weapon
 SWEP.BlockDeployOnEmpty = false -- Block deploying the weapon if it has no ammo
 
 SWEP.UnderwaterCooldown = 0.2 --  Time between empty sound if the weapon cannot fire underwater. Set to -1 to only play once per mouse press
 SWEP.EmptyCooldown = -1 -- Time between empty sounds. Set to -1 to only play once per mouse press
-SWEP.ShotDecreaseTime = 0.0225 -- (CS:S crosshair) How fast the shot count should decrease per shot
-SWEP.ShotInitialDecreaseTime = 0.4 -- (CS:S crosshair) How long until the shot decrement starts after the mouse is lifter
 SWEP.HolsterReloadTime = -1 -- How long it should take for the weapon to reload if the player holsters during a reload. Set to -1 to cancel all reload activity on holster
 
-SWEP.TracerFreq = 2 -- How often the tracer effect should show - (1 / SWEP.TracerFreq) frequency
-SWEP.TracerName = "Tracer" -- Tracer effect to use
+SWEP.MaxShots = 15 -- Number of shots to clamp the ShotsFired incrementer to when the mouse is lifted
+SWEP.ShotDecreaseTime = 0.0225 -- (CS:S crosshair) How fast the shot count should decrease per shot
+SWEP.ShotInitialDecreaseTime = 0.4 -- (CS:S crosshair) How long until the shot decrement starts after the mouse is lifter
 
 SWEP.TriggerBoundSize = 36 -- Trigger box size to pickup the weapon off the ground. Set to -1 to disable pickup. // Bloat the box for player pickup
 
@@ -272,8 +266,7 @@ SWEP.TriggerBoundSize = 36 -- Trigger box size to pickup the weapon off the grou
 
 local bSinglePlayer = game.SinglePlayer()
 local bRun = SERVER or not bSinglePlayer
-local PLAYER = FindMetaTable( "Player" )
-local Empty = function() end
+local ENTITY = FindMetaTable( "Entity" )
 local sFormatOne = "%s_%s"
 local sFormatTwo = "%s_%s_%s"
 
@@ -284,12 +277,13 @@ function SWEP:Initialize()
 	local sClass = self:GetClass()
 	DevMsg( 2, sClass .. " (weapon_gs_base) Initialize" )
 	
-	self.FireFunction = PLAYER.FireBullets -- Fire function to use with Shoot. Args are ( pPlayer, tFireBulletsInfo )
-	self.PunchDecayFunction = Empty -- Function to decay the punch angle manually. Args are ( pPlayer, aPunchAngle )
+	self.FireFunction = ENTITY.FireBullets -- Fire function to use with Shoot. Args are ( pPlayer, tFireBulletsInfo )
+	self.PunchDecayFunction = nil -- Function to decay the punch angle manually. Args are ( pPlayer, aPunchAngle ). nil goes to default decaying
 	
 	self.m_bAutoSwitchFrom = self.AutoSwitchFrom
 	self.m_bInitialized = true
 	self.m_bHolsterAnim = false
+	self.m_bUpdateHoldType = false
 	self.m_sHoldType = self.HoldType
 	self.m_sWorldModel = self.WorldModel
 	self.m_tEvents = {}
@@ -301,7 +295,7 @@ function SWEP:Initialize()
 		self.m_bSwitchInvalid = false
 		self.m_pSwitchWeapon = NULL
 		self.m_tDryFire = { [0] = false, false, false }
-		self.m_tSimulateHolsterAnim = { [0] = { false, 0, 0 }, { false, 0, 0 }, { false, 0, 0 }}
+		--self.m_tSimulateHolsterAnim = { [0] = { false, 0, 0 }, { false, 0, 0 }, { false, 0, 0 }}
 		self.m_tUseViewModel = { [0] = false, false, false }
 	end
 	
@@ -323,10 +317,9 @@ function SWEP:Initialize()
 		-- 1 = Zooming in
 		-- 2 = At rest, zoomed in
 		-- 3 = Zooming out
-		self.m_iIronSightsState = 0
-		
-		self.BobScale = self.Primary.BobScale
-		self.SwayScale = self.Primary.SwaScale
+		self.m_iIronSightsState0 = 0
+		self.m_iIronSightsState1 = 0
+		self.m_iIronSightsState2 = 0
 		
 		-- For CS:S crosshair
 		self.m_iAmmoLastCheck = 0
@@ -334,13 +327,14 @@ function SWEP:Initialize()
 	end
 	
 	if ( not sm_tPrecached[sClass] ) then
-		sm_tPrecached[sClass] = true
 		self:Precache()
 	end
 end
 
 function SWEP:Precache()
 	local sClass = self:GetClass()
+	sm_tPrecached[sClass] = true
+	
 	local tWeapon = weapons.GetStored( sClass )
 	DevMsg( 2, sClass .. " (weapon_gs_base) Precache" )
 	
@@ -355,6 +349,8 @@ function SWEP:Precache()
 	util.PrecacheModel( self.ViewModel2 )
 	util.PrecacheModel( self.m_sWorldModel )
 	util.PrecacheModel( self.SilencerModel )
+	util.PrecacheModel( self.ReloadModel )
+	util.PrecacheModel( self.DroppedModel )
 	
 	-- Setup and precache all weapon sounds
 	for k, s in pairs( self.Sounds ) do
@@ -476,6 +472,7 @@ end
 
 function SWEP:SetupDataTables()
 	self:AddNWVar( "Bool", "Deployed", false ) -- To manage clientside deploying
+	self:AddNWVar( "Bool", "Reloading", false ) -- Used for setting the reload worldmodel
 	self:AddNWVar( "Int", "Burst" )
 	self:AddNWVar( "Int", "IronSights" )
 	self:AddNWVar( "Int", "ShotsFired" )
@@ -486,10 +483,12 @@ function SWEP:SetupDataTables()
 	self:AddNWVar( "Float", "NextIdle" )
 	self:AddNWVar( "Float", "NextIdle1" )
 	self:AddNWVar( "Float", "NextIdle2" )
-	self:AddNWVar( "Float", "NextThink" )
+	self:AddNWVar( "Float", "NextItemFrame" )
 	self:AddNWVar( "Float", "NextReload" )
 	self:AddNWVar( "Float", "ReduceShotTime" )
 	self:AddNWVar( "Float", "ZoomActiveTime" )
+	self:AddNWVar( "Float", "ZoomActiveTime1" )
+	self:AddNWVar( "Float", "ZoomActiveTime2" )
 	
 	-- Below are the default CNetworkVars in the engine for reference
 	--self:AddNWVar( "Entity", "Owner" )
@@ -517,8 +516,9 @@ function SWEP:Deploy()
 		return false
 	end
 	
-	-- Do not deploy again
-	if ( self.dt.Deployed and (SERVER or self.m_bDeployed and pPlayer.m_iDeployCommand ~= CurTime()) ) then
+	if ( CLIENT and pPlayer.m_flDeployTime == CurTime() ) then
+		self:SharedDeploy( false )
+		
 		return true
 	end
 	
@@ -534,6 +534,11 @@ function SWEP:Deploy()
 		if ( self.BlockDeployOnEmpty ) then
 			return false
 		end
+	end
+	
+	-- Do not deploy again
+	if ( self.dt.Deployed and (SERVER or self.m_bDeployed) ) then
+		return true
 	end
 	
 	if ( self:CanDeploy() ) then
@@ -555,13 +560,19 @@ function SWEP:SharedDeploy( bDelayed )
 		self:Initialize()
 	end
 	
-	DevMsg( 2, self:GetClass() .. " (weapon_gs_base) Deploy" .. (bDelayed and " late" or IsFirstTimePredicted() and "" or " (predicted)") )
+	DevMsg( 2, self:GetClass() .. " (weapon_gs_base) Deploy" .. ((bSinglePlayer or IsFirstTimePredicted()) and (bDelayed and " late" or "") or " (predicted)") )
 	
 	local pPlayer = self:GetOwner()
+	local flCurTime = CurTime()
 	
 	if ( CLIENT ) then
 		self.m_bDeployed = true
-		pPlayer.m_iDeployCommand = CurTime()
+		pPlayer.m_flDeployTime = flCurTime
+		
+		-- In-case the client wasn't holstered
+		table.Empty( self.m_tEvents )
+		table.Empty( self.m_tEventHoles )
+		table.Empty( self.m_tRemovalQueue )
 	end
 	
 	if ( bRun ) then
@@ -569,8 +580,8 @@ function SWEP:SharedDeploy( bDelayed )
 		
 		local iIndex = -self:GetShouldThrow() - 1
 		
-		if ( iIndex > 0 and pPlayer:GetAmmoCount( self:GetGrenadeAmmoName() ) ~= 0 ) then
-			iIndex = 0
+		if ( not (iIndex == -1 or pPlayer:GetAmmoCount( self:GetGrenadeAmmoName() ) == 0) ) then
+			iIndex = -1
 			
 			if ( not bDelayed ) then
 				self:SetShouldThrow(0)
@@ -594,15 +605,16 @@ function SWEP:SharedDeploy( bDelayed )
 				self.m_tDryFire[0] = false
 			else
 				self.m_tUseViewModel[0] = true
+				pViewModel:SetSkin( self:GetViewModelSkin(0) )
 				
 				if ( not bDelayed ) then
 					if ( iIndex == 0 ) then
 						pHideModel = pViewModel
 					else
-						self:PlaySound( "deploy", 0 )
+						self:PlaySound( "draw", 0 )
 						bPlayed = true
 						
-						if ( self:PlayActivity( "deploy", 0 )) then
+						if ( self:PlayActivity( "draw", 0 )) then
 							flSequenceDuration = self:SequenceLength(0)
 						end
 					end
@@ -624,6 +636,7 @@ function SWEP:SharedDeploy( bDelayed )
 				self.m_tDryFire[1] = false
 			else
 				self.m_tUseViewModel[1] = true
+				pViewModel:SetSkin( self:GetViewModelSkin(1) )
 				
 				if ( not bDelayed ) then
 					pViewModel:SetWeaponModel( self.ViewModel1, self )
@@ -631,12 +644,12 @@ function SWEP:SharedDeploy( bDelayed )
 					if ( iIndex == 1 ) then
 						pHideModel = pViewModel
 					else
-						if ( not (self:PlaySound( "deploy", 1, true ) or bPlayed) ) then
-							self:PlaySound( "deploy", 0 )
+						if ( not (self:PlaySound( "draw", 1, true ) or bPlayed) ) then
+							self:PlaySound( "draw", 0 )
 							bPlayed = true
 						end
 						
-						if ( self:PlayActivity( "deploy", 1 )) then
+						if ( self:PlayActivity( "draw", 1 )) then
 							flSequenceDuration = math.max( flSequenceDuration, self:SequenceLength(1) )
 						end
 					end
@@ -658,6 +671,7 @@ function SWEP:SharedDeploy( bDelayed )
 				self.m_tDryFire[2] = false
 			else
 				self.m_tUseViewModel[2] = true
+				pViewModel:SetSkin( self:GetViewModelSkin(2) )
 				
 				if ( not bDelayed ) then
 					pViewModel:SetWeaponModel( self.ViewModel2, self )
@@ -665,12 +679,12 @@ function SWEP:SharedDeploy( bDelayed )
 					if ( iIndex == 2 ) then
 						pHideModel = pViewModel
 					else
-						if ( not (self:PlaySound( "deploy", 2, true ) or bPlayed) ) then
-							self:PlaySound( "deploy", 0 )
+						if ( not (self:PlaySound( "draw", 2, true ) or bPlayed) ) then
+							self:PlaySound( "draw", 0 )
 							bPlayed = true
 						end
 						
-						if ( self:PlayActivity( "deploy", 2 )) then
+						if ( self:PlayActivity( "draw", 2 )) then
 							flSequenceDuration = math.max( flSequenceDuration, self:SequenceLength(2) )
 						end
 					end
@@ -681,18 +695,22 @@ function SWEP:SharedDeploy( bDelayed )
 			end
 		end
 		
-		if ( iIndex > 0 ) then
-			if ( not bDelayed ) then
-				pHideModel:SetVisible( true )
-			end
+		if ( iIndex ~= -1 ) then
+			pHideModel:SetVisible( false )
 			
 			self:AddEvent( "reload_grenade", 0, function()
 				if ( pPlayer:GetAmmoCount( self:GetGrenadeAmmoName() ) ~= 0 ) then
 					self:SetShouldThrow(0)
-					self:SetVisible( true, iIndex )
+					local flNewTime
 					
-					self:PlaySound( "deploy", iIndex )
-					local flNewTime = CurTime() + (self:PlayActivity( "deploy", iIndex ) and self:SequenceLength( iIndex ) or 0)
+					if ( pHideModel == NULL ) then
+						flNewTime = CurTime()
+					else
+						flNewTime = CurTime() + (self:PlayActivity( "draw", iIndex ) and self:SequenceLength( iIndex ) or 0)
+						pHideModel:SetVisible( true )
+						self:PlaySound( "draw", iIndex )
+					end
+					
 					self:SetNextPrimaryFire( flNewTime )
 					self:SetNextSecondaryFire( flNewTime )
 					self:SetNextReload( flNewTime )
@@ -704,6 +722,7 @@ function SWEP:SharedDeploy( bDelayed )
 		
 		if ( not bDelayed ) then
 			self.dt.Deployed = true
+			self.dt.Reloading = false
 			self:SetZoomLevel(0)
 			self:SetReduceShotTime(0)
 			self:SetShotsFired(0)
@@ -711,7 +730,7 @@ function SWEP:SharedDeploy( bDelayed )
 			pPlayer:SetFOV(0, 0)
 			
 			// Can't shoot again until we've finished deploying
-			flSequenceDuration = flSequenceDuration + CurTime()
+			flSequenceDuration = flSequenceDuration + flCurTime
 			self:SetNextPrimaryFire( flSequenceDuration )
 			self:SetNextSecondaryFire( flSequenceDuration )
 			self:SetNextReload( flSequenceDuration )
@@ -727,11 +746,18 @@ end
 function SWEP:Holster( pSwitchingTo )
 	local pPlayer = self:GetOwner()
 	local bIsValid = pPlayer ~= NULL
+	local flCurTime = CurTime()
 	
 	if ( CLIENT and bIsValid ) then
-		local iCommand = CurTime()
+		if ( pPlayer.m_flDeployTime == flCurTime ) then
+			if ( pSwitchingTo ~= self ) then
+				self:SharedHolster( pSwitchingTo, false )
+			end
+			
+			return true
+		end
 		
-		if ( pPlayer.m_iHolsterAnimCommand == iCommand ) then
+		if ( pPlayer.m_flHolsterAnimTime == flCurTime ) then
 			-- Stupid Garry manual holster
 			if ( pSwitchingTo ~= self ) then
 				self:HolsterAnim( pSwitchingTo, false )
@@ -739,94 +765,6 @@ function SWEP:Holster( pSwitchingTo )
 			
 			return false
 		end
-		
-		if ( pPlayer.m_iDeployCommand == iCommand ) then
-			if ( pSwitchingTo ~= self ) then
-				self:SharedHolster( pSwitchingTo, false )
-			end
-			
-			return true
-		end
-	end
-	
-	-- Do not holster again
-	-- https://github.com/Facepunch/garrysmod-issues/issues/2854
-	if ( SERVER and not self.dt.Deployed or CLIENT and not self.m_bDeployed ) then
-		return true
-	end
-	
-	-- Holster is called when the player dies with it active but nothing should be done
-	-- Player:Alive() will return true on the frame the death occured but the health will be less than or equal to 0
-	if ( bIsValid and (pPlayer:Health() < 1 or not pPlayer:Alive()) ) then
-		return true
-	end
-	
-	if ( bIsValid and self.HolsterAnimation and pSwitchingTo ~= NULL ) then
-		if ( not self.m_bHolsterAnim ) then
-			if ( self:CanHolster( pSwitchingTo )) then
-				if ( pSwitchingTo ~= self ) then
-					self:HolsterAnim( pSwitchingTo, false )
-				end
-				
-				if ( SERVER ) then
-					-- Run this clientside to reset the viewmodels and set the variables for a full holster
-					if ( bSinglePlayer ) then
-						net.Start( "GSWeapons-Holster animation" )
-							net.WriteEntity( self )
-							net.WriteEntity( pSwitchingTo )
-						net.Send( pPlayer )
-					else
-						timer.Create( "GSWeapons-Holster animation-" .. self:EntIndex(), 0, 1, function()
-							if ( self ~= NULL ) then
-								net.Start( "GSWeapons-Holster animation" )
-									net.WriteEntity( self )
-									net.WriteEntity( pSwitchingTo )
-								net.Send( pPlayer )
-							end
-						end )
-					end
-				end
-			end
-			
-			return false
-		end
-		
-		if ( self:GetNextThink() > CurTime() ) then
-			return false
-		end
-		
-		if ( self.RemoveOnEmpty and not self:HasAmmo() ) then
-			if ( SERVER ) then
-				self:Remove()
-			end
-			
-			return true
-		end
-		
-		if ( pSwitchingTo ~= self ) then
-			self:SharedHolster( pSwitchingTo, false )
-		end
-		
-		if ( SERVER ) then
-			-- Clientside does not run Holster in single-player
-			if ( bSinglePlayer ) then
-				net.Start( "GSWeapons-Holster" )
-					net.WriteEntity( self )
-					net.WriteEntity( pSwitchingTo )
-				net.Send( pPlayer )
-			else -- FIXME: Change to predicted hook?
-				timer.Create( "GSWeapons-Holster-" .. self:EntIndex(), 0, 1, function()
-					if ( self ~= NULL ) then
-						net.Start( "GSWeapons-Holster" )
-							net.WriteEntity( self )
-							net.WriteEntity( pSwitchingTo )
-						net.Send( pPlayer )
-					end
-				end )
-			end
-		end
-		
-		return true
 	end
 	
 	if ( self.RemoveOnEmpty and not self:HasAmmo() ) then
@@ -837,28 +775,83 @@ function SWEP:Holster( pSwitchingTo )
 		return true
 	end
 	
-	if ( self:CanHolster( pSwitchingTo )) then
-		if ( pSwitchingTo ~= self ) then
-			self:SharedHolster( pSwitchingTo, false )
+	-- Do not holster again
+	-- https://github.com/Facepunch/garrysmod-issues/issues/2854
+	if ( SERVER and not self.dt.Deployed or CLIENT and not self.m_bDeployed ) then
+		return true
+	end
+	
+	if ( bIsValid ) then
+		-- Holster is called when the player dies with it active but nothing should be done
+		-- Player:Alive() will return true on the frame the death occured but the health will be less than or equal to 0
+		if ( pPlayer:Health() < 1 or not pPlayer:Alive() ) then
+			return true
 		end
 		
-		if ( SERVER ) then
-			-- Clientside does not run Holster in single-player
-			if ( bSinglePlayer ) then
-				net.Start( "GSWeapons-Holster" )
-					net.WriteEntity( self )
-					net.WriteEntity( pSwitchingTo )
-				net.Send( pPlayer )
-			else
-				timer.Create( "GSWeapons-Holster-" .. self:EntIndex(), 0, 1, function()
-					if ( self ~= NULL ) then
+		-- If we are switching to NULL (picked up an object) don't play an animation
+		if ( self.HolsterAnimation and pSwitchingTo ~= NULL ) then
+			if ( not self.m_bHolsterAnim ) then
+				if ( pSwitchingTo ~= self and self:CanHolster( pSwitchingTo )) then
+					self:HolsterAnim( pSwitchingTo, false )
+				
+					if ( SERVER ) then
+						-- Run this clientside to reset the viewmodels and set the variables for a full holster
+						if ( bSinglePlayer ) then
+							net.Start( "GSWeapons-Holster animation" )
+								net.WriteEntity( self )
+								net.WriteEntity( pSwitchingTo )
+							net.Send( pPlayer )
+						else
+							-- Give the client a chance to holster themselves
+							timer.Create( "GSWeapons-Holster animation-" .. self:EntIndex(), 0, 1, function()
+								if ( not (self == NULL or pPlayer == NULL) and self:GetOwner() == pPlayer ) then
+									net.Start( "GSWeapons-Holster animation" )
+										net.WriteEntity( self )
+										net.WriteEntity( pSwitchingTo )
+									net.Send( pPlayer )
+								end
+							end )
+						end
+					end
+				end
+				
+				return false
+			end
+			
+			if ( self:GetNextItemFrame() > flCurTime ) then
+				return false
+			end
+			
+			if ( pSwitchingTo ~= self ) then
+				self:SharedHolster( pSwitchingTo, false )
+			
+				if ( SERVER ) then
+					-- Clientside does not run Holster in single-player
+					if ( bSinglePlayer ) then
 						net.Start( "GSWeapons-Holster" )
 							net.WriteEntity( self )
 							net.WriteEntity( pSwitchingTo )
 						net.Send( pPlayer )
+					else
+						timer.Create( "GSWeapons-Holster-" .. self:EntIndex(), 0, 1, function()
+							if ( not (self == NULL or pPlayer == NULL) and self:GetOwner() == pPlayer ) then
+								net.Start( "GSWeapons-Holster" )
+									net.WriteEntity( self )
+									net.WriteEntity( pSwitchingTo )
+								net.Send( pPlayer )
+							end
+						end )
 					end
-				end )
+				end
 			end
+			
+			return true
+		end
+	end
+	
+	if ( self:CanHolster( pSwitchingTo )) then
+		if ( pSwitchingTo ~= self ) then
+			self:SharedHolster( pSwitchingTo, false )
 		end
 		
 		return true
@@ -876,7 +869,7 @@ function SWEP:HolsterAnim( pSwitchingTo, bDelayed )
 	local pPlayer = self:GetOwner()
 	
 	if ( not bDelayed and CLIENT ) then
-		pPlayer.m_iHolsterAnimCommand = CurTime()
+		pPlayer.m_flHolsterAnimTime = CurTime()
 	end
 	
 	if ( bRun ) then
@@ -944,7 +937,7 @@ function SWEP:HolsterAnim( pSwitchingTo, bDelayed )
 				
 				if ( self:PlayActivity( "holster", 0 )) then
 					flEndTime = self:SequenceLength(0)
-				--[[elseif ( self:PlayActivity( "deploy", 0 )) then
+				--[[elseif ( self:PlayActivity( "draw", 0 )) then
 					flEndTime = self:SequenceLength(0)
 					
 					local tbl = self.m_tSimulateHolsterAnim[0]
@@ -964,8 +957,8 @@ function SWEP:HolsterAnim( pSwitchingTo, bDelayed )
 				end
 				
 				if ( self:PlayActivity( "holster", 1 )) then
-					flEndTime = self:SequenceLength(1)
-				--[[elseif ( self:PlayActivity( "deploy", 1 )) then
+					flEndTime = math.max( flEndTime, self:SequenceLength(1) )
+				--[[elseif ( self:PlayActivity( "draw", 1 )) then
 					local flSeqDur = self:SequenceLength(1)
 					flEndTime = math.max( flEndTime, flSeqDur )
 					
@@ -985,8 +978,8 @@ function SWEP:HolsterAnim( pSwitchingTo, bDelayed )
 				end
 				
 				if ( self:PlayActivity( "holster", 2 )) then
-					flEndTime = self:SequenceLength(2)
-				--[[elseif ( self:PlayActivity( "deploy", 2 )) then
+					flEndTime = math.max( flEndTime, self:SequenceLength(2) )
+				--[[elseif ( self:PlayActivity( "draw", 2 )) then
 					local flSeqDur = self:SequenceLength(2)
 					flEndTime = math.max( flEndTime, flSeqDur )
 					
@@ -1005,7 +998,7 @@ function SWEP:HolsterAnim( pSwitchingTo, bDelayed )
 			self:SetNextPrimaryFire(-1)
 			self:SetNextSecondaryFire(-1)
 			self:SetNextReload(-1)
-			self:SetNextThink( flCurTime + flEndTime )
+			self:SetNextItemFrame( flCurTime + flEndTime )
 		end
 	end
 	
@@ -1027,13 +1020,17 @@ function SWEP:SharedHolster( pSwitchingTo, bDelayed )
 		self.m_bDeployed = false
 		
 		if ( bIsValid and not bDelayed ) then
-			pPlayer.m_iDeployCommand = CurTime()
+			pPlayer.m_flDeployTime = CurTime()
 		end
 	end
 	
-	-- These are already set if there was a holster animation
-	if ( bNoAnim ) then
-		if ( bRun ) then
+	if ( bRun ) then
+		--local tbl = self.m_tSimulateHolsterAnim
+		--tbl[0][1] = false
+		--tbl[1][1] = false
+		--tbl[2][1] = false
+		
+		if ( bNoAnim ) then
 			self:SetZoomLevel(0)
 			
 			-- Disable all actions during holster
@@ -1087,26 +1084,15 @@ function SWEP:SharedHolster( pSwitchingTo, bDelayed )
 			end
 		end
 		
-		-- https://github.com/Facepunch/garrysmod-requests/issues/739
-		table.Empty( self.m_tEvents )
-		table.Empty( self.m_tEventHoles )
-		table.Empty( self.m_tRemovalQueue )
-	end
-	
-	if ( bRun ) then
-		local tbl = self.m_tSimulateHolsterAnim
-		tbl[0][1] = false
-		tbl[1][1] = false
-		tbl[2][1] = false
-		
 		if ( not bDelayed ) then
 			self.dt.Deployed = false
+			self.dt.Reloading = false
 			self:SetNextIdle(-1)
 			self:SetNextIdle1(-1)
 			self:SetNextIdle2(-1)
 			
 			if ( bIsValid ) then
-				pPlayer:SetFOV(0, 0) // reset the default FOV
+				pPlayer:SetFOV( 0, self.Zoom.Times.Holster ) // reset the default FOV
 				local iIndex = -self:GetShouldThrow() - 1
 				local bPlayed = false
 				
@@ -1143,6 +1129,14 @@ function SWEP:SharedHolster( pSwitchingTo, bDelayed )
 			end
 		end
 	end
+	
+	-- These are already set if there was a holster animation
+	if ( bNoAnim ) then
+		-- https://github.com/Facepunch/garrysmod-requests/issues/739
+		table.Empty( self.m_tEvents )
+		table.Empty( self.m_tEventHoles )
+		table.Empty( self.m_tRemovalQueue )
+	end
 end
 
 function SWEP:OnRemove()
@@ -1152,7 +1146,7 @@ function SWEP:OnRemove()
 		DevMsg( 2, self:GetClass() .. " (weapon_gs_base) Remove invalid" )
 	else
 		if ( bRun ) then
-			pPlayer:SetFOV(0, 0) // reset the default FOV
+			pPlayer:SetFOV( 0, self.Zoom.Times.Holster ) // reset the default FOV
 			
 			-- Hide the extra viewmodels
 			if ( self.m_tUseViewModel[1] ) then
@@ -1180,15 +1174,50 @@ function SWEP:OnRemove()
 				pPlayer:SwitchWeapon( pWeapon )
 			end
 			
-			DevMsg( 2, string.format( "%s (weapon_gs_base) Remove to %s", self:GetClass(), tostring( pWeapon )) .. (IsFirstTimePredicted() and "" or " (predicted)") )
+			DevMsg( 2, string.format( "%s (weapon_gs_base) Remove to %s", self:GetClass(), tostring( pWeapon )))
 		else
-			DevMsg( 2, self:GetClass() .. " (weapon_gs_base) Remove invalid" .. (IsFirstTimePredicted() and "" or " (predicted)") )
+			DevMsg( 2, self:GetClass() .. " (weapon_gs_base) Remove invalid" )
 		end
 	end
 end
 
---- Think
+--- Think/Idle
+function SWEP:CanIdle( iIndex --[[= 0]] )
+	if ( not self.Zoom.PlayIdle and self:GetZoomLevel() > 0 ) then
+		return false
+	end
+	
+	if ( not self.IronSights.PlayIdle and self:IronSightsEnabled( iIndex or 0 )) then
+		return false
+	end
+	
+	local flNextIdle
+	
+	if ( iIndex == 1 ) then
+		if ( not self.ShouldIdle1 or self.ViewModel1 == "" ) then
+			return false
+		end
+		
+		flNextIdle = self:GetNextIdle1()
+	elseif ( iIndex == 2 ) then
+		if ( not self.ShouldIdle2 or self.ViewModel2 == "" ) then
+			return false
+		end
+		
+		flNextIdle = self:GetNextIdle2()
+	else
+		if ( not self.ShouldIdle or self.ViewModel == "" ) then
+			return false
+		end
+		
+		flNextIdle = self:GetNextIdle()
+	end
+	
+	return flNextIdle ~= -1 and flNextIdle <= CurTime()
+end
+
 function SWEP:Think()
+	self:UpdateVariables()
 	local pPlayer = self:GetOwner()
 	
 	if ( pPlayer == NULL ) then
@@ -1228,7 +1257,7 @@ function SWEP:Think()
 				end
 			end]]
 			
-			if ( CurTime() >= self:GetNextThink() ) then
+			if ( self:GetNextItemFrame() <= CurTime() ) then
 				if ( self.m_bSwitchInvalid ) then -- Switching to NULL to begin with
 					pPlayer:SwitchWeapon( NULL )
 				elseif ( self.m_pSwitchWeapon == NULL ) then -- Weapon disappeared; find a new one or come back to the same weapon
@@ -1242,15 +1271,11 @@ function SWEP:Think()
 		return
 	end
 	
-	if ( CLIENT ) then
-		if ( (not self.m_bDeployed or not pPlayer.m_iDeployCommand == CurTime()) and self.dt.Deployed ) then
-			-- For clientside deployment in single-player or by use of Player:SelectWeapon()
-			if ( self:CanDeploy() ) then
-				self:SharedDeploy( true )
-			end
+	if ( CLIENT and (not self.m_bDeployed or not bSinglePlayer and pPlayer.m_flDeployTime == CurTime()) and self.dt.Deployed ) then
+		-- For clientside deployment in single-player or by use of Player:SelectWeapon()
+		self:SharedDeploy( true )
 			
-			return
-		end
+		return
 	end
 	
 	local bFirstTimePredicted = IsFirstTimePredicted()
@@ -1294,13 +1319,11 @@ function SWEP:Think()
 		end
 	end
 	
-	self:UpdateVariables()
-	
 	if ( not (pPlayer:KeyDown( IN_ATTACK ) or pPlayer:KeyDown( IN_ATTACK2 )) ) then
 		self:MouseLifted()
 	end
 	
-	local flNextThink = self:GetNextThink()
+	local flNextThink = self:GetNextItemFrame()
 	
 	if ( flNextThink ~= -1 and flNextThink <= flCurTime ) then
 		self:ItemFrame()
@@ -1321,20 +1344,59 @@ function SWEP:Think()
 	end
 end
 
-function SWEP:CanIdle( iIndex --[[= 0]] )
-	if ( (not iIndex or iIndex == 0) and (not self.ShouldIdle or self.ViewModel == "")
-	or iIndex == 1 and (not self.ShouldIdle1 or self.ViewModel1 == "")
-	or iIndex == 2 and (not self.ShouldIdle2 or self.ViewModel2 == "") ) then
-		return false
+function SWEP:UpdateVariables()
+	if ( CLIENT ) then
+		if ( not self.dt.Deployed ) then
+			self.m_bDeployed = false
+		end
+		
+		-- The default bobbing algorithm calls upon the set variables BobScale and SwayScale
+		-- So instead of using a conditional accessor, these have to be set as soon as SpecialActive changes
+		local bSecondary = self:SpecialActive()
+		self.BobScale = bSecondary and self.Secondary.BobScale ~= -1 and self.Secondary.BobScale or self.Primary.BobScale
+		self.SwayScale = bSecondary and self.Secondary.SwayScale ~= -1 and self.Secondary.SwayScale or self.Primary.SwayScale
 	end
 	
-	local flNextIdle = iIndex == 1 and self:GetNextIdle1() or iIndex == 2 and self:GetNextIdle2() or self:GetNextIdle()
+	self.WorldModel = self.m_sWorldModel
+	local iWorldIndex = self:GetWorldModelIndex()
 	
-	return flNextIdle ~= -1 and flNextIdle <= CurTime()
-end
-
--- Normal think function replacement
-function SWEP:ItemFrame()
+	-- Silencer has first priority
+	if ( self.SilencerModel ~= "" and self:Silenced( iWorldIndex )) then
+		self.WorldModel = self.SilencerModel
+	elseif ( self.DroppedModel ~= "" and self:GetOwner() == NULL ) then
+		self.WorldModel = self.DroppedModel
+	elseif ( self.ReloadModel ~= "" and self.dt.Reloading ) then
+		self.WorldModel = self.ReloadModel
+	end
+	
+	local iThrow = self:GetShouldThrow()
+	
+	if ( iThrow > 0 ) then
+		self.AutoSwitchFrom = false
+		
+		if ( self.m_bUpdateHoldType and self.Grenade.UpdateHoldType ) then
+			self.m_bUpdateHoldType = false
+			self:SetHoldType( self.m_sHoldType )
+		end
+	elseif ( iThrow ~= 0 ) then
+		if ( iThrow == -(iWorldIndex + 1) ) then
+			self.WorldModel = ""
+		end
+		
+		self.AutoSwitchFrom = self.m_bAutoSwitchFrom
+		
+		if ( self.Grenade.UpdateHoldType and self:GetHoldType() ~= "normal" ) then
+			self.m_bUpdateHoldType = true
+			self:SetHoldType( "normal" )
+		end
+	else
+		self.AutoSwitchFrom = self.m_bAutoSwitchFrom
+		
+		if ( self.m_bUpdateHoldType and self.Grenade.UpdateHoldType ) then
+			self.m_bUpdateHoldType = false
+			self:SetHoldType( self.m_sHoldType )
+		end
+	end
 end
 
 function SWEP:MouseLifted()
@@ -1380,7 +1442,7 @@ function SWEP:MouseLifted()
 			end
 		end
 		
-		self:AddEvent( "reload", flTime, function()
+		self:AddEvent( "reload_grenade", flTime, function()
 			-- This must be run AFTER throw
 			if ( self:EventActive( "throw" )) then
 				return 0
@@ -1392,16 +1454,25 @@ function SWEP:MouseLifted()
 						self:Remove()
 					end
 				else
-					self:SetShouldThrow( -iIndex - 1 )
-					self:SetVisible( false, iIndex )
+					local pViewModel = pPlayer:GetViewModel( iIndex )
+					local bIsValid = pViewModel ~= NULL
 					
-					self:AddEvent( "deploy", 0, function()
+					if ( bIsValid ) then
+						pViewModel:SetVisible( false )
+					end
+					
+					self:SetShouldThrow( -iIndex - 1 )
+					
+					self:AddEvent( "draw", 0, function()
 						if ( pPlayer:GetAmmoCount( self:GetGrenadeAmmoName() ) ~= 0 ) then
-							self:SetShouldThrow(0)
-							self:SetVisible( true, iIndex )
+							if ( bIsValid ) then
+								pViewModel:SetVisible( true )
+							end
 							
-							self:PlaySound( "deploy", iIndex )
-							local flNewTime = CurTime() + (self:PlayActivity( "deploy", iIndex ) and self:SequenceLength( iIndex ) or 0)
+							self:SetShouldThrow(0)
+							
+							self:PlaySound( "draw", iIndex )
+							local flNewTime = CurTime() + (self:PlayActivity( "draw", iIndex ) and self:SequenceLength( iIndex ) or 0)
 							self:SetNextPrimaryFire( flNewTime )
 							self:SetNextSecondaryFire( flNewTime )
 							self:SetNextReload( flNewTime )
@@ -1411,7 +1482,7 @@ function SWEP:MouseLifted()
 					end )
 				end
 			else
-				local flNewTime = CurTime() + (self:PlayActivity( "deploy", iIndex ) and self:SequenceLength( iIndex ) or 0)
+				local flNewTime = CurTime() + (self:PlayActivity( "draw", iIndex ) and self:SequenceLength( iIndex ) or 0)
 				self:SetNextPrimaryFire( flNewTime )
 				self:SetNextSecondaryFire( flNewTime )
 				self:SetNextReload( flNewTime )
@@ -1436,12 +1507,12 @@ function SWEP:MouseLifted()
 		local flShotTime = self:GetReduceShotTime()
 		
 		if ( flShotTime == -1 ) then
-			if ( iShotsFired > 15 ) then
-				self:SetShotsFired(15)
+			if ( iShotsFired > self.MaxShots ) then
+				self:SetShotsFired( self.MaxShots )
 			end
 			
 			self:SetReduceShotTime( flCurTime + self.ShotInitialDecreaseTime )
-		elseif ( iShotsFired > 0 ) then
+		elseif ( iShotsFired ~= 0 ) then
 			if ( flShotTime < flCurTime ) then
 				self:SetShotsFired( iShotsFired - 1 )
 				self:SetReduceShotTime( flCurTime + self.ShotDecreaseTime )
@@ -1450,53 +1521,13 @@ function SWEP:MouseLifted()
 	end
 end
 
-function SWEP:UpdateVariables()
-	if ( CLIENT ) then
-		-- The default bobbing algorithm calls upon the set variables BobScale and SwayScale
-		-- So instead of using a conditional accessor, these have to be set as soon as SpecialActive changes
-		local bSecondary = self:SpecialActive()
-		self.BobScale = bSecondary and self.Secondary.BobScale ~= -1 and self.Secondary.BobScale or self.Primary.BobScale
-		self.SwayScale = bSecondary and self.Secondary.SwayScale ~= -1 and self.Secondary.SwayScale or self.Primary.SwayScale
-	end
-	
-	if ( self:Silenced() ) then
-		self.WorldModel = self.SilencerModel
-		self.AutoSwitchFrom = self.m_bAutoSwitchFrom
-		
-		if ( self.Grenade.UpdateHoldType and self:GetWeaponHoldType() ~= self.m_sHoldType ) then
-			self:SetHoldType( self.m_sHoldType )
-		end
-	else
-		local iThrow = self:GetShouldThrow()
-		
-		if ( iThrow > 0 ) then
-			self.WorldModel = self.m_sWorldModel
-			self.AutoSwitchFrom = false
-			
-			if ( self.Grenade.UpdateHoldType and self:GetWeaponHoldType() ~= self.m_sHoldType ) then
-				self:SetHoldType( self.m_sHoldType )
-			end
-		elseif ( iThrow ~= 0 ) then
-			self.WorldModel = ""
-			self.AutoSwitchFrom = self.m_bAutoSwitchFrom
-			
-			if ( self.Grenade.UpdateHoldType and self:GetWeaponHoldType() ~= "normal" ) then
-				self:SetHoldType( "normal" )
-			end
-		else
-			self.WorldModel = self.m_sWorldModel
-			self.AutoSwitchFrom = self.m_bAutoSwitchFrom
-			
-			if ( self.Grenade.UpdateHoldType and self:GetWeaponHoldType() ~= self.m_sHoldType ) then
-				self:SetHoldType( self.m_sHoldType )
-			end
-		end
-	end
+-- Normal think function replacement
+function SWEP:ItemFrame()
 end
 -- FIXME: Add queued reloading and check out secondary fire behaviour
 --- Attack
 function SWEP:CanPrimaryAttack( iIndex )
-	if ( self:GetNextPrimaryFire() == -1 ) then
+	if ( self:EventActive( "fire" ) or self:GetNextPrimaryFire() == -1 ) then
 		return false
 	end
 	
@@ -1510,41 +1541,44 @@ function SWEP:CanPrimaryAttack( iIndex )
 	local iClip = self:Clip1()
 	local iWaterLevel = pPlayer:WaterLevel()
 	
+	if ( iWaterLevel == 0 and not (self.Primary.FireInAir or pPlayer:OnGround()) ) then
+		return false
+	end
+	
+	local bEmpty = pPlayer:GetAmmoCount( self:GetPrimaryAmmoName() ) == 0
+	
 	-- In the middle of a reload
 	if ( self:EventActive( "reload" )) then
-		if ( iClip ~= 0 ) then
-			if ( self.SingleReload.Enable and self.SingleReload.QueuedFire ) then
-				local flNextTime = self:SequenceEnd( iIndex )
-				self:RemoveEvent( "reload" )
-				
-				self:AddEvent( "fire", flNextTime, function()
-					self:PrimaryAttack()
-					
-					return true
-				end )
-				
-				-- PrimaryAttack is called before Think
-				flNextTime = CurTime() + flNextTime + 0.1
-				self:SetNextPrimaryFire( flNextTime )
-				self:SetNextSecondaryFire( flNextTime )
-				self:SetNextReload( flNextTime )
-				
-				return false
-			-- Interrupt the reload to fire
-			elseif ( self.Primary.InterruptReload and (self.Primary.FireUnderwater or iWaterLevel ~= 3) ) then
-				-- Stop the reload
-				self:SetNextReload( CurTime() - 0.1 )
-				self:RemoveEvent( "reload" )
-			else
-				return false
-			end
-		else
+		if ( iClip == 0 or bEmpty and iClip == -1 ) then
 			return false
 		end
+		
+		if ( self.SingleReload.Enable and self.SingleReload.QueuedFire ) then
+			-- FIXME: Use first available ammo or SequenceEnd
+			self:AddEvent( "fire", self:SequenceEnd( iIndex ), function()
+				self:PrimaryAttack()
+				self:RemoveEvent( "reload" )
+				self.dt.Reloading = false
+				
+				return true
+			end )
+			
+			return false
+		end
+		
+		-- Interrupt the reload to fire
+		if ( not self.Primary.InterruptReload or not self.Primary.FireUnderwater and iWaterLevel == 3 ) then
+			return false
+		end
+		
+		-- Stop the reload
+		self:SetNextReload( CurTime() )
+		self:RemoveEvent( "reload" )
+		self.dt.Reloading = false
 	end
 	
 	-- By default, clip has priority over water
-	if ( iClip == 0 or iClip == -1 and self:GetDefaultClip1() ~= -1 and pPlayer:GetAmmoCount( self:GetPrimaryAmmoName() ) == 0 ) then
+	if ( iClip == 0 or bEmpty and iClip == -1 and self:GetDefaultClip1() ~= -1 ) then
 		self:HandleFireOnEmpty( false, iIndex )
 		
 		return false
@@ -1562,7 +1596,7 @@ end
 -- Will only be called serverside in single-player
 function SWEP:PrimaryAttack()
 	if ( self:CanPrimaryAttack(0) ) then
-		self:Shoot( false, 0 )
+		self:Shoot( self:SpecialActive(0), 0 )
 		
 		return true
 	end
@@ -1571,7 +1605,7 @@ function SWEP:PrimaryAttack()
 end
 
 function SWEP:CanSecondaryAttack( iIndex )
-	if ( self:GetNextSecondaryFire() == -1 ) then
+	if ( self:EventActive( "fire" ) or self:GetNextSecondaryFire() == -1 ) then
 		return false
 	end
 	
@@ -1581,37 +1615,42 @@ function SWEP:CanSecondaryAttack( iIndex )
 		return false
 	end
 	
-	local iClip = self.UseClip1ForSecondary and self:Clip1() or self:Clip2()
+	local iClip = self.CheckClip1ForSecondary and self:Clip1() or self:Clip2()
 	local iWaterLevel = pPlayer:WaterLevel()
-	local bEmpty = pPlayer:GetAmmoCount( self.UseClip1ForSecondary and self:GetPrimaryAmmoName() or self:GetSecondaryAmmoName() ) == 0
+	
+	if ( iWaterLevel == 0 and not (self.Secondary.FireInAir or pPlayer:OnGround()) ) then
+		return false
+	end
+	
+	local bEmpty = pPlayer:GetAmmoCount( self.CheckClip1ForSecondary and self:GetPrimaryAmmoName() or self:GetSecondaryAmmoName() ) == 0
 	
 	if ( self:EventActive( "reload" )) then
+		if ( iClip == 0 or bEmpty and iClip == -1 ) then
+			return false
+		end
+		
 		if ( self.SingleReload.Enable and self.SingleReload.QueuedFire ) then
-			local flNextTime = self:SequenceEnd( iIndex )
-			self:RemoveEvent( "reload" )
-			
-			self:AddEvent( "fire", flNextTime, function()
+			self:AddEvent( "fire", self:SequenceEnd( iIndex ), function()
 				self:SecondaryAttack()
+				self:RemoveEvent( "reload" )
+				self.dt.Reloading = false
 				
 				return true
 			end )
 			
-			flNextTime = CurTime() + flNextTime + 0.1
-			self:SetNextPrimaryFire( flNextTime )
-			self:SetNextSecondaryFire( flNextTime )
-			self:SetNextReload( flNextTime )
-			
-			return false
-		elseif ( self.Secondary.InterruptReload and iClip ~= 0 and (iClip ~= -1 or not bEmpty)
-		and (self.Secondary.FireUnderwater or iWaterLevel ~= 3) ) then
-			self:SetNextReload( CurTime() - 0.1 )
-			self:RemoveEvent( "reload" )
-		else
 			return false
 		end
+		
+		if ( not self.Secondary.InterruptReload or not self.Secondary.FireUnderwater and iWaterLevel == 3 ) then
+			return false
+		end
+		
+		self:SetNextReload( CurTime() )
+		self:RemoveEvent( "reload" )
+		self.dt.Reloading = false
 	end
 	
-	if ( iClip == 0 or iClip == -1 and bEmpty and (self.UseClip1ForSecondary and self:GetDefaultClip1() or self:GetDefaultClip2()) ~= -1 ) then
+	if ( iClip == 0 or bEmpty and iClip == -1 and (self.CheckClip1ForSecondary and self:GetDefaultClip1() or self:GetDefaultClip2()) ~= -1 ) then
 		self:HandleFireOnEmpty( true, iIndex )
 		
 		return false
@@ -1629,26 +1668,28 @@ end
 function SWEP:SecondaryAttack()
 end
 
-function SWEP:GetShootClip( iIndex --[[= 0]] )
-	if ( not iIndex or iIndex == 0 ) then
-		return self:Clip1()
-	end
-	
-	return -1
+function SWEP:GetShootClip( bSecondary --[[= false]] )
+	return self:Clip1()
 end
 
-function SWEP:SetShootClip( iClip, iIndex --[[= 0]] )
-	if ( not iIndex or iIndex == 0 ) then
-		self:SetClip1( iClip )
-	end
+function SWEP:GetWorldModelIndex()
+	return 0
 end
 
-function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], iClipDeduction --[[= 1]] )
+function SWEP:SetShootClip( iClip, bSecondary )
+	self:SetClip1( iClip )
+end
+
+function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], sPlay --[[= "shoot"]], iClipDeduction --[[= 1]] )
 	if ( not iClipDeduction ) then
 		iClipDeduction = 1
 	end
 	
-	local iClip = self:GetShootClip( iIndex )
+	if ( not iIndex ) then
+		iIndex = 0
+	end
+	
+	local iClip = self:GetShootClip( bSecondary )
 	local bDeductClip = iClip ~= -1
 	
 	-- Check just in-case the weapon's CanPrimary/SecondaryAttack doesn't check properly
@@ -1657,19 +1698,18 @@ function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], iClipDeduction 
 		error( self:GetClass() .. " (weapon_gs_base) Clip overflowed in Shoot! Add check to CanPrimary/SecondaryAttack" )
 	end
 	
-	if ( not iIndex ) then
-		iIndex = 0
+	if ( not sPlay ) then
+		sPlay = "shoot"
 	end
 	
-	local bSpecialActive = self:SpecialActive( iIndex ) or bSecondary
-	local tbl = self:GetShotTable( bSpecialActive )
+	local tbl = self:GetShotTable( bSecondary )
 	local bBurst = self:BurstEnabled( iIndex ) and (not bDeductClip or iClip >= iClipDeduction * 2)
-	local flCooldown = bBurst and nil or self:GetCooldown( bSpecialActive )
+	local flCooldown = self:GetSpecialKey( "Cooldown", bSecondary )
 	local pPlayer = self:GetOwner()
 	
 	if ( bDeductClip ) then
 		iClip = iClip - iClipDeduction
-		self:SetShootClip( iClip, iIndex )
+		self:SetShootClip( iClip, bSecondary )
 	end
 	
 	if ( bBurst ) then
@@ -1682,21 +1722,21 @@ function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], iClipDeduction 
 		self:AddEvent( "burst", flLastTime, function()
 			if ( bDeductClip ) then
 				iClip = iClip - iClipDeduction
-				self:SetShootClip( iClip )
+				self:SetShootClip( iClip, bSecondary )
 			end
 			
 			pPlayer:SetAnimation( PLAYER_ATTACK1 )
 			
 			self:SetShotsFired( self:GetShotsFired() + 1 )
 			self:DoMuzzleFlash( iIndex )
-			self:PlaySound( bSecondary and "secondary" or "primary", iIndex )
+			self:PlaySound( sPlay, iIndex )
 			local bActivity = false
 			
 			if ( not tBurst.SingleActivity ) then
-				bActivity = self:PlayActivity( bSecondary and "secondary" or "primary", iIndex )
+				bActivity = self:PlayActivity( sPlay, iIndex )
 			end
 			
-			self:UpdateBurstShotTable( tbl )
+			self:UpdateBurstShotTable( tbl, bSecondary )
 			
 			local flCurTime = CurTime()
 			self:SetLastShootTime( flCurTime )
@@ -1721,7 +1761,7 @@ function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], iClipDeduction 
 						return true
 					end )
 				else
-					local flNewTime = flCurTime + self:GetCooldown( true )
+					local flNewTime = flCurTime + flCooldown
 					self:SetNextPrimaryFire( flNewTime )
 					self:SetNextSecondaryFire( flNewTime )
 					self:SetNextReload( flNewTime )
@@ -1750,15 +1790,18 @@ function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], iClipDeduction 
 				
 				if ( tZoom.HideViewModel ) then
 					if ( self.m_tUseViewModel[0] ) then
-						self:SetVisible( true, 0 )
+						local pViewModel = pPlayer:GetViewModel(0)
+						pViewModel:SetVisible( true )
 					end
 					
 					if ( self.m_tUseViewModel[1] ) then
-						self:SetVisible( true, 1 )
+						local pViewModel = pPlayer:GetViewModel(1)
+						pViewModel:SetVisible( true )
 					end
 						
 					if ( self.m_tUseViewModel[2] ) then
-						self:SetVisible( true, 2 )
+						local pViewModel = pPlayer:GetViewModel(2)
+						pViewModel:SetVisible( true )
 					end
 				end
 				
@@ -1779,15 +1822,18 @@ function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], iClipDeduction 
 							local pPlayer = self:GetOwner()
 							
 							if ( self.m_tUseViewModel[0] ) then
-								self:SetVisible( false, 0 )
+								local pViewModel = pPlayer:GetViewModel(0)
+								pViewModel:SetVisible( false )
 							end
 								
 							if ( self.m_tUseViewModel[1] ) then
-								self:SetVisible( false, 0 )
+								local pViewModel = pPlayer:GetViewModel(1)
+								pViewModel:SetVisible( false )
 							end
 								
 							if ( self.m_tUseViewModel[2] ) then
-								self:SetVisible( false, 0 )
+								local pViewModel = pPlayer:GetViewModel(2)
+								pViewModel:SetVisible( false )
 							end
 						end
 						
@@ -1802,8 +1848,8 @@ function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], iClipDeduction 
 	
 	self:SetShotsFired( self:GetShotsFired() + 1 )
 	self:DoMuzzleFlash( iIndex )
-	self:PlaySound( bSecondary and "secondary" or "primary", iIndex )
-	local bActivity = self:PlayActivity( bSecondary and "secondary" or "primary", iIndex )
+	self:PlaySound( sPlay, iIndex )
+	local bActivity = self:PlayActivity( sPlay, iIndex )
 	
 	local flCurTime = CurTime()
 	self:SetLastShootTime( flCurTime )
@@ -1842,9 +1888,9 @@ function SWEP:Shoot( bSecondary --[[= false]], iIndex --[[= 0]], iClipDeduction 
 	return bActivity
 end
 
-function SWEP:UpdateBurstShotTable( tbl )
-	tbl.Dir = self:GetShootAngles():Forward()
-	tbl.Src = self:GetShootSrc()
+function SWEP:UpdateBurstShotTable( tbl, bSecondary )
+	tbl.Dir = self:GetShootAngles( bSecondary ):Forward()
+	tbl.Src = self:GetShootSrc( bSecondary )
 end
 
 function SWEP:Throw( iType --[[= GRENADE_THROW]], iIndex --[[= 0]] )
@@ -1875,9 +1921,9 @@ function SWEP:Swing( bSecondary, iIndex )
 	local pPlayer = self:GetOwner()
 	pPlayer:LagCompensation( true )
 	
-	local vSrc = self:GetShootSrc()
-	local vForward = self:GetShootAngles():Forward()
-	local vEnd = vSrc + vForward * self:GetRange( bSecondary )
+	local vSrc = self:GetShootSrc( bSecondary )
+	local vForward = self:GetShootAngles( bSecondary ):Forward()
+	local vEnd = vSrc + vForward * self:GetSpecialKey( "Range", bSecondary )
 	
 	local tbl = {
 		start = vSrc,
@@ -1981,7 +2027,7 @@ function SWEP:Swing( bSecondary, iIndex )
 	// Setup out next attack times
 	local flCurTime = CurTime()
 	self:SetLastShootTime( flCurTime )
-	self:SetNextPrimaryFire( flCurTime + self:GetCooldown( bSecondary ))
+	self:SetNextPrimaryFire( flCurTime + self:GetSpecialKey( "Cooldown", bSecondary ))
 	self:SetNextSecondaryFire( flCurTime + (bActivity and self:SequenceLength( iIndex ) or 0))
 	
 	self:Punch( bSecondary )
@@ -1991,7 +2037,7 @@ function SWEP:Swing( bSecondary, iIndex )
 end
 
 function SWEP:Hit( bSecondary, tr, vForward )
-	local flDamage = self:GetDamage( bSecondary )
+	local flDamage = self:GetSpecialKey( "Cooldown", bSecondary )
 	local info = DamageInfo()
 		info:SetAttacker( self:GetOwner() )
 		info:SetInflictor( self )
@@ -2004,131 +2050,13 @@ function SWEP:Hit( bSecondary, tr, vForward )
 	tr.Entity:DispatchTraceAttack( info, tr, vForward )
 end
 
-local nSpriteFlags = bit.bor( EFL_DIRTY_SPATIAL_PARTITION, EFL_DIRTY_SURROUNDING_COLLISION_BOUNDS )
-
-function SWEP:FireBolt( bSecondary, iIndex )
-	local pPlayer = self:GetOwner()
-	
-	if ( SERVER ) then
-		local aShoot = self:GetShootAngles()
-		local pBolt = ents.Create( self.Bolt.Class )
-		
-		if ( pBolt ~= NULL ) then
-			pBolt:SetPos( self:GetShootSrc() )
-			pBolt:SetAngles( aShoot )
-			pBolt:SetOwner( pPlayer )
-			pBolt:_SetAbsVelocity( aShoot:Forward() * (pPlayer:WaterLevel() == 3 and self.Bolt.WaterVelocity or self.Bolt.AirVelocity) )
-			pBolt:Spawn()
-			pBolt.m_iDamage = self:GetDamage()
-		end
-	end
-	
-	local pViewModel = pPlayer:GetViewModel( iIndex )
-	
-	if ( pViewModel ~= NULL ) then
-		local data = EffectData()
-			data:SetEntity( pViewModel )
-			data:SetAttachment( self.Bolt.Attachment )
-			
-			if ( SERVER ) then
-				data:SetEntIndex( pViewModel:EntIndex() )
-			end
-			
-		util.Effect( "CrossbowLoad", data )
-		
-		if ( SERVER ) then
-			local pBlast = ents.Create( self.Bolt.SpriteClass )
-			
-			if ( pBlast ~= NULL ) then
-				pBlast:SetModelName( "sprites/blueflare1.vmt" )
-				pBlast:SetPos( self:GetPos() )
-				pBlast:Spawn()
-				pBlast:SetSolid( SOLID_NONE )
-				pBlast:SetCollisionBounds( vector_origin, vector_origin )
-				pBlast:SetMoveType( MOVETYPE_NONE )
-				pBlast:SetAttachment( pViewModel, self.Bolt.Attachment )
-				pBlast:SetRenderMode( RENDERMODE_TRANSADD )
-				pBlast:SetSaveValue( "m_flScaleTime", 0 )
-				pBlast:SetSaveValue( "m_flSpriteScale", 0.2 ) -- Fix; this or "scale"?
-				pBlast:SetSaveValue( "m_flBrightnessTime", 0 )
-				pBlast:SetSaveValue( "m_nBrightness", 128 )
-				pBlast:AddEFlags( nSpriteFlags )
-				
-				self:AddEvent( "spritestartfade", 0.01, function()
-					if ( pBlast == NULL ) then
-						return true
-					end
-					
-					pBlast:SetSaveValue( "m_flBrightnessTime", self.Bolt.DieTime )
-					pBlast:SetSaveValue( "m_nBrightness", 0 )
-					pBlast:SetSaveValue( "m_flDieTime", CurTime() + self.Bolt.DieTime )
-					
-					self:AddEvent( "spritefade", 0, function()
-						if ( pBlast == NULL ) then
-							return true
-						end
-						
-						local flCurTime = CurTime()
-						local tSaveTable = pBlast:GetSaveTable()
-						
-						if ( flCurTime > tSaveTable["m_flDieTime"] ) then
-							pBlast:Remove()
-							
-							return true
-						end
-						
-						local flFrames = tSaveTable["frame"] + tSaveTable["framerate"] * (flCurTime - tSaveTable["m_flLastTime"])
-						local flMaxFrames = tSaveTable["m_flMaxFrame"]
-						pBlast:SetSaveValue( "m_flLastTime", flCurTime )
-						
-						if ( flFrames > flMaxFrames ) then
-							if ( pBlast:HasSpawnFlags( SF_SPRITE_ONCE )) then
-								--pBlast:AddEffects( EF_NODRAW )
-								pBlast:Remove()
-								
-								return true
-							end
-							
-							if ( flMaxFrames > 0 ) then
-								flFrames = flFrames % flMaxFrames
-							end
-						end
-						
-						pBlast:SetSaveValue( "m_flFrame", flFrames )
-					end )
-					
-					return true
-				end )
-			end
-		end
-	end
-	
-	self:SetClip1( self:Clip1() - 1 )
-	
-	self:PlaySound( bSecondary and "secondary" or "primary", iIndex )
-	local bActivity = self:PlayActivity( bSecondary and "secondary" or "primary", iIndex )
-	
-	local flCurTime = CurTime()
-	self:SetLastShootTime( flCurTime )
-	
-	if ( bSecondary ) then
-		self:SetNextSecondaryFire( flCurTime + self:GetCooldown( self:SpecialActive() ))
-	else
-		self:SetNextPrimaryFire( flCurTime + self:GetCooldown( self:SpecialActive() ))
-	end
-	
-	self:Punch( bSecondary )
-	
-	return bActivity
-end
-
 function SWEP:Silence( iIndex )
 	self:PlaySound( "silence", iIndex )
 	local flNewTime = self:PlayActivity( "silence", iIndex ) and self:SequenceLength( iIndex ) or 0
 	
 	self:AddEvent( "silence", flNewTime, function()
 		local iSilence = self:GetSilenced()
-		local iIndex = 2^iIndex
+		iIndex = 2^iIndex
 		self:SetSilenced( bit.band( iSilence, iIndex ) == 0 and iSilence + iIndex or iSilence - iIndex )
 		
 		return true
@@ -2145,7 +2073,7 @@ function SWEP:ToggleBurst( iIndex )
 	self:SetNextSecondaryFire( CurTime() + self.Burst.Cooldown )
 	
 	local iBurst = self:GetBurst()
-	local iIndex = 2^iIndex
+	iIndex = 2^iIndex
 	self:SetBurst( bit.band( iBurst, iIndex ) == 0 and iBurst + iIndex or iBurst - iIndex )
 	
 	self:GetOwner():PrintMessage( HUD_PRINTCENTER, bInBurst and "#GSWeapons_FromBurstFire" or "#GSWeapons_ToBurstFire" )
@@ -2165,19 +2093,23 @@ function SWEP:AdvanceZoom( iIndex )
 		local pPlayer = self:GetOwner()
 		pPlayer:SetFOV( iFOV, flTime )
 		
+		-- Don't hide again if the VM is already hidden
 		if ( tZoom.HideViewModel and iLevel < 2 ) then
 			local bVisible = iLevel == 0
 			
 			if ( self.m_tUseViewModel[0] ) then
-				self:SetVisible( bVisible, 0 )
+				local pViewModel = pPlayer:GetViewModel(0)
+				pViewModel:SetVisible( bVisible )
 			end
 				
 			if ( self.m_tUseViewModel[1] ) then
-				self:SetVisible( bVisible, 1 )
+				local pViewModel = pPlayer:GetViewModel(1)
+				pViewModel:SetVisible( bVisible )
 			end
 				
 			if ( self.m_tUseViewModel[2] ) then
-				self:SetVisible( bVisible, 2 )
+				local pViewModel = pPlayer:GetViewModel(2)
+				pViewModel:SetVisible( bVisible )
 			end
 		end
 	else
@@ -2189,15 +2121,18 @@ function SWEP:AdvanceZoom( iIndex )
 		
 		if ( tZoom.HideViewModel ) then
 			if ( self.m_tUseViewModel[0] ) then
-				self:SetVisible( true, 0 )
+				local pViewModel = pPlayer:GetViewModel(0)
+				pViewModel:SetVisible( true )
 			end
 				
 			if ( self.m_tUseViewModel[1] ) then
-				self:SetVisible( true, 1 )
+				local pViewModel = pPlayer:GetViewModel(1)
+				pViewModel:SetVisible( true )
 			end
 				
 			if ( self.m_tUseViewModel[2] ) then
-				self:SetVisible( true, 2 )
+				local pViewModel = pPlayer:GetViewModel(2)
+				pViewModel:SetVisible( true )
 			end
 		end
 	end
@@ -2206,20 +2141,41 @@ function SWEP:AdvanceZoom( iIndex )
 	self:SetNextSecondaryFire( flNextTime + tZoom.Cooldown )
 	
 	flNextTime = flNextTime + flTime
-	self:SetZoomActiveTime( flNextTime )
+	
+	if ( iIndex == 1 ) then
+		self:SetZoomActiveTime1( flNextTime )
+	elseif ( iIndex == 2 ) then
+		self:SetZoomActiveTime2( flNextTime )
+	else
+		self:SetZoomActiveTime( flNextTime )
+	end
 	
 	if ( not tZoom.FireDuringZoom ) then
 		self:SetNextPrimaryFire( flNextTime )
 	end
 end
 
-function SWEP:ToggleIronSights( iIndex )
-	if ( self:GetIronSights() == 0 ) then
-		self:SetIronSights( iIndex + 1 )
-		self:SetZoomActiveTime( CurTime() + self.IronSights.ZoomTime )
+function SWEP:ToggleIronSights( iIndex --[[= 0]] )
+	local flCurTime = CurTime()
+	local iSights = self:GetIronSights()
+	iIndex = 2^iIndex
+	self:SetIronSights( bit.band( iSights, iIndex ) == 0 and iSights + iIndex or iSights - iIndex )
+	
+	if ( iIndex == 1 ) then
+		local flTotalTime = self.IronSights.ZoomTime[2] or self.IronSights.ZoomTime[1]
+		local flRemaining = flCurTime - self:GetZoomActiveTime1()
+		self:SetZoomActiveTime1( flCurTime + (flRemaining < flTotalTime
+			and flTotalTime - flReamining or flTotalTime) )
+	elseif ( iIndex == 2 ) then
+		local flTotalTime = self.IronSights.ZoomTime[3] or self.IronSights.ZoomTime[2] or self.IronSights.ZoomTime[1]
+		local flRemaining = flCurTime - self:GetZoomActiveTime2()
+		self:SetZoomActiveTime2( flCurTime + (flRemaining < flTotalTime
+			and flTotalTime - flReamining or flTotalTime) )
 	else
-		self:SetIronSights(0)
-		self:SetZoomActiveTime( CurTime() + self.IronSights.ZoomTime )
+		local flTotalTime = self.IronSights.ZoomTime[1]
+		local flRemaining = flCurTime - self:GetZoomActiveTime()
+		self:SetZoomActiveTime( flCurTime + (flRemaining < flTotalTime
+			and flTotalTime - flReamining or flTotalTime) )
 	end
 end
 
@@ -2261,7 +2217,7 @@ function SWEP:HandleFireOnEmpty( bSecondary --[[= false]], iIndex --[[= 0]] )
 			self:SetNextSecondaryFire(-1)
 			
 			self:AddEvent( "empty_secondary", 0, function()
-				if ( not pPlayer:KeyDown( IN_ATTACK2 ) or (self.UseClip1ForSecondary and self:Clip1() or self:Clip2()) ~= 0 ) then
+				if ( not pPlayer:KeyDown( IN_ATTACK2 ) or (self.CheckClip1ForSecondary and self:Clip1() or self:Clip2()) ~= 0 ) then
 					if ( self:GetNextSecondaryFire() == -1 ) then
 						self:SetNextSecondaryFire(0)
 					end
@@ -2307,7 +2263,7 @@ function SWEP:HandleFireUnderwater( bSecondary --[[= false]], iIndex --[[= 0]] )
 			self:SetNextSecondaryFire(-1)
 			
 			self:AddEvent( "empty_secondary", 0, function()
-				if ( not pPlayer:KeyDown( IN_ATTACK2 ) or (self.UseClip1ForSecondary and self:Clip1() or self:Clip2()) ~= 0 ) then
+				if ( not pPlayer:KeyDown( IN_ATTACK2 ) or (self.CheckClip1ForSecondary and self:Clip1() or self:Clip2()) ~= 0 ) then
 					if ( self:GetNextSecondaryFire() == -1 ) then
 						self:SetNextSecondaryFire(0)
 					end
@@ -2336,7 +2292,7 @@ function SWEP:HandleFireUnderwater( bSecondary --[[= false]], iIndex --[[= 0]] )
 end
 
 --- Reload
-function SWEP:CanReload()
+function SWEP:CanReload( iIndex --[[= nil]] )
 	if ( self:EventActive( "reload" )) then
 		return false
 	end
@@ -2380,8 +2336,9 @@ function SWEP:Reload()
 end
 
 -- Not specifying an index will call ShouldReloadViewModel for all viewmodels
-function SWEP:ReloadClips( iIndex --[[= nil]] )
+function SWEP:ReloadClips()
 	local pPlayer = self:GetOwner()
+	self.dt.Reloading = true
 	
 	if ( self.Zoom.UnzoomOnReload and self:GetZoomLevel() ~= 0 ) then
 		self:SetZoomLevel(0)
@@ -2389,15 +2346,18 @@ function SWEP:ReloadClips( iIndex --[[= nil]] )
 		
 		if ( self.Zoom.HideViewModel ) then
 			if ( self.m_tUseViewModel[0] ) then
-				self:SetVisible( true, 0 )
+				local pViewModel = pPlayer:GetViewModel(0)
+				pViewModel:SetVisible( true )
 			end
 				
 			if ( self.m_tUseViewModel[1] ) then
-				self:SetVisible( true, 1 )
+				local pViewModel = pPlayer:GetViewModel(1)
+				pViewModel:SetVisible( true )
 			end
 				
 			if ( self.m_tUseViewModel[2] ) then
-				self:SetVisible( true, 2 )
+				local pViewModel = pPlayer:GetViewModel(2)
+				pViewModel:SetVisible( true )
 			end
 		end
 	end
@@ -2433,43 +2393,32 @@ function SWEP:ReloadClips( iIndex --[[= nil]] )
 		local bVM1 = false
 		local bVM2 = false
 		local flSequenceDuration = 0
-		local flFinishDuration = 0
+		local flFinishTime = 0
 		
-		if ( iIndex ) then
-			if ( self.m_tUseViewModel[iIndex] and self:ShouldReloadViewModel( iIndex )) then
-				self:PlaySound( "reload_start", iIndex )
-				bVM0 = true
-				
-				if ( self:PlayActivity( "reload_start", iIndex )) then
-					flSequenceDuration = self:SequenceLength( iIndex )
-				end
-			end
-		else
-			if ( self.m_tUseViewModel[0] and self:ShouldReloadViewModel(0) ) then
-				self:PlaySound( "reload_start", 0 )
-				bVM0 = true
-				
-				if ( self:PlayActivity( "reload_start", 0 )) then
-					flSequenceDuration = self:SequenceLength(0)
-				end
-			end
+		if ( self.m_tUseViewModel[0] and self:ShouldReloadViewModel(0) ) then
+			self:PlaySound( "reload_start", 0 )
+			bVM0 = true
 			
-			if ( self.m_tUseViewModel[1] and self:ShouldReloadViewModel(1) ) then
-				self:PlaySound( "reload_start", 1, true )
-				bVM1 = true
-				
-				if ( self:PlayActivity( "reload_start", 1 )) then
-					flSequenceDuration = math.max( flSequenceDuration, self:SequenceLength(1) )
-				end
+			if ( self:PlayActivity( "reload_start", 0 )) then
+				flSequenceDuration = self:SequenceLength(0)
 			end
+		end
+		
+		if ( self.m_tUseViewModel[1] and self:ShouldReloadViewModel(1) ) then
+			self:PlaySound( "reload_start", 1, true )
+			bVM1 = true
 			
-			if ( self.m_tUseViewModel[2] and self:ShouldReloadViewModel(2) ) then
-				self:PlaySound( "reload_start", 2, true )
-				bVM2 = true
-				
-				if ( self:PlayActivity( "reload_start", 2 )) then
-					flSequenceDuration = math.max( flSequenceDuration, self:SequenceLength(2) )
-				end
+			if ( self:PlayActivity( "reload_start", 1 )) then
+				flSequenceDuration = math.max( flSequenceDuration, self:SequenceLength(1) )
+			end
+		end
+		
+		if ( self.m_tUseViewModel[2] and self:ShouldReloadViewModel(2) ) then
+			self:PlaySound( "reload_start", 2, true )
+			bVM2 = true
+			
+			if ( self:PlayActivity( "reload_start", 2 )) then
+				flSequenceDuration = math.max( flSequenceDuration, self:SequenceLength(2) )
 			end
 		end
 		
@@ -2516,85 +2465,68 @@ function SWEP:ReloadClips( iIndex --[[= nil]] )
 			end
 			
 			local flSequenceDuration = 0
+			local flCurTime = CurTime()
 			
-			if ( iIndex ) then
-				if ( bVM0 ) then
-					if ( self:ShouldReloadViewModel( iIndex )) then
-						self:PlaySound( "reload", iIndex )
-						
-						if ( self:PlayActivity( "reload", iIndex )) then
-							flSequenceDuration = self:SequenceLength( iIndex )
-						end
-					else
-						self:PlaySound( "reload_finish", iIndex )
-						bVM0 = false
-						
-						if ( self:PlayActivity( "reload_finish", iIndex )) then
-							flFinishDuration = self:SequenceLength( iIndex )
-						end
+			if ( bVM0 ) then
+				if ( self:ShouldReloadViewModel(0) ) then
+					self:PlaySound( "reload", 0 )
+					
+					if ( self:PlayActivity( "reload", 0 )) then
+						flSequenceDuration = self:SequenceLength(0)
+					end
+				else
+					self:PlaySound( "reload_finish", 0 )
+					bVM0 = false
+					
+					if ( self:PlayActivity( "reload_finish", 0 )) then
+						flFinishTime = math.max( flFinishTime, flCurTime + self:SequenceLength(0) )
 					end
 				end
-			else
-				if ( bVM0 ) then
-					if ( self:ShouldReloadViewModel(0) ) then
-						self:PlaySound( "reload", 0 )
-						
-						if ( self:PlayActivity( "reload", 0 )) then
-							flSequenceDuration = self:SequenceLength(0)
-						end
-					else
-						self:PlaySound( "reload_finish", 0 )
-						bVM0 = false
-						
-						if ( self:PlayActivity( "reload_finish", 0 )) then
-							flFinishDuration = math.max( flFinishDuration, self:SequenceLength(0) )
-						end
+			end
+			
+			if ( bVM1 ) then
+				if ( self:ShouldReloadViewModel(1) ) then
+					self:PlaySound( "reload", 1, true )
+					
+					if ( self:PlayActivity( "reload", 1 )) then
+						flSequenceDuration = math.max( flSequenceDuration, self:SequenceLength(1) )
+					end
+				else
+					self:PlaySound( "reload_finish", 1, true )
+					bVM1 = false
+					
+					if ( self:PlayActivity( "reload_finish", 1 )) then
+						flFinishTime = math.max( flFinishTime, flCurTime + self:SequenceLength(1) )
 					end
 				end
-				
-				if ( bVM1 ) then
-					if ( self:ShouldReloadViewModel(1) ) then
-						self:PlaySound( "reload", 1, true )
-						
-						if ( self:PlayActivity( "reload", 1 )) then
-							flSequenceDuration = math.max( flSequenceDuration, self:SequenceLength(1) )
-						end
-					else
-						self:PlaySound( "reload_finish", 1, true )
-						bVM1 = false
-						
-						if ( self:PlayActivity( "reload_finish", 1 )) then
-							flFinishDuration = math.max( flFinishDuration, self:SequenceLength(1) )
-						end
+			end
+			
+			if ( bVM2 ) then
+				if ( self:ShouldReloadViewModel(2) ) then
+					self:PlaySound( "reload", 2, true )
+					
+					if ( self:PlayActivity( "reload", 2 )) then
+						flSequenceDuration = math.max( flSequenceDuration, self:SequenceLength(2) )
 					end
-				end
-				
-				if ( bVM2 ) then
-					if ( self:ShouldReloadViewModel(2) ) then
-						self:PlaySound( "reload", 2, true )
-						
-						if ( self:PlayActivity( "reload", 2 )) then
-							flSequenceDuration = math.max( flSequenceDuration, self:SequenceLength(2) )
-						end
-					else
-						self:PlaySound( "reload_finish", 2, true )
-						bVM2 = false
-						
-						if ( self:PlayActivity( "reload_finish", 2 )) then
-							flFinishDuration = math.max( flFinishDuration, self:SequenceLength(2) )
-						end
+				else
+					self:PlaySound( "reload_finish", 2, true )
+					bVM2 = false
+					
+					if ( self:PlayActivity( "reload_finish", 2 )) then
+						flFinishTime = math.max( flFinishTime, flCurTime + self:SequenceLength(2) )
 					end
 				end
 			end
 			
 			if ( iMaxClip1 == -1 and iMaxClip2 == -1 ) then	
 				--pPlayer:DoAnimationEvent( PLAYERANIMEVENT_RELOAD_END )
-				self:SetShotsFired(0)
 				
-				local flNextTime = CurTime() + flFinishDuration
-				self:SetNextPrimaryFire( flNextTime )
-				self:SetNextSecondaryFire( flNextTime )
-				self:SetNextReload( flNextTime )
+				self:SetNextPrimaryFire( flFinishTime )
+				self:SetNextSecondaryFire( flFinishTime )
+				self:SetNextReload( flFinishTime )
+				
+				self:SetShotsFired(0)
+				self.dt.Reloading = false
 				self:FinishReload()
 				
 				return true
@@ -2616,37 +2548,27 @@ function SWEP:ReloadClips( iIndex --[[= nil]] )
 		
 		local flSequenceDuration = 0
 		
-		if ( iIndex ) then
-			if ( self.m_tUseViewModel[iIndex] and self:ShouldReloadViewModel( iIndex )) then
-				self:PlaySound( "reload", iIndex )
-				
-				if ( self:PlayActivity( "reload", iIndex )) then
-					flSequenceDuration = self:SequenceLength( iIndex )
-				end
-			end
-		else
-			if ( self.m_tUseViewModel[0] and self:ShouldReloadViewModel(0) ) then
-				self:PlaySound( "reload", 0 )
-				
-				if ( self:PlayActivity( "reload", 0 )) then
-					flSequenceDuration = self:SequenceLength(0)
-				end
-			end
+		if ( self.m_tUseViewModel[0] and self:ShouldReloadViewModel(0) ) then
+			self:PlaySound( "reload", 0 )
 			
-			if ( self.m_tUseViewModel[1] and self:ShouldReloadViewModel(1) ) then
-				self:PlaySound( "reload", 1, true )
-				
-				if ( self:PlayActivity( "reload", 1 )) then
-					flSequenceDuration = math.max( flSequenceDuration, self:SequenceLength(1) )
-				end
+			if ( self:PlayActivity( "reload", 0 )) then
+				flSequenceDuration = self:SequenceLength(0)
 			end
+		end
+		
+		if ( self.m_tUseViewModel[1] and self:ShouldReloadViewModel(1) ) then
+			self:PlaySound( "reload", 1, true )
 			
-			if ( self.m_tUseViewModel[2] and self:ShouldReloadViewModel(2) ) then
-				self:PlaySound( "reload", 2, true )
-				
-				if ( self:PlayActivity( "reload", 2 )) then
-					flSequenceDuration = math.max( flSequenceDuration, self:SequenceLength(2) )
-				end
+			if ( self:PlayActivity( "reload", 1 )) then
+				flSequenceDuration = math.max( flSequenceDuration, self:SequenceLength(1) )
+			end
+		end
+		
+		if ( self.m_tUseViewModel[2] and self:ShouldReloadViewModel(2) ) then
+			self:PlaySound( "reload", 2, true )
+			
+			if ( self:PlayActivity( "reload", 2 )) then
+				flSequenceDuration = math.max( flSequenceDuration, self:SequenceLength(2) )
 			end
 		end
 		
@@ -2681,6 +2603,7 @@ function SWEP:ReloadClips( iIndex --[[= nil]] )
 			end
 			
 			self:SetShotsFired(0)
+			self.dt.Reloading = false
 			self:FinishReload()
 			
 			return true
@@ -2694,7 +2617,7 @@ end
 --- Utilities
 function SWEP:AddEvent( sName, iTime, fCall )
 	-- Do not add to the event table multiple times
-	if ( IsFirstTimePredicted() ) then
+	if ( not self:EventActive( sName ) or IsFirstTimePredicted() ) then
 		if ( fCall ) then -- Added by name
 			sName = sName:lower()
 			self.m_tEvents[sName] = { iTime, CurTime() + iTime, fCall, false }
@@ -2713,16 +2636,8 @@ function SWEP:AddEvent( sName, iTime, fCall )
 	end
 end
 
-function SWEP:EventActive( sName, bIgnorePrediction --[[= false]] )
-	sName = sName:lower()
-	
-	if ( self.m_tRemovalQueue[sName] == nil ) then
-		local tEvent = self.m_tEvents[sName]
-		
-		return tEvent ~= nil and (bIgnorePrediction or tEvent[4])
-	end
-	
-	return false
+function SWEP:EventActive( sName )
+	return self.m_tEvents[sName:lower()] ~= nil
 end
 
 function SWEP:RemoveEvent( sName )
@@ -2751,19 +2666,15 @@ function SWEP:AddNWVar( sType, sName, bAddFunctions --[[= true]], DefaultVal --[
 end
 
 -- Will only be called serverside in single-player
-function SWEP:DoImpactEffect( tr, iDamageType )
+function SWEP:DoImpactEffect()
 	return false
 end
 
-function SWEP:DoSplashEffect( tr )
+function SWEP:DoSplashEffect()
 	return false
 end
 
 function SWEP:PlaySound( sSound, iIndex, bStrictIndex, bPlayShared --[[= false]] )
-	if ( sSound == "" ) then
-		return false
-	end
-	
 	-- Not a sound file or sound scape
 	if ( not (string.IsSoundFile( sSound ) or sSound:find( '.', 2, true ))) then
 		local sPrefix = self:GetSoundPrefix( sSound, iIndex )
@@ -2801,6 +2712,14 @@ function SWEP:PlaySound( sSound, iIndex, bStrictIndex, bPlayShared --[[= false]]
 	
 	return true
 end
+
+local tDeployActivities = {
+	[ACT_VM_DRAW] = true,
+	[ACT_VM_DRAW_SILENCED] = true,
+	[ACT_VM_DRAW_DEPLOYED] = true,
+	[ACT_VM_DRAW_EMPTY] = true,
+	draw = true
+}
 
 -- SendWeaponAnim that supports idle times and multiple view models
 -- Sending in a value for flRate will ignore the SWEP.Activities defined rate
@@ -2935,6 +2854,7 @@ function SWEP:PlayActivity( Activity, iIndex --[[= 0]], flRate --[[= 1]], bStric
 			flRate = 1
 		end
 		
+		iActivity = Activity
 		iSequence = pViewModel:SelectWeightedSequence( Activity )
 		bSequence = iSequence == -1
 	end
@@ -2950,7 +2870,7 @@ function SWEP:PlayActivity( Activity, iIndex --[[= 0]], flRate --[[= 1]], bStric
 	end
 	
 	// Don't use transitions when we're deploying
-	if ( Activity ~= "deploy" ) then
+	if ( not tDeployActivities[Activity] ) then
 		// Find the next sequence in the potential chain of sequences leading to our ideal one
 		local iNext = pViewModel:FindTransitionSequence( pViewModel:GetSequence(), iSequence )
 		
@@ -2979,8 +2899,8 @@ function SWEP:PlayActivity( Activity, iIndex --[[= 0]], flRate --[[= 1]], bStric
 		local flTime = self:LookupActivityKey( sActivity, "idle", iIndex ) or pViewModel:SequenceDuration()
 		
 		if ( istable( flTime )) then
-			random.SetSeed( pPlayer:GetMD5Seed() % 0x100 )
-			flTime = random.RandomFloat( flTime[1], flTime[2] )
+			gsrand:SetSeed( pPlayer:GetMD5Seed() % 0x100 )
+			flTime = gsrand:RandomFloat( flTime[1], flTime[2] )
 		end
 		
 		if ( iIndex == 1 ) then
@@ -3008,7 +2928,7 @@ function SWEP:PlaySequence( Sequence, iIndex --[[= 0]], flRate --[[= 1]] )
 		return false
 	end
 	
-	local pViewModel = self:GetViewModel( iIndex )
+	local pViewModel = self:GetOwner():GetViewModel( iIndex )
 	
 	if ( pViewModel == NULL ) then
 		return false
@@ -3088,7 +3008,7 @@ end
 -- Used by PlayActivity to detect when to add the _empty tag
 function SWEP:ViewModelEmpty( iIndex --[[= 0]] )
 	if ( not iIndex or iIndex == 0 ) then
-		return self:Clip1() == 0
+		return self:GetShootClip( self:SpecialActive( iIndex )) == 0
 	end
 	
 	return false
@@ -3113,28 +3033,28 @@ function SWEP:AllowsAutoSwitchTo()
 	return self.AutoSwitchTo
 end]]
 
+function SWEP:GetSpecialKey( sKey, bSecondary, bNoConVar )
+	local Val
+	
+	if ( bSecondary ) then
+		Val = self.Secondary[sKey]
+		
+		if ( Val ~= -1 ) then
+			return not bNoConVar and isstring( Val ) and GetConVarNumber( Val ) or Val
+		end
+	end
+	
+	Val = self.Primary[sKey]
+	
+	return not bNoConVar and isstring( Val ) and GetConVarNumber( Val ) or Val
+end
+
 function SWEP:BurstEnabled( iIndex )
 	if ( iIndex ) then
 		return bit.band( self:GetBurst(), 2^iIndex ) ~= 0
 	end
 	
 	return self:GetBurst() ~= 0
-end
-
-function SWEP:GetBulletCount( bSecondary )
-	if ( bSecondary ) then
-		local flSpecial = self.Secondary.Bullets
-		
-		if ( flSpecial ~= -1 ) then
-			return flSpecial
-		end
-	end
-	
-	return self.Primary.Bullets
-end
-
-function SWEP:GetWeaponHoldType()
-	return self.HoldType
 end
 
 function SWEP:SetWeaponHoldType( sHold )
@@ -3144,7 +3064,7 @@ function SWEP:SetWeaponHoldType( sHold )
 end
 
 function SWEP:FlipsViewModel( iIndex --[[= 0]] )
-	return iIndex == 1 and self.ViewModelFlip1 or iIndex == 2 and self.ViewModelFlip2 or self.ViewModelFlip
+	return iIndex == 0 and self.ViewModel or iIndex == 1 and self.ViewModelFlip1 or iIndex == 2 and self.ViewModelFlip2 or ""
 end
 
 function SWEP:GetActivityPrefix( sActivity, iIndex )
@@ -3153,6 +3073,12 @@ function SWEP:GetActivityPrefix( sActivity, iIndex )
 	end
 	
 	return ""
+end
+
+-- Games like DoD:S have team-based skins
+-- Override this return to choose what skin to use for each viewmodel
+function SWEP:GetViewModelSkin( iIndex )
+	return 0
 end
 
 function SWEP:GetActivitySuffix( sActivity, iIndex )
@@ -3171,30 +3097,6 @@ function SWEP:GetSoundPrefix( sSound, iIndex )
 	return ""
 end
 
-function SWEP:GetCooldown( bSecondary )
-	if ( bSecondary ) then
-		local flSpecial = self.Secondary.Cooldown
-		
-		if ( flSpecial ~= -1 ) then
-			return flSpecial
-		end
-	end
-	
-	return self.Primary.Cooldown
-end
-
-function SWEP:GetDamage( bSecondary )
-	if ( bSecondary ) then
-		local flSpecial = self.Secondary.Damage
-		
-		if ( flSpecial ~= -1 ) then
-			return flSpecial
-		end
-	end
-	
-	return self.Primary.Damage
-end
-
 function SWEP:GetDefaultClip1()
 	return self.Primary.DefaultClip
 end
@@ -3203,9 +3105,10 @@ function SWEP:GetDefaultClip2()
 	return self.Secondary.DefaultClip
 end
 
+-- FIXME: Add silenced conditions to this
 function SWEP:GetDryfireActivity( iIndex --[[= 0]] )
 	if ( not iIndex or iIndex == 0 ) then
-		return "primary_empty"
+		return "shoot_empty"
 	end
 	
 	return ""
@@ -3222,6 +3125,10 @@ end]]
 function SWEP:GetMuzzleAttachment( iEvent )
 	-- Assume first attachment
 	return iEvent and (iEvent - 4991) / 10 or 1
+end
+
+function SWEP:GetEjectionAttachment( iEvent )
+	return 2
 end
 
 --[[function SWEP:GetOwner()
@@ -3252,30 +3159,6 @@ end
 	return self.PrintName
 end]]
 
-function SWEP:GetRange( bSecondary )
-	if ( bSecondary ) then
-		local flSpecial = self.Secondary.Range
-		
-		if ( flSpecial ~= -1 ) then
-			return flSpecial
-		end
-	end
-	
-	return self.Primary.Range
-end
-
-function SWEP:GetRunSpeed( bSecondary )
-	if ( bSecondary ) then
-		local flSpecial = self.Secondary.RunSpeed
-		
-		if ( flSpecial ~= -1 ) then
-			return flSpecial
-		end
-	end
-	
-	return self.Primary.RunSpeed
-end
-
 function SWEP:GetShootAngles()
 	local pPlayer = self:GetOwner()
 	
@@ -3288,30 +3171,19 @@ end
 
 function SWEP:GetShotTable( bSecondary )
 	return {
-		AmmoType = bSecondary and not self.UseClip1ForSecondary
+		AmmoType = bSecondary and not self.CheckClip1ForSecondary
 			and self:GetSecondaryAmmoName() or self:GetPrimaryAmmoName(),
-		Damage = self:GetDamage( bSecondary ),
+		Damage = self:GetSpecialKey( "Cooldown", bSecondary ),
 		Dir = self:GetShootAngles( bSecondary ):Forward(),
-		Distance = self:GetRange( bSecondary ),
+		Distance = self:GetSpecialKey( "Range", bSecondary ),
 		--Flags = FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS,
-		Num = self:GetBulletCount( bSecondary ),
-		Spread = self:GetSpread( bSecondary ),
+		Num = self:GetSpecialKey( "Bullets", bSecondary ),
+		Spread = self:GetSpecialKey( "Spread", bSecondary ),
+		SpreadBias = self:GetSpecialKey( "SpreadBias", bSecondary ),
 		Src = self:GetShootSrc( bSecondary ),
-		Tracer = self.TracerFreq,
-		TracerName = self.TracerName
+		Tracer = self:GetSpecialKey( "TracerFreq", bSecondary ),
+		TracerName = self:GetSpecialKey( "TracerName", bSecondary, true )
 	}
-end
-
-function SWEP:GetSpread( bSecondary )
-	if ( bSecondary ) then
-		local flSpecial = self.Secondary.Spread
-		
-		if ( flSpecial ~= NULL ) then
-			return flSpecial
-		end
-	end
-	
-	return self.Primary.Spread
 end
 
 --[[function SWEP:GetSlot()
@@ -3326,18 +3198,6 @@ function SWEP:GetViewModel( iIndex --[[= 0]] )
 	return iIndex == 1 and self.ViewModel1 or iIndex == 2 and self.ViewModel2 or self.ViewModel
 end
 
-function SWEP:GetWalkSpeed( bSecondary )
-	if ( bSecondary ) then
-		local flSpecial = self.Secondary.WalkSpeed
-		
-		if ( flSpecial ~= -1 ) then
-			return flSpecial
-		end
-	end
-	
-	return self.Primary.WalkSpeed
-end
-
 --[[function SWEP:GetWeaponViewModel()
 	return self.ViewModel
 end
@@ -3350,8 +3210,12 @@ function SWEP:GetWeight()
 	return self.Weight
 end]]
 
-function SWEP:IronSightsEnabled()
-	return self:GetIronSights() > 0
+function SWEP:IronSightsEnabled( iIndex )
+	if ( iIndex ) then
+		return bit.band( self:GetIronSights(), 2^iIndex ) ~= 0
+	end
+	
+	return self:GetIronSights() ~= 0
 end
 
 -- Returns the activity and playback rate
@@ -3428,7 +3292,8 @@ end
 -- The player is considered to be in-zoom to variable modifiers if they are fully zoomed
 -- This prevents quick-scoping for the spread/damage/cooldown benfits
 function SWEP:SpecialActive( iIndex --[[= nil]] )
-	return (self:GetZoomLevel() > 0 or self:Silenced( iIndex ) or self:BurstEnabled( iIndex )) and self:GetZoomActiveTime() <= CurTime()
+	return (self:GetZoomLevel() > 0 or self:Silenced( iIndex ) or self:BurstEnabled( iIndex ) or self:IronSightsEnabled( iIndex ))
+		and (iIndex == 1 and self:GetZoomActiveTime1() or iIndex == 2 and self:GetZoomActiveTime2() or self:GetZoomActiveTime()) <= CurTime()
 end
 
 function SWEP:UsesHands()

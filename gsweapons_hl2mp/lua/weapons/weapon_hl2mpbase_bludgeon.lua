@@ -1,4 +1,4 @@
-DEFINE_BASECLASS( "weapon_hl2mp_base" )
+SWEP.Base = "weapon_hl2mp_base"
 
 SWEP.Primary = {
 	Damage = 1,

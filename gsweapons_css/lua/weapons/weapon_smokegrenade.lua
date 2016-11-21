@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "weapon_basecsgrenade" )
+SWEP.Base = "weapon_basecsgrenade"
 
---- GSBase
 SWEP.PrintName = "#CStrike_SmokeGrenade"
 SWEP.Spawnable = true
 
@@ -12,11 +11,11 @@ SWEP.Primary = {
 	WalkSpeed = 245/250
 }
 
-if ( SERVER ) then
+if ( CLIENT ) then
+	SWEP.Category = "Counter-Strike: Source"
+	SWEP.SelectionIcon = 'p'
+else
 	SWEP.Grenade = {
 		Class = "smokegrenade_projectile"
 	}
-else
-	SWEP.Category = "Counter-Strike: Source"
-	SWEP.SelectionIcon = 'p'
 end

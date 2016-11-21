@@ -1,20 +1,18 @@
-DEFINE_BASECLASS( "weapon_csbase_rifle" )
+SWEP.Base = "weapon_csbase_rifle"
 
---- GSBase
 SWEP.PrintName = "#CStrike_FAMAS"
 SWEP.Spawnable = true
 
 SWEP.ViewModel = "models/weapons/v_rif_famas.mdl"
-SWEP.ViewModelFlip = false
 SWEP.WorldModel = "models/weapons/w_rif_famas.mdl"
 SWEP.Weight = 75
 
 SWEP.Sounds = {
-	primary = "Weapon_FAMAS.Single"
+	shoot = "Weapon_FAMAS.Single"
 }
 
 SWEP.Primary = {
-	Ammo = "556mmRound",
+	Ammo = "556mm",
 	ClipSize = 25,
 	DefaultClip = 115,
 	Damage = 30,
@@ -22,19 +20,15 @@ SWEP.Primary = {
 	WalkSpeed = 220/250,
 	FireUnderwater = false,
 	RangeModifier = 0.96,
-	Spread = {
-		Base = 0.02,
-		Air = 0.3,
-		Move = 0.07,
-		Additive = 0.01
-	}
+	Spread = Vector(0.02, 0.02),
+	SpreadAir = Vector(0.3, 0.3),
+	SpreadMove = Vector(0.07, 0.07),
+	SpreadAdditive = Vector(0.01, 0.01)
 }
 
 SWEP.Secondary = {
 	Cooldown = 0.35,
-	Spread = {
-		Additive = 0
-	}
+	SpreadAdditive = vector_origin
 }
 
 SWEP.Burst = {
@@ -44,28 +38,11 @@ SWEP.Burst = {
 	}
 }
 
-if ( CLIENT ) then
-	SWEP.Category = "Counter-Strike: Source"
-	SWEP.KillIcon = 't'
-	SWEP.SelectionIcon = 't'
-	
-	SWEP.MuzzleFlashScale = 1.3
-	
-	SWEP.EventStyle = {
-		-- CS:S muzzle flash
-		[5001] = "css_x",
-		[5011] = "css_x",
-		[5021] = "css_x",
-		[5031] = "css_x"
-	}
-end
-
---- CSBase_SMG
 SWEP.Accuracy = {
 	Divisor = 215,
 	Offset = 0.3,
 	Max = 1,
-	Additive = 0.03
+	Additive = Vector(0.03, 0.03)
 }
 
 SWEP.Kick = {
@@ -107,6 +84,16 @@ SWEP.Kick = {
 	}
 }
 
+if ( CLIENT ) then
+	SWEP.Category = "Counter-Strike: Source"
+	SWEP.KillIcon = 't'
+	SWEP.SelectionIcon = 't'
+	
+	SWEP.MuzzleFlashScale = 1.3
+	
+	SWEP.ViewModelFlip = false
+end
+
 function SWEP:SecondaryAttack()
 	if ( self:CanSecondaryAttack(0) ) then
 		self:ToggleBurst(0)
@@ -117,16 +104,10 @@ function SWEP:SecondaryAttack()
 	return false
 end
 
---- CSBase_Gun
--- Famas is the only weapon that adds extra spread if the secondary is off. No idea why
-function SWEP:GetSpread( bSecondary )
-	if ( bSecondary ) then
-		local flSpecial = self.Secondary.Spread.Additive
-		
-		if ( flSpecial ~= -1 ) then
-			return BaseClass.GetSpread( self, true ) + flSpecial
-		end
+function SWEP:GetSpecialKey( sKey, bSecondary, bNoConVar )
+	if ( sKey == "Spread" ) then
+		return BaseClass.GetSpecialKey( self, sKey, bSecondary, bNoConVar ) + BaseClass.GetSpecialKey( self, "SpreadAdditive", bSecondary, bNoConVar )
 	end
 	
-	return BaseClass.GetSpread( self, false ) + self.Primary.Spread.Additive
+	return BaseClass.GetSpecialKey( self, sKey, bSecondary, bNoConVar )
 end

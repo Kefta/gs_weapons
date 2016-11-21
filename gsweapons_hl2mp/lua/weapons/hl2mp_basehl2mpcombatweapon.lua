@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "weapon_hl2mp_base" )
+SWEP.Base = "weapon_hl2mp_base"
 
---- GSBase
 SWEP.PrintName = "HL2MPCombatBase"
 
 if ( CLIENT ) then

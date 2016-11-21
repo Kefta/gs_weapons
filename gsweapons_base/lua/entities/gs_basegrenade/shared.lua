@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "gs_baseentity" )
+ENT.Base = "gs_baseentity"
 
---- GSBase
 ENT.PrintName = "BaseGrenade"
 
 ENT.Sounds = {
@@ -26,7 +25,8 @@ ENT.Shake = { -- Screen shake parameters for explosions
 	Radius = 750
 }
 
---- GSBase
+local BaseClass = baseclass.Get( ENT.Base )
+
 function ENT:Initialize()
 	BaseClass.Initialize( self )
 	

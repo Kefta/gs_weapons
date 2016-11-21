@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "weapon_csbase_rifle" )
+SWEP.Base = "weapon_csbase_rifle"
 
---- GSBase
 SWEP.PrintName = "#CStrike_AUG"
 SWEP.Spawnable = true
 
@@ -8,44 +7,29 @@ SWEP.ViewModel = "models/weapons/v_rif_aug.mdl"
 SWEP.WorldModel = "models/weapons/w_rif_aug.mdl"
 
 SWEP.Sounds = {
-	primary = "Weapon_AUG.Single"
+	shoot = "Weapon_AUG.Single"
 }
 
 SWEP.Primary = {
-	Ammo = "762mmRound",
+	Ammo = "762mm",
 	ClipSize = 30,
 	DefaultClip = 120,
 	Damage = 32,
 	Cooldown = 0.09,
 	WalkSpeed = 221/250,
 	RangeModifier = 0.96,
-	Spread = {
-		Base = 0.02,
-		Air = 0.4,
-		Move = 0.07
-	}
+	Spread = Vector(0.02, 0.02),
+	SpreadAir = Vector(0.4, 0.4),
+	SpreadMove = Vector(0.07, 0.07)
 }
 
 SWEP.Secondary.Cooldown = 0.135
 
-if ( CLIENT ) then
-	SWEP.Category = "Counter-Strike: Source"
-	SWEP.KillIcon = 'e'
-	SWEP.SelectionIcon = 'e'
-	
-	SWEP.CSSCrosshair = {
-		Min = 3
-	}
-	
-	SWEP.MuzzleFlashScale = 1.3
-end
-
---- CSBase_SMG
 SWEP.Accuracy = {
 	Divisor = 215,
 	Offset = 0.3,
 	Max = 1,
-	Additive = 0.035
+	Additive = Vector(0.035, 0.035)
 }
 
 SWEP.Kick = {
@@ -86,6 +70,18 @@ SWEP.Kick = {
 		DirectionChange = 8
 	}
 }
+
+if ( CLIENT ) then
+	SWEP.Category = "Counter-Strike: Source"
+	SWEP.KillIcon = 'e'
+	SWEP.SelectionIcon = 'e'
+	
+	SWEP.CSSCrosshair = {
+		Min = 3
+	}
+	
+	SWEP.MuzzleFlashScale = 1.3
+end
 
 function SWEP:SecondaryAttack()
 	if ( self:CanSecondaryAttack(0) ) then

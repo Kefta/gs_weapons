@@ -1,6 +1,5 @@
-DEFINE_BASECLASS( "weapon_basecsgrenade" )
+SWEP.Base = "weapon_basecsgrenade"
 
---- GSBase
 SWEP.PrintName = "#CStrike_Flashbang"
 SWEP.Spawnable = true
 
@@ -10,17 +9,17 @@ SWEP.Weight = 1
 
 SWEP.Primary.Ammo = "Flashbang"
 
-if ( SERVER ) then
-	SWEP.Grenade = {
-		Class = "flashbang_projectile",
-		Damage = 4,
-		Radius = 1500
-	}
-else
+if ( CLIENT ) then
 	SWEP.Category = "Counter-Strike: Source"
 	SWEP.SelectionIcon = 'g'
 	
 	SWEP.CSSCrosshair = {
 		Min = 7
+	}
+else
+	SWEP.Grenade = {
+		Class = "flashbang_projectile",
+		Damage = 4,
+		Radius = 1500
 	}
 end
