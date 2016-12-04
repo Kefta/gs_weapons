@@ -38,7 +38,7 @@ SWEP.Melee = {
 	TestHull = Vector(16, 16, 18),
 	DamageType = bit.bor( DMG_BULLET, DMG_NEVERGIB ),
 	Mask = MASK_SOLID,
-	Force = 300,
+	ForceScale = 300,
 	BackMultiplier = 3
 }
 
@@ -160,7 +160,7 @@ function SWEP:Swing( bStab, iIndex )
 			
 			// Calculate an impulse large enough to push a 75kg man 4 in/sec per point of damage
 			-- FIXME: This is exactly how the CS:S knife calculates force, but the 1/Damage doesn't make much sense
-			info:SetDamageForce( vForward * info:GetBaseDamage() * tMelee.Force * (1 / (flDamage < 1 and 1 or flDamage)) * phys_pushscale:GetFloat() )
+			info:SetDamageForce( vForward * info:GetBaseDamage() * tMelee.ForceScale * (1 / (flDamage < 1 and 1 or flDamage)) * phys_pushscale:GetFloat() )
 		pEntity:DispatchTraceAttack( info, tr, vForward )
 		
 		if ( not tr.HitSky ) then
@@ -176,7 +176,7 @@ function SWEP:Swing( bStab, iIndex )
 					self:PlaySound( "hitworld", 0 )
 				end
 				
-				if ( IsFirstTimePredicted() ) then
+				if ( not self:DoImpactEffect( tr, tMelee.DamageType ) and IsFirstTimePredicted() ) then
 					-- https://github.com/Facepunch/garrysmod-requests/issues/779
 					--[[local data = EffectData()
 						data:SetOrigin( tr.HitPos )

@@ -6,6 +6,7 @@ SWEP.TriggerBoundSize = 10
 
 if ( CLIENT ) then
 	SWEP.BobStyle = "css"
+	SWEP.CrosshairStyle = "dod"
 	
 	SWEP.EventStyle = {
 		[5001] = "dod",
@@ -14,6 +15,8 @@ if ( CLIENT ) then
 		[5031] = "dod"
 	}
 	
-	SWEP.Primary.BobScale = 0.8
-	SWEP.Primary.SwayScale = 0.5
+	SWEP.Primary = {
+		BobCycle = 0.8,
+		BobUp = 0.5
+	}
 end

@@ -596,7 +596,7 @@ game.AddAmmoType({
 })
 
 game.AddAmmoType({
-	name = "30Cal",
+	name = "30cal",
 	dmgtype = bit.bor(DMG_BULLET, DMG_MACHINEGUN),
 	tracer = TRACER_LINE_AND_WHIZ,
 	plydmg = 0,

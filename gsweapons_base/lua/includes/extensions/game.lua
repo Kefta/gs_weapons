@@ -40,9 +40,9 @@ local bCalled = false
 
 function game.AddAmmoType( tAmmo )
 	if ( bCalled ) then
-		MsgN( string.format( "BuildAmmoTypes already called! Ammo type %q will not be registered", tAmmo.name or "No Name" ))
+		Msg( string.format( "BuildAmmoTypes already called! Ammo type %q will not be registered\n", tAmmo.name or "No Name" ))
 	elseif ( not tAmmo.name ) then
-		MsgN( "Ammo attempted to be registered with no name!" )
+		Msg( "Ammo attempted to be registered with no name!\n" )
 	else
 		local sAmmo = tAmmo.name:lower()
 		
@@ -59,7 +59,7 @@ function game.AddAmmoType( tAmmo )
 		end
 		
 		if ( tAmmoNames[sAmmo] ) then
-			MsgN( string.format( "Ammo %q registered twice; giving priority to later registration", tAmmo.name ))
+			Msg( string.format( "Ammo %q registered twice; giving priority to later registration\n", tAmmo.name ))
 			tAmmo.num = tAmmoNames[sAmmo].num or #tAmmoTypes + 1
 			tAmmoTypes[tAmmo.num] = tAmmo
 			tAmmoNames[sAmmo] = tAmmo

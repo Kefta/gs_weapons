@@ -50,5 +50,5 @@ else
 	AddCSLuaFile( "code_gs/gsweapons_ammo.lua" )
 	include( "code_gs/gsweapons_ammo.lua" )
 	
-	MsgN( "[GSWeapons] Loaded!" )
+	Msg( "[GSWeapons] Loaded!\n" )
 end

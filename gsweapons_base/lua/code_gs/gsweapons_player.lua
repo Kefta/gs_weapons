@@ -11,31 +11,82 @@ if ( SERVER or not game.SinglePlayer() ) then
 		end
 	end )
 	
+	hook.Add( "SetupMove", "GSWeapons-Prone eye offset", function( pPlayer, mv )
+		local pActiveWeapon = pPlayer:GetActiveWeapon()
+		
+		if ( pActiveWeapon.GSWeapon and pActiveWeapon:GetDeployed() ~= 0 ) then
+			-- FIXME: SetDeployedEyeOffset
+		end
+	end )
+	
 	-- https://github.com/Facepunch/garrysmod-issues/issues/2887
 	-- Scales the player's movement speeds based on their weapon
 	hook.Add( "Move", "GSWeapons-Punch decay and move speed", function( pPlayer, mv )
 		local pActiveWeapon = pPlayer:GetActiveWeapon()
 		
-		--[[if ( pActiveWeapon.PunchDecayFunction ) then
-			pPlayer.dt.LastPunchAngle = pPlayer:GetViewPunchAngles()
-		end]]
-		
-		if ( pActiveWeapon.GetSpecialKey ) then
-			local flOldSpeed = mv:GetMaxSpeed() *
-				(pPlayer:KeyDown( IN_SPEED ) and pActiveWeapon:GetSpecialKey( "RunSpeed", pActiveWeapon:SpecialActive() ) or pActiveWeapon:GetSpecialKey( "WalkSpeed", pActiveWeapon:SpecialActive() ))
+		if ( pActiveWeapon.GSWeapon ) then
+			if ( pActiveWeapon.PunchDecayFunction ) then
+				pPlayer.dt.LastPunchAngle = pPlayer:GetViewPunchAngles()
+			end
+			
+			local flOldSpeed = mv:GetMaxSpeed()
+				* (pPlayer:KeyDown( IN_SPEED ) and pActiveWeapon:GetSpecialKey( "RunSpeed", pActiveWeapon:SpecialActive() ) or pActiveWeapon:GetSpecialKey( "WalkSpeed", pActiveWeapon:SpecialActive() ))
 			
 			mv:SetMaxSpeed( flOldSpeed )
 			mv:SetMaxClientSpeed( flOldSpeed )
 		end
 	end )
-
-	--[[hook.Add( "FinishMove", "GSWeapons-Punch decay", function( pPlayer )
-		local fPunchDecay = pPlayer:GetActiveWeapon().PunchDecayFunction
+	
+	hook.Add( "FinishMove", "GSWeapons-Punch decay and deploy pose", function( pPlayer )
+		local pActiveWeapon = pPlayer:GetActiveWeapon()
+		local fPunchDecay = pActiveWeapon.GSWeapon and pActiveWeapon.PunchDecayFunction
 		
 		if ( fPunchDecay and pPlayer.dt.LastPunchAngle ) then
 			pPlayer:SetViewPunchAngles( fPunchDecay( pPlayer, pPlayer.dt.LastPunchAngle ))
 		end
-	end )]]
+		
+		-- Can be done in PlayerPostThink, but no need to create another hook for this case
+		--[[if ( pActiveWeapon:GetDeployed() ) then
+			pPlayer:SetPoseParameter( "body_height", pActiveWeapon.m_flDeployHeight - 4 )
+		end]]
+	end )
+end
+
+if ( CLIENT ) then
+	hook.Add( "CreateMove", "GSWeapons-Deploy limits", function( mv )
+		local pActiveWeapon = LocalPlayer():GetActiveWeapon()
+		
+		if ( pActiveWeapon.GSWeapon and pActiveWeapon:GetDeployed() ~= 0 ) then
+			local aView = mv:GetViewAngles()
+			local tDeploy = pActiveWeapon.BipodDeploy
+			
+			-- Not actually delta, just saving a var
+			local flDelta = aView[1]
+			local bSet = false
+			
+			if ( flDelta < tDeploy.MinPitch ) then
+				aView[1] = tDeploy.MinPitch
+				bSet = true
+			elseif ( flDelta > tDeploy.MaxPitch ) then
+				aView[1] = tDeploy.MaxPitch
+				bSet = true
+			end
+			
+			flDelta = math.NormalizeAngle( aView[2] - pActiveWeapon.m_flDeployYawStart )
+			
+			if ( flDelta < pActiveWeapon.m_flDeployYawRight ) then
+				aView[2] = pActiveWeapon.m_flDeployYawStart + pActiveWeapon.m_flDeployYawRight
+				bSet = true
+			elseif ( flDelta > pActiveWeapon.m_flDeployYawLeft ) then
+				aView[2] = pActiveWeapon.m_flDeployYawStart + pActiveWeapon.m_flDeployYawLeft
+				bSet = true
+			end
+			
+			if ( bSet ) then
+				mv:SetViewAngles( aView )
+			end
+		end
+	end )
 end
 
 local PLAYER = FindMetaTable( "Player" )

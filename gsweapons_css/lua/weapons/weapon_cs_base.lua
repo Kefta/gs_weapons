@@ -20,8 +20,8 @@ if ( CLIENT ) then
 	SWEP.CrosshairStyle = "css"
 	
 	SWEP.Primary = {
-		BobScale = 0.8,
-		SwayScale = 0.5
+		BobCycle = 0.8,
+		BobUp = 0.5
 	}
 end
 
@@ -63,7 +63,11 @@ function SWEP:CanPrimaryAttack( iIndex )
 			self:AddEvent( "fire", self:SequenceEnd( iIndex ), function()
 				self:PrimaryAttack()
 				self:RemoveEvent( "reload" )
-				self.dt.Reloading = false
+				
+				if ( bSinglePlayer ) then
+					net.Start( "GSWeapons-Finish reload" )
+					net.Send( pPlayer )
+				end
 				
 				return true
 			end )
@@ -77,7 +81,11 @@ function SWEP:CanPrimaryAttack( iIndex )
 		
 		self:SetNextReload( CurTime() )
 		self:RemoveEvent( "reload" )
-		self.dt.Reloading = false
+		
+		if ( bSinglePlayer ) then
+			net.Start( "GSWeapons-Finish reload" )
+			net.Send( pPlayer )
+		end
 	end
 	
 	-- CS:S gives priority to underwater over empty clip
@@ -125,7 +133,11 @@ function SWEP:CanSecondaryAttack( iIndex )
 			self:AddEvent( "fire", self:SequenceEnd( iIndex ), function()
 				self:SecondaryAttack()
 				self:RemoveEvent( "reload" )
-				self.dt.Reloading = false
+				
+				if ( bSinglePlayer ) then
+					net.Start( "GSWeapons-Finish reload" )
+					net.Send( pPlayer )
+				end
 				
 				return true
 			end )
@@ -139,7 +151,11 @@ function SWEP:CanSecondaryAttack( iIndex )
 		
 		self:SetNextReload( CurTime() )
 		self:RemoveEvent( "reload" )
-		self.dt.Reloading = false
+		
+		if ( bSinglePlayer ) then
+			net.Start( "GSWeapons-Finish reload" )
+			net.Send( pPlayer )
+		end
 	end
 	
 	if ( iClip == 0 or bEmpty and iClip == -1 and (self.CheckClip1ForSecondary and self:GetDefaultClip1() or self:GetDefaultClip2()) ~= -1 ) then

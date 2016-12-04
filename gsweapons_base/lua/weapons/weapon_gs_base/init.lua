@@ -10,6 +10,10 @@ local bSinglePlayer = game.SinglePlayer()
 
 if ( bSinglePlayer ) then
 	util.AddNetworkString( "GSWeapons-OnDrop" )
+	util.AddNetworkString( "GSWeapons-Reload" )
+	util.AddNetworkString( "GSWeapons-Finish reload" )
+	util.AddNetworkString( "GSWeapons-BipodDeploy" )
+	util.AddNetworkString( "GSWeapons-BipodDeploy update" )
 end
 
 --- Weapon behaviour

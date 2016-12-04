@@ -33,6 +33,8 @@ SWEP.ViewModelTransform2 = {
 	Ang = angle_zero
 }
 
+SWEP.BobScale = 1
+SWEP.SwayScale = 1
 SWEP.BobStyle = "default" -- Style defined by gsweapons.RegisterBobType. Set to "" to disable all bobbing
 SWEP.BobSpeed = 320/250 -- Speed at which the bob is clamped at. Only affects css and hl bob styles
 
@@ -96,10 +98,10 @@ SWEP.EventStyle = {
 --- Weapon behaviour
 -- These are seperated by primary/secondary so ironsights can lower it
 -- SWEP.SwayScale and SWEP.BobScale are manipulated internally - do not change them!
-SWEP.Primary.BobScale = 0.45 -- Magnitude of the weapon bob
-SWEP.Primary.SwayScale = 0.5 -- Sway deviation
-SWEP.Secondary.BobScale = -1
-SWEP.Secondary.SwayScale = -1
+SWEP.Primary.BobCycle = 0.45 -- Magnitude of the weapon bob
+SWEP.Primary.BobUp = 0.5 -- Sway deviation
+SWEP.Secondary.BobCycle = -1
+SWEP.Secondary.BobUp = -1
 
 SWEP.Zoom.DrawOverlay = false -- Draw scope overlay when zoomed
 
@@ -107,11 +109,13 @@ SWEP.IronSights.DrawCrosshair = false -- Draw crosshair when IronSights is activ
 SWEP.IronSights.Pos = vector_origin -- Local positional translation of the viewmodel
 SWEP.IronSights.Ang = angle_zero -- Local angular translation of the viewmodel
 
+SWEP.BipodDeploy.DrawCrosshair = false -- Draw crosshair when the weapon is deployed
+
 --- Holster
 net.Receive( "GSWeapons-Holster", function()
 	local pWeapon = net.ReadEntity()
 	
-	if ( pWeapon.SharedHolster and pWeapon.m_bDeployed ) then
+	if ( pWeapon.SharedHolster and pWeapon.m_bActive ) then
 		local pSwitchingTo = net.ReadEntity()
 		pWeapon:SharedHolster( pSwitchingTo:EntIndex() == 0 and NULL or pSwitchingTo, true )
 	end
@@ -120,7 +124,7 @@ end )
 net.Receive( "GSWeapons-Holster animation", function()
 	local pWeapon = net.ReadEntity()
 	
-	if ( pWeapon.HolsterAnim and not pWeapon.m_bHolsterAnim and pWeapon.m_bDeployed ) then
+	if ( pWeapon.HolsterAnim and not pWeapon.m_bHolsterAnim and pWeapon.m_bActive ) then
 		local pSwitchingTo = net.ReadEntity()
 		pWeapon:HolsterAnim( pSwitchingTo:EntIndex() == 0 and NULL or pSwitchingTo, true )
 	end
@@ -130,19 +134,40 @@ if ( game.SinglePlayer() ) then
 	net.Receive( "GSWeapons-OnDrop", function()
 		local pWeapon = net.ReadEntity()
 		
-		if ( pWeapon.m_bDeployed ) then
-			pWeapon.m_bDeployed = false
+		if ( pWeapon.m_bActive ) then
+			pWeapon.m_bActive = false
 		end
+	end )
+	
+	net.Receive( "GSWeapons-Reload", function()
+		LocalPlayer():GetActiveWeapon():AddEvent( "reload", -1 )
+	end )
+	
+	net.Receive( "GSWeapons-Finish reload", function()
+		LocalPlayer():GetActiveWeapon():RemoveEvent( "reload", true ) -- Remove immediately
+	end )
+	
+	net.Receive( "GSWeapons-BipodDeploy", function()
+		local pActiveWeapon = LocalPlayer():GetActiveWeapon()
+		pActiveWeapon.m_flDeployYawStart = net.ReadDouble()
+		pActiveWeapon.m_flDeployYawLeft = net.ReadDouble()
+		pActiveWeapon.m_flDeployYawRight = net.ReadDouble()
+	end )
+	
+	net.Receive( "GSWeapons-BipodDeploy update", function()
+		local pActiveWeapon = LocalPlayer():GetActiveWeapon()
+		pActiveWeapon.m_flDeployYawLeft = net.ReadDouble()
+		pActiveWeapon.m_flDeployYawRight = net.ReadDouble()
 	end )
 end
 
 --- HUD/Visual
-function SWEP:CalcViewModelView( vm, vPos, aRot, vNewPos, aNew )
-	if ( self.dt.Deployed or self:GetOwner() ~= NULL ) then
-		local vTemp, aTemp = self:CalcViewModelOffset( vm )
+function SWEP:CalcViewModelView( pViewModel, vPos, aRot, vNewPos, aNew )
+	if ( self.dt.Active or self:GetOwner() ~= NULL ) then
+		local vTemp, aTemp = self:CalcViewModelOffset( pViewModel )
 		vPos, ang = LocalToWorld( vTemp, aTemp, vPos, aRot ) -- Faster than calculating each component manually in the Lua state
 		
-		return gsweapons.GetBobType( self.BobStyle )( self, vPos, aRot, vNewPos, aNew )
+		return gsweapons.GetBobType( self.BobStyle )( self, pViewModel, vPos, aRot, vNewPos, aNew )
 	end
 end
 
@@ -152,7 +177,7 @@ function SWEP:CalcViewModelOffset( vm )
 	
 	if ( self:IronSightsEnabled( iIndex )) then
 		local flCurTime = CurTime()
-		local flZoomActive = self:GetZoomActiveTime()
+		local flZoomActive = iIndex == 0 and self:GetZoomActiveTime() or iIndex == 1 and self:GetZoomActiveTime1() or iIndex == 2 and self:GetZoomActiveTime2()
 		local bZooming = flZoomActive > flCurTime
 		local iState = self["m_iIronSightsState" .. iIndex]
 		
@@ -200,10 +225,10 @@ end
 function SWEP:DoDrawCrosshair( x, y )
 	local pPlayer = self:GetOwner()
 	
-	if ( self.dt.Deployed or pPlayer ~= NULL ) then
+	if ( self.dt.Active or pPlayer ~= NULL ) then
 		return self.Zoom.DrawOverlay and self:GetZoomLevel() ~= 0 and not pPlayer:ShouldDrawLocalPlayer()
 			and gsweapons.GetScope( self.ScopeStyle )( self, x, y ) or (self.IronSights.DrawCrosshair or self:GetIronSights() == 0)
-			and gsweapons.GetCrosshair( self.CrosshairStyle )( self, x, y )
+			and (self.BipodDeploy.DrawCrosshair or self:GetDeployed() == 0) and gsweapons.GetCrosshair( self.CrosshairStyle )( self, x, y )
 	end
 end
 

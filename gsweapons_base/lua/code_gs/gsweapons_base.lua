@@ -420,8 +420,8 @@ end
 
 if ( CLIENT ) then
 	do
-		local Default = function( _, _, _, vNewPos, aNew ) return vNewPos, aNew end
-		local Disable = function( _, vPos, ang ) return vPos, ang end
+		local Default = function( _, _, _, _, vNewPos, aNew ) return vNewPos, aNew end
+		local Disable = function( _, _, vPos, ang ) return vPos, ang end
 		local tBobTypes = {}
 		
 		function gsweapons.RegisterBobType( sName, func )
@@ -443,10 +443,11 @@ if ( CLIENT ) then
 		local flLastBob = 0
 		local flLastSpeed = 0
 
-		gsweapons.RegisterBobType( "hls", function( pWeapon, vOrigin, ang )
+		gsweapons.RegisterBobType( "hls", function( pWeapon, pViewModel, vOrigin, ang )
 			local pPlayer = pWeapon:GetOwner()
-			local flBobCycle = pWeapon.BobScale
-			local flBobUp = pWeapon.SwayScale
+			local bSecondary = pWeapon:SpecialActive( pViewModel:ViewModelIndex() )
+			local flBobCycle = pWeapon:GetSpecialKey( "BobCycle", bSecondary )
+			local flBobUp = pWeapon:GetSpecialKey( "BobUp", bSecondary )
 			
 			if ( flBobCycle and flBobUp and flBobCycle > 0 and flBobUp > 0 and flBobUp ~= 1 and FrameTime() ~= 0 ) then
 				local flCurTime = CurTime()
@@ -497,12 +498,13 @@ if ( CLIENT ) then
 			return vOrigin, ang
 		end )
 
-		gsweapons.RegisterBobType( "css", function( pWeapon, vOrigin, ang )
+		gsweapons.RegisterBobType( "css", function( pWeapon, pViewModel, vOrigin, ang )
 			local pPlayer = pWeapon:GetOwner()
 			
 			//NOTENOTE: For now, let this cycle continue when in the air, because it snaps badly without it
-			local flBobCycle = pWeapon.BobScale
-			local flBobUp = pWeapon.SwayScale
+			local bSecondary = pWeapon:SpecialActive( pViewModel:ViewModelIndex() )
+			local flBobCycle = pWeapon:GetSpecialKey( "BobCycle", bSecondary )
+			local flBobUp = pWeapon:GetSpecialKey( "BobUp", bSecondary )
 			
 			if ( flBobCycle and flBobUp and flBobCycle > 0 and flBobUp > 0 and flBobUp ~= 1 and FrameTime() ~= 0 ) then
 				// Find the speed of the player
@@ -605,9 +607,9 @@ if ( CLIENT ) then
 				if ( not pPlayer:OnGround() ) then
 					iDistance = iDistance * 2
 				elseif ( pPlayer:Crouching() ) then
-					iDistance = math.floor( iDistance * 0.5 )
+					iDistance = iDistance * 0.5
 				elseif ( pPlayer:_GetAbsVelocity():LengthSqr() > (pPlayer:GetWalkSpeed() * pWeapon.CSSCrosshair.Vel) ^ 2 ) then
-					iDistance = math.floor( iDistance * 1.5 )
+					iDistance = iDistance * 1.5
 				end
 			end
 			
@@ -692,6 +694,55 @@ if ( CLIENT ) then
 				surface.DrawTexturedRect( x, y + iThickness, iBarThickness, iBarSize )
 			end
 
+			return true
+		end )
+		
+		local cl_crosshair_red = CreateConVar( "cl_dod_crosshairred", "200", FCVAR_ARCHIVE )
+		local cl_crosshair_green = CreateConVar( "cl_dod_crosshairgreen", "200", FCVAR_ARCHIVE )
+		local cl_crosshair_blue = CreateConVar( "cl_dod_crosshairblue", "200", FCVAR_ARCHIVE )
+		local cl_crosshair_alpha = CreateConVar( "cl_dod_crosshairalpha", "200", FCVAR_ARCHIVE )
+		local cl_crosshair_texture = CreateConVar( "cl_dod_crosshairtexture", "1", FCVAR_ARCHIVE )
+		local cl_crosshair_scale = CreateConVar( "cl_dod_crosshairscale", "32", FCVAR_ARCHIVE )
+		local cl_crosshair_approach_speed = CreateConVar( "cl_dod_approachspeed", "0.015", FCVAR_ARCHIVE )
+		local cl_dynamic_crosshair = CreateConVar( "cl_dod_dynamiccrosshair", "1", FCVAR_ARCHIVE )
+		
+		local matCross = {
+			Material( "vgui/crosshairs/crosshair1" ),
+			Material( "vgui/crosshairs/crosshair2" ),
+			Material( "vgui/crosshairs/crosshair3" ),
+			Material( "vgui/crosshairs/crosshair4" ),
+			Material( "vgui/crosshairs/crosshair5" ),
+			Material( "vgui/crosshairs/crosshair6" ),
+			Material( "vgui/crosshairs/crosshair7" )
+		}
+		
+		gsweapons.RegisterCrosshair( "dod", function( pWeapon, x, y )
+			local mat = matCross[cl_crosshair_texture:GetInt()]
+			--print(matCross[8]) -- FIXME: Table leak??
+			
+			if ( mat ) then
+				mat:SetInt( "$frame", 0 )
+				
+				if ( cl_dynamic_crosshair:GetBool() ) then
+					local flAccuracy = pWeapon:GetSpecialKey( "Spread", pWeapon:SpecialActive() ).x -- FIXME: Select average between x and y?
+					
+					if ( flAccuracy < 0.02 ) then
+						flAccuracy = 0.02
+					elseif ( flAccuracy > 0.125 ) then
+						flAccuracy = 0.125
+					end
+					
+					// approach this accuracy from our current accuracy
+					pWeapon.m_flCrosshairDistance = math.Approach( flAccuracy, pWeapon.m_flCrosshairDistance, cl_crosshair_approach_speed:GetFloat() )
+				end
+				
+				local iScale = cl_crosshair_scale:GetInt() * 2
+				-- FIXME: Go over all of this DrawRect stuff
+				surface.SetDrawColor( cl_crosshair_red:GetInt(), cl_crosshair_green:GetInt(), cl_crosshair_blue:GetInt(), cl_crosshair_alpha:GetInt() )
+				surface.SetMaterial( mat )
+				surface.DrawTexturedRect( x - iScale / 2, y - iScale / 2, iScale, iScale )
+			end
+			
 			return true
 		end )
 	end

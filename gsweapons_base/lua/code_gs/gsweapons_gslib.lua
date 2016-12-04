@@ -85,7 +85,7 @@ function PLAYER:GetNextBestWeapon( bIgnoreCategory, bCritical )
 	local pBestWep
 	local pFallbackWep
 	
-	//Search for the best weapon to use next based on its weight
+	// Search for the best weapon to use next based on its weight
 	for _, pCheck in pairs( self:GetWeapons() ) do -- Discontinous table
 		// If we have an active weapon and this weapon doesn't allow autoswitching away
 		// from another weapon, skip it.
@@ -133,7 +133,7 @@ local sv_showplayerhitboxes = CreateConVar( "sv_showplayerhitboxes", "0", FCVAR_
 local vDefaultMax = Vector(3, 3, 3)
 local vDefaultMin = -vDefaultMax
 
-local nWhizTracer = bit.bor( 0x0002, 0x0001 )
+local nWhizTracer = bit.bor(0x0002, 0x0001)
 local iTracerCount = 0 -- Instance global to interact with FireBullets functions
 
 -- Player only as NPCs could not be overrided to use this function
@@ -893,6 +893,7 @@ function PLAYER:FireCSSBullets( bullets )
 					debugoverlay.Line( vPenetrationEnd, vHitPos, DEBUG_LENGTH, color_altdebug )
 				end
 			else
+				-- FIXME: Cache this!
 				local tEnts = ents.GetAll()
 				local iLen = #tEnts
 				
@@ -1318,8 +1319,8 @@ function ANGLE:NormalizeInPlace()
 	return flRadius
 end
 
-vector_normal = Vector( 0, 0, 1 )
-vector_debug_max = Vector( 2, 2, 2 )
+vector_normal = Vector(0, 0, 1)
+vector_debug_max = Vector(2, 2, 2)
 vector_debug_min = -vector_debug_max
 
 function VectorRand( flMin, flMax )
@@ -1402,8 +1403,8 @@ function VECTOR:Up( vUp --[[= Vector(0, 0, 1)]] )
 	end
 end
 
-color_debug = SERVER and Color( 0, 0, 255, 100 ) or Color( 255, 0, 0, 100 )
-color_altdebug = SERVER and Color( 0, 255, 0, 100 ) or Color( 255, 255, 0, 100 )
+color_debug = SERVER and Color( 0, 0, 255, 128 ) or Color( 255, 0, 0, 128 )
+color_altdebug = SERVER and Color( 0, 255, 0, 128 ) or Color( 255, 255, 0, 128 )
 
 // Maximum traceable distance ( assumes cubic world and trace from one corner to opposite )
 // COORD_EXTENT * sqrt(3)

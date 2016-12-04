@@ -40,4 +40,3 @@ if ( CLIENT ) then
 	
 	SWEP.MuzzleFlashScale = 0.3
 end
-	

@@ -65,7 +65,7 @@ end
 
 local BaseClass = baseclass.Get( SWEP.Base )
 
-function SWEP:ItemFrame()
+--[[function SWEP:ItemFrame()
 	BaseClass.ItemFrame( self )
 	
 	local pViewModel = self:GetOwner():GetViewModel(0)
@@ -74,7 +74,7 @@ function SWEP:ItemFrame()
 		-- Fix; replace all Lerps, Remaps, Clamps, maxs, and mins
 		pViewModel:SetPoseParameter( "VentPoses", math.Remap( self.dt.AnimLevel, 0, 5, 0, 1 ))
 	end
-end
+end]]
 
 function SWEP:SecondaryAttack()
 	if ( not self:CanSecondaryAttack() ) then
