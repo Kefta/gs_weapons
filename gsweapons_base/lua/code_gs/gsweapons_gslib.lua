@@ -2646,7 +2646,7 @@ function WEAPON:SequenceLength( iIndex, iSequence )
 			if ( iSequence ) then
 				return pViewModel:SequenceDuration( iSequence )
 			else
-				return pViewModel:SequenceDuration()
+				return pViewModel:SequenceDuration() / pViewModel:GetPlaybackRate()
 			end
 		end
 	end

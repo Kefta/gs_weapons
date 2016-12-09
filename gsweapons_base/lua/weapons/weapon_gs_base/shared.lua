@@ -317,7 +317,7 @@ function SWEP:Initialize()
 	self.m_bAutoSwitchFrom = self.AutoSwitchFrom
 	self.m_bInitialized = true
 	self.m_bHolsterAnim = false
-	self.m_bUpdateHoldType = false
+	self.m_bUpdateThrowHoldType = false
 	self.m_flDeployYawStart = 0
 	self.m_flDeployYawLeft = 0
 	self.m_flDeployYawRight = 0
@@ -1441,8 +1441,8 @@ function SWEP:UpdateVariables()
 	if ( iThrow > 0 ) then
 		self.AutoSwitchFrom = false
 		
-		if ( self.m_bUpdateHoldType and self.Grenade.UpdateHoldType ) then
-			self.m_bUpdateHoldType = false
+		if ( self.m_bUpdateThrowHoldType and self.Grenade.UpdateHoldType ) then
+			self.m_bUpdateThrowHoldType = false
 			self:SetHoldType( self.m_sHoldType )
 		end
 	elseif ( iThrow ~= 0 ) then
@@ -1453,14 +1453,14 @@ function SWEP:UpdateVariables()
 		self.AutoSwitchFrom = self.m_bAutoSwitchFrom
 		
 		if ( self.Grenade.UpdateHoldType and self:GetHoldType() ~= "normal" ) then
-			self.m_bUpdateHoldType = true
+			self.m_bUpdateThrowHoldType = true
 			self:SetHoldType( "normal" )
 		end
 	else
 		self.AutoSwitchFrom = self.m_bAutoSwitchFrom
 		
-		if ( self.m_bUpdateHoldType and self.Grenade.UpdateHoldType ) then
-			self.m_bUpdateHoldType = false
+		if ( self.m_bUpdateThrowHoldType and self.Grenade.UpdateHoldType ) then
+			self.m_bUpdateThrowHoldType = false
 			self:SetHoldType( self.m_sHoldType )
 		end
 	end
@@ -3444,11 +3444,11 @@ function SWEP:ResetActivity( iIndex --[[= 0]], flRate --[[= nil]] )
 		
 	if ( flRate > 0 ) then
 		if ( iIndex == 1 ) then
-			self:SetNextIdle1( self:SequenceLength(1) / flRate + CurTime() )
+			self:SetNextIdle1( pViewModel:SequenceDuration() / flRate + CurTime() )
 		elseif ( iIndex == 2 ) then
-			self:SetNextIdle2( self:SequenceLength(2) / flRate + CurTime() )
+			self:SetNextIdle2( pViewModel:SequenceDuration() / flRate + CurTime() )
 		else
-			self:SetNextIdle( self:SequenceLength(0) / flRate + CurTime() )
+			self:SetNextIdle( pViewModel:SequenceDuration() / flRate + CurTime() )
 		end
 	end
 	
