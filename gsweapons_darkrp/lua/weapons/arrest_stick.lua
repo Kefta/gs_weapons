@@ -48,7 +48,7 @@ else
 	local color_cyan = color_cyan or Color(0, 255, 255)
 	local sLog = "%s (%s) arrested %s"
 	
-	function SWEP:Hit( tr )
+	function SWEP:SmackDamage( tr )
 		local pPlayer = self:GetOwner()
 		local pEntity = tr.Entity
 		

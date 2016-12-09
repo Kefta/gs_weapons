@@ -45,7 +45,7 @@ if ( SERVER ) then
 			local tGrenade = self.Grenade
 			local pPhysObj = pGrenade:GetPhysicsObject()
 		
-			if ( pPhysObj ~= NULL ) then
+			if ( pPhysObj:IsValid() ) then
 				local pPlayer = self:GetOwner()
 				
 				if ( pPlayer:GetSaveTable()["m_lifeState"] ~= 0 ) then

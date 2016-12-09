@@ -68,7 +68,7 @@ function SWEP:EmitGrenade()
 		
 		local pPhysObj = pGrenade:GetPhysicsObject()
 		
-		if ( pPhysObj ~= NULL ) then
+		if ( pPhysObj:IsValid() ) then
 			pPhysObj:AddVelocity( pPlayer:_GetVelocity() + vForward * 1200 )
 			pPhysObj:AddAngleVelocity( Vector( 600, gsrand:RandomInt(-1200, 1200), 0 ))
 		end

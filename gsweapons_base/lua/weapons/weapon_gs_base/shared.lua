@@ -153,6 +153,7 @@ SWEP.Primary = {
 	Automatic = true, -- Continously runs PrimaryAttack with the mouse held down
 	Bullets = 1, -- How many bullets are shot by FireBullets
 	Damage = 42, -- Bullet/melee damage // Douglas Adams 1952 - 2001
+	Force = 1, -- Force scale of shot/swing
 	Range = MAX_TRACE_LENGTH, -- Bullet/melee distance
 	Cooldown = 0.15, -- Time between firing
 	WalkSpeed = 1, -- Walk speed multiplier to use when the weapon is deployed
@@ -176,6 +177,7 @@ SWEP.Secondary = {
 	Automatic = true,
 	Bullets = -1, -- -1 = disabled. Change for this variable to be returned by the accessor when bSecondary (SpecialActive by default) is true
 	Damage = -1,
+	Force = -1,
 	Range = -1,
 	Cooldown = -1,
 	WalkSpeed = -1,
@@ -254,9 +256,7 @@ SWEP.Melee = {
 	TestHull = Vector(16, 16, 16), -- Test hull mins/maxs
 	DamageType = DMG_CLUB, -- Melee damage type
 	Mask = MASK_SHOT_HULL, -- Mask to use for melee trace
-	Force = 1, -- Exaggeration of melee force scale
-	AlwaysPlaySwing = false, -- Always play the swing/miss sound regardless of hit status
-	StrictTrace = false -- Do not re-trace if there's a delay to the swing and the initial trace fails
+	StrictTrace = false -- Do not re-trace if there's a delay to the smack
 }
 
 SWEP.BipodDeploy = {
@@ -923,7 +923,7 @@ function SWEP:HolsterAnim( pSwitchingTo, bDelayed )
 		if ( IsFirstTimePredicted() ) then
 			self.m_bSwitchInvalid = pSwitchingTo == NULL
 			self.m_pSwitchWeapon = pSwitchingTo
-		
+			
 			if ( self.HolsterReloadTime ~= -1 and self:EventActive( "reload" )) then
 				-- If self is NULL in the hook, there's no way to retrieve what EntIndex it had
 				local sName = "GSWeapons-Holster reload-" .. self:EntIndex()
@@ -1086,7 +1086,7 @@ function SWEP:SharedHolster( pSwitchingTo, bDelayed )
 			self:SetNextPrimaryFire(-1)
 			self:SetNextSecondaryFire(-1)
 			self:SetNextReload(-1)
-			
+			-- FIXME: Change this to a variable
 			if ( bIsValid and self.HolsterReloadTime ~= -1 and self:EventActive( "reload" )) then
 				-- If self is NULL in the hook, there's no way to retrieve what EntIndex it had
 				local sName = "GSWeapons-Holster reload-" .. self:EntIndex()
@@ -1389,6 +1389,7 @@ function SWEP:Think()
 			if ( not (flNextCheck == -1 or flNextCheck > flCurTime) ) then
 				if ( self:ShouldUndeploy() and self:ToggleDeploy( iIndex )) then
 					self:RemoveEvent( "reload" )
+					self:SetNextReload(0)
 					
 					if ( bSinglePlayer ) then
 						net.Start( "GSWeapons-Finish reload" )
@@ -1625,6 +1626,7 @@ function SWEP:CanPrimaryAttack( iIndex )
 			self:AddEvent( "fire", self:SequenceEnd( iIndex ), function()
 				self:PrimaryAttack()
 				self:RemoveEvent( "reload" )
+				self:SetNextReload(0)
 				
 				if ( bSinglePlayer ) then
 					net.Start( "GSWeapons-Finish reload" )
@@ -1643,8 +1645,8 @@ function SWEP:CanPrimaryAttack( iIndex )
 		end
 		
 		-- Stop the reload
-		self:SetNextReload( CurTime() )
 		self:RemoveEvent( "reload" )
+		self:SetNextReload(0)
 		
 		if ( bSinglePlayer ) then
 			net.Start( "GSWeapons-Finish reload" )
@@ -1708,6 +1710,7 @@ function SWEP:CanSecondaryAttack( iIndex )
 			self:AddEvent( "fire", self:SequenceEnd( iIndex ), function()
 				self:SecondaryAttack()
 				self:RemoveEvent( "reload" )
+				self:SetNextReload(0)
 				
 				if ( bSinglePlayer ) then
 					net.Start( "GSWeapons-Finish reload" )
@@ -1724,8 +1727,8 @@ function SWEP:CanSecondaryAttack( iIndex )
 			return false
 		end
 		
-		self:SetNextReload( CurTime() )
 		self:RemoveEvent( "reload" )
+		self:SetNextReload(0)
 		
 		if ( bSinglePlayer ) then
 			net.Start( "GSWeapons-Finish reload" )
@@ -2029,7 +2032,7 @@ function SWEP:GetMeleeTrace( tbl, vForward, bNoMiss )
 		util.TraceHull( tbl )
 		
 		if ( not (tr.Fraction == 1 or tr.Entity == NULL) ) then
-			local vTarget = tr.Entity:GetPos() - vSrc
+			local vTarget = tr.Entity:GetPos() - tr.StartPos
 			vTarget:Normalize()
 			
 			// YWB:  Make sure they are sort of facing the guy at least...
@@ -2055,65 +2058,78 @@ function SWEP:Swing( bSecondary, iIndex )
 	local tMelee = self.Melee
 	local vSrc = self:GetShootSrc( bSecondary )
 	local vForward = self:GetShootAngles( bSecondary ):Forward()
-	local tr = self:GetMeleeTrace({
+	
+	local tbl = {
 		start = vSrc,
 		endpos = vSrc + vForward * self:GetSpecialKey( "Range", bSecondary ),
 		mask = tMelee.Mask,
 		filter = pPlayer
-	}, vForward )
-	
+	}
+	local tr = self:GetMeleeTrace( tbl, vForward )
 	local flDelay = self:GetSpecialKey( "Delay", bSecondary, vForward )
-	
-	if ( flDelay == -1 ) then
-		self:Smack( tr, vForward, false, bSecondary, iIndex )
-	else
-		self:AddEvent( "smack", flDelay, function()
-			self:Smack( tr, vForward, true, bSecondary, iIndex )
-			
-			return true
-		end )
-	end
+	local bActivity
 	
 	if ( tr.Fraction == 1 ) then
 		self:PlaySound( "miss", iIndex )
 		bActivity = self:PlayActivity( bSecondary and "miss_alt" or "miss", iIndex )
 	else
-		if ( tMelee.AlwaysPlaySwing ) then
-			self:PlaySound( "miss", iIndex )
-		end
-		
 		bActivity = self:PlayActivity( bSecondary and "hit_alt" or "hit", iIndex )
+	end
+	
+	if ( flDelay == -1 ) then
+		self:Smack( tr, vForward, bSecondary, iIndex )
+	else
+		if ( bActivity ) then
+			local pViewModel = pPlayer:GetViewModel( iIndex )
+			local flRate = pViewModel:GetPlaybackRate()
+			flDelay = flDelay / (flRate == 0 and 1 or flRate < 0 and -flRate or flRate)
+		end 
+		
+		self:AddEvent( "smack", flDelay, function()
+			local bRetrace = not tMelee.StrictTrace -- FIXME
+			
+			if ( bRetrace ) then
+				pPlayer:LagCompensation( true )
+				
+				local vSrc = self:GetShootSrc( bSecondary )
+				local vForward = self:GetShootAngles( bSecondary ):Forward()
+				
+				tbl.start = vSrc
+				tbl.endpos = vSrc + vForward * self:GetSpecialKey( "Range", bSecondary )
+				tbl.mask = tMelee.Mask
+				tbl.filter = pPlayer
+				tbl.output = tr
+				
+				self:GetMeleeTrace( tbl, vForward )
+			end
+			
+			self:Smack( tr, vForward, bSecondary, iIndex )
+			
+			if ( bRetrace ) then
+				pPlayer:LagCompensation( false )
+			end
+			
+			return true
+		end )
 	end
 	
 	// Setup out next attack times
 	local flCurTime = CurTime()
+	local flCooldown = self:GetSpecialKey( "Cooldown", bSecondary )
 	self:SetLastShootTime( flCurTime )
-	self:SetNextPrimaryFire( flCurTime + self:GetSpecialKey( "Cooldown", bSecondary ))
-	self:SetNextSecondaryFire( flCurTime + (bActivity and self:SequenceLength( iIndex ) or 0))
+	self:SetNextPrimaryFire( flCurTime + flCooldown )
+	self:SetNextSecondaryFire( flCurTime + (bActivity and self:SequenceLength( iIndex ) or flCooldown) )
 	
 	pPlayer:LagCompensation( false )
 	
 	return bActivity
 end
 
-function SWEP:Smack( tr, vForward, bDelayed, bSecondary, iIndex )
+function SWEP:Smack( tr, vForward, bSecondary, iIndex )
 	local tMelee = self.Melee
 	local pPlayer = self:GetOwner()
 	local vSrc = self:GetShootSrc( bSecondary )
 	local tbl = {}
-	
-	if ( bDelayed and not (tMelee.StrictTrace and tr.Fraction == 1) ) then
-		pPlayer:LagCompensation( true )
-		vForward = self:GetShootAngles( bSecondary ):Forward()
-		
-		tbl.start = vSrc
-		tbl.endpos = vSrc + vForward * self:GetSpecialKey( "Range", bSecondary )
-		tbl.mask = tMelee.Mask
-		tbl.filter = pPlayer
-		tbl.output = tr
-		
-		self:GetMeleeTrace( tbl )
-	end
 	
 	local bFirstTimePredicted = IsFirstTimePredicted()
 	local bNoWater = true
@@ -2121,20 +2137,18 @@ function SWEP:Smack( tr, vForward, bDelayed, bSecondary, iIndex )
 	if ( bFirstTimePredicted ) then
 		local bHitWater = bit.band( util.PointContents( vSrc ), MASK_WATER ) ~= 0
 		local bEndNotWater = bit.band( util.PointContents( tr.HitPos ), MASK_WATER ) == 0
-		local trSplash
-		tbl.mask = MASK_WATER
-		tbl.output = nil
-		
-		if ( bHitWater and bEndNotWater ) then
-			tbl.start = tr.HitPos
-			tbl.endpos = vSrc
-			trSplash = util.TraceLine( tbl )
-		elseif ( not (bHitWater or bEndNotWater) ) then
-			bNoWater = false
-			tbl.start = vSrc
-			tbl.endpos = tr.HitPos
-			trSplash = util.TraceLine( tbl )
-		end
+		local trSplash = bHitWater and bEndNotWater and
+			util.TraceLine({
+				start = tr.HitPos,
+				endpos = vSrc,
+				mask = MASK_WATER
+			})
+		or not (bHitWater or bEndNotWater) and
+			util.TraceLine({
+				start = vSrc,
+				endpos = tr.HitPos,
+				mask = MASK_WATER
+			})
 		
 		if ( trSplash and not self:DoSplashEffect( trSplash )) then
 			local data = EffectData()
@@ -2154,7 +2168,7 @@ function SWEP:Smack( tr, vForward, bDelayed, bSecondary, iIndex )
 		
 	if ( tr.Fraction ~= 1 ) then
 		self:PlaySound( (tr.Entity:IsPlayer() or tr.Entity:IsNPC()) and "hit" or "hitworld", iIndex )
-		self:Hit( tr, vForward, bSecondary, iIndex )
+		self:SmackDamage( tr, vForward, bSecondary )
 		
 		if ( bNoWater and not self:DoImpactEffect( tr, tMelee.DamageType ) and bFirstTimePredicted ) then
 			local data = EffectData()
@@ -2167,13 +2181,9 @@ function SWEP:Smack( tr, vForward, bDelayed, bSecondary, iIndex )
 			util.Effect( "Impact", data )
 		end
 	end
-	
-	if ( bDelayed ) then
-		pPlayer:LagCompensation( false )
-	end
 end
 
-function SWEP:Hit( tr, vForward, bSecondary )
+function SWEP:SmackDamage( tr, vForward, bSecondary )
 	local flDamage = self:GetSpecialKey( "Damage", bSecondary )
 	local info = DamageInfo()
 		info:SetAttacker( self:GetOwner() )
@@ -2733,10 +2743,6 @@ end
 
 --- Reload
 function SWEP:CanReload()
-	if ( self:EventActive( "reload" )) then
-		return false
-	end
-	
 	local flNextReload = self:GetNextReload()
 	
 	-- Do not reload if both clips are already full
@@ -2861,6 +2867,7 @@ function SWEP:ReloadClips()
 			end
 		end
 		
+		self:SetNextReload(-1)
 		local bFirst = true
 		
 		self:AddEvent( "reload", flSequenceDuration, function()
@@ -3014,6 +3021,8 @@ function SWEP:ReloadClips()
 				flSequenceDuration = math.max( flSequenceDuration, self:SequenceLength(2) )
 			end
 		end
+		
+		self:SetNextReload( CurTime() + flSequenceDuration )
 		
 		-- Finish reloading after the animation is finished
 		self:AddEvent( "reload", flSequenceDuration, function()
@@ -3349,7 +3358,15 @@ function SWEP:PlayActivity( Activity, iIndex --[[= 0]], flRate --[[= 1]], bStric
 		pViewModel:SetPlaybackRate( flRate )
 	end
 	
-	if ( flRate ~= 0 ) then
+	if ( flRate == 0 ) then -- Invalid rate; reset idle time
+		if ( iIndex == 0 ) then
+			self:SetNextIdle(0)
+		elseif ( iIndex == 1 ) then
+			self:SetNextIdle1(0)
+		elseif ( iIndex == 2 ) then
+			self:SetNextIdle2(0)
+		end
+	else
 		local flTime = self:LookupActivityKey( sActivity, "idle", iIndex ) or pViewModel:SequenceDuration()
 		
 		if ( istable( flTime )) then
@@ -3357,20 +3374,12 @@ function SWEP:PlayActivity( Activity, iIndex --[[= 0]], flRate --[[= 1]], bStric
 			flTime = gsrand:RandomFloat( flTime[1], flTime[2] )
 		end
 		
-		if ( iIndex == 1 ) then
+		if ( iIndex == 0 ) then
+			self:SetNextIdle( flTime / (flRate < 0 and -flRate or flRate) + CurTime() )
+		elseif ( iIndex == 1 ) then
 			self:SetNextIdle1( flTime / (flRate < 0 and -flRate or flRate) + CurTime() )
 		elseif ( iIndex == 2 ) then
 			self:SetNextIdle2( flTime / (flRate < 0 and -flRate or flRate) + CurTime() )
-		else
-			self:SetNextIdle( flTime / (flRate < 0 and -flRate or flRate) + CurTime() )
-		end
-	else -- Invalid rate; reset idle time
-		if ( iIndex == 1 ) then
-			self:SetNextIdle1(0)
-		elseif ( iIndex == 2 ) then
-			self:SetNextIdle2(0)
-		else
-			self:SetNextIdle(0)
 		end
 	end
 	
@@ -3400,7 +3409,7 @@ function SWEP:PlaySequence( Sequence, iIndex --[[= 0]], flRate --[[= 1]] )
 		flTime = pViewModel:SequenceDuration( Sequence )
 	end
 	
-	flRate = flRate or 0
+	flRate = flRate or 1
 	
 	if ( SERVER or self:GetPredictable() ) then
 		--pViewModel:SetWeaponModel( self:GetViewModel( iIndex ), self )
@@ -3408,21 +3417,21 @@ function SWEP:PlaySequence( Sequence, iIndex --[[= 0]], flRate --[[= 1]] )
 		pViewModel:SetPlaybackRate( flRate )
 	end
 	
-	if ( flRate > 0 ) then
-		if ( iIndex == 1 ) then
-			self:SetNextIdle1( flTime / flRate + CurTime() )
-		elseif ( iIndex == 2 ) then
-			self:SetNextIdle2( flTime / flRate + CurTime() )
-		else
-			self:SetNextIdle( flTime / flRate + CurTime() )
-		end
-	else
-		if ( iIndex == 1 ) then
+	if ( flRate == 0 ) then
+		if ( iIndex == 0 ) then
+			self:SetNextIdle(0)
+		elseif ( iIndex == 1 ) then
 			self:SetNextIdle1(0)
 		elseif ( iIndex == 2 ) then
 			self:SetNextIdle2(0)
-		else
-			self:SetNextIdle(0)
+		end
+	else
+		if ( iIndex == 0 ) then
+			self:SetNextIdle( flTime / (flRate < 0 and -flRate or flRate) + CurTime() )
+		elseif ( iIndex == 1 ) then
+			self:SetNextIdle1( flTime / (flRate < 0 and -flRate or flRate) + CurTime() )
+		elseif ( iIndex == 2 ) then
+			self:SetNextIdle2( flTime / (flRate < 0 and -flRate or flRate) + CurTime() )
 		end
 	end
 end
@@ -3442,19 +3451,27 @@ function SWEP:ResetActivity( iIndex --[[= 0]], flRate --[[= nil]] )
 		flRate = pViewModel:GetPlaybackRate()
 	end
 		
-	if ( flRate > 0 ) then
-		if ( iIndex == 1 ) then
+	if ( flRate == 0 ) then
+		if ( iIndex == 0 ) then
+			self:SetNextIdle(0)
+		elseif ( iIndex == 1 ) then
+			self:SetNextIdle1(0)
+		elseif ( iIndex == 2 ) then
+			self:SetNextIdle2(0)
+		end
+	else
+		if ( iIndex == 0 ) then
+			self:SetNextIdle( pViewModel:SequenceDuration() / flRate + CurTime() )
+		elseif ( iIndex == 1 ) then
 			self:SetNextIdle1( pViewModel:SequenceDuration() / flRate + CurTime() )
 		elseif ( iIndex == 2 ) then
 			self:SetNextIdle2( pViewModel:SequenceDuration() / flRate + CurTime() )
-		else
-			self:SetNextIdle( pViewModel:SequenceDuration() / flRate + CurTime() )
 		end
 	end
 	
 	return true
 end
-
+-- FIXME: Add prediction count system with UnpredictedCurTime
 function SWEP:SetupPredictedVar( sName, Initial )
 	self[sName] = Initial
 	self[sName .. "-PREV"] = Initial
@@ -3506,7 +3523,7 @@ end
 function SWEP:AllowsAutoSwitchTo()
 	return self.AutoSwitchTo
 end]]
-
+-- FIXME: Add function return
 function SWEP:GetSpecialKey( sKey, bSecondary, bNoConVar )
 	local Val
 	
@@ -3655,6 +3672,7 @@ function SWEP:GetShotTable( bSecondary )
 		Dir = self:GetShootAngles( bSecondary ):Forward(),
 		Distance = self:GetSpecialKey( "Range", bSecondary ),
 		--Flags = FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS,
+		Force = self:GetSpecialKey( "Force", bSecondary ),
 		Num = self:GetSpecialKey( "Bullets", bSecondary ),
 		Spread = self:GetSpecialKey( "Spread", bSecondary ),
 		SpreadBias = self:GetSpecialKey( "SpreadBias", bSecondary ),
@@ -3701,16 +3719,21 @@ function SWEP:LookupActivity( sName, iIndex --[[= 0]] )
 	local Activity = self.Activities[sName]
 	
 	if ( Activity ) then
-		-- Enum
-		if ( isnumber( Activity )) then
-			return Activity
+		if ( istable( Activity )) then
+			Activity = iIndex and Activity[iIndex + 1] or Activity[1]
+			
+			if ( Activity ) then
+				-- FIXME: Add method to see if the seed has been set this command
+				gsrand:SetSeed( self:GetOwner():GetMD5Seed() % 0x100 )
+				
+				return istable( Activity ) and Activity[gsrand:RandomInt( 1, #Activity )] or Activity or ACT_INVALID
+			end
+			
+			return ACT_INVALID
 		end
 		
-		if ( not iIndex or iIndex == 0 ) then
-			return Activity[1] or ACT_INVALID
-		end
-		
-		return Activity[iIndex + 1] or Activity[1] or ACT_INVALID
+		-- Enum or sequence
+		return Activity
 	end
 	
 	return ACT_INVALID

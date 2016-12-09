@@ -114,34 +114,32 @@ function SWEP:Reload()
 		self:PlaySound( "reload" )
 		self:SetNextReload(-1)
 		
+		self:AddEvent( "taunt", 0, function()
+			if ( not self:GetOwner():KeyDown( IN_RELOAD )) then
+				self:SetNextReload( CurTime() + self.TauntTime )
+				
+				return true
+			end
+		end )
+		
 		return true
 	end
 	
 	return false
 end
 
-local bRun = SERVER or not game.SinglePlayer()
-local BaseClass = baseclass.Get( SWEP.Base )
-
--- FIXME: Hack to check auto-reload -- add this to base
-function SWEP:Think()
-	BaseClass.Think( self )
-	
-	if ( bRun and self:GetNextReload() == -1 and not self:GetOwner():KeyDown( IN_RELOAD )) then
-		self:SetNextReload( CurTime() + self.TauntTime )
-	end
-end
-
-function SWEP:ItemFrame()
-	local pPlayer = self:GetOwner()
-	
-	if ( SERVER and pPlayer:MouseLifted() ) then
-		local sAmmo = self:GetPrimaryAmmoName()
+if ( SERVER ) then
+	function SWEP:ItemFrame()
+		local pPlayer = self:GetOwner()
 		
-		if ( pPlayer:GetAmmoCount( sAmmo ) < self.MaxClip ) then
-			pPlayer:GiveAmmo( 1, sAmmo, true )
+		if ( pPlayer:MouseLifted() ) then
+			local sAmmo = self:GetPrimaryAmmoName()
+			
+			if ( pPlayer:GetAmmoCount( sAmmo ) < self.MaxClip ) then
+				pPlayer:GiveAmmo( 1, sAmmo, true )
+			end
 		end
+		
+		self:SetNextItemFrame( CurTime() + self.RegenRate )
 	end
-	
-	self:SetNextItemFrame( CurTime() + self.RegenRate )
 end

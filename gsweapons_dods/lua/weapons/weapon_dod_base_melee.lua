@@ -324,7 +324,7 @@ function SWEP:Smack( tr, vForward, bDelayed, bSecondary, iIndex )
 	end
 end
 
-function SWEP:Hit( tr, vForward, bSecondary )
+function SWEP:SmackDamage( tr, vForward, bSecondary )
 	local flDamage = self:GetSpecialKey( "Damage", bSecondary )
 	local info = DamageInfo()
 		info:SetAttacker( self:GetOwner() )

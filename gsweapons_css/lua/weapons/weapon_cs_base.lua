@@ -63,6 +63,7 @@ function SWEP:CanPrimaryAttack( iIndex )
 			self:AddEvent( "fire", self:SequenceEnd( iIndex ), function()
 				self:PrimaryAttack()
 				self:RemoveEvent( "reload" )
+				self:SetNextReload(0)
 				
 				if ( bSinglePlayer ) then
 					net.Start( "GSWeapons-Finish reload" )
@@ -79,8 +80,8 @@ function SWEP:CanPrimaryAttack( iIndex )
 			return false
 		end
 		
-		self:SetNextReload( CurTime() )
 		self:RemoveEvent( "reload" )
+		self:SetNextReload(0)
 		
 		if ( bSinglePlayer ) then
 			net.Start( "GSWeapons-Finish reload" )
@@ -133,6 +134,7 @@ function SWEP:CanSecondaryAttack( iIndex )
 			self:AddEvent( "fire", self:SequenceEnd( iIndex ), function()
 				self:SecondaryAttack()
 				self:RemoveEvent( "reload" )
+				self:SetNextReload(0)
 				
 				if ( bSinglePlayer ) then
 					net.Start( "GSWeapons-Finish reload" )
@@ -149,8 +151,8 @@ function SWEP:CanSecondaryAttack( iIndex )
 			return false
 		end
 		
-		self:SetNextReload( CurTime() )
 		self:RemoveEvent( "reload" )
+		self:SetNextReload(0)
 		
 		if ( bSinglePlayer ) then
 			net.Start( "GSWeapons-Finish reload" )

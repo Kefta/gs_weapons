@@ -14,7 +14,7 @@ else
 	local sLog = "%s (%s) unarrested %s"
 	local hookCanUnarrest = {canUnarrest = fp{fn.Id, true}}
 	
-	function SWEP:Hit( tr )
+	function SWEP:SmackDamage( tr )
 		local pPlayer = self:GetOwner()
 		local pEntity = tr.Entity
 		

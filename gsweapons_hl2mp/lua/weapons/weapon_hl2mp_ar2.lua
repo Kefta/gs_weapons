@@ -120,7 +120,7 @@ function SWEP:SecondaryAttack()
 				
 				local pPhysObj = pBall:GetPhysicsObject()
 				
-				if ( pPhysObj ~= NULL ) then
+				if ( pPhysObj:IsValid() ) then
 					pPhysObj:AddGameFlag( FVPHYSICS_WAS_THROWN )
 				end
 			end

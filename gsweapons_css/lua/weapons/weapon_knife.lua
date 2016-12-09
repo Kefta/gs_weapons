@@ -17,6 +17,7 @@ SWEP.Sounds = {
 
 SWEP.Primary = {
 	Damage = 15,
+	Force = 300,
 	Range = 48,
 	Cooldown = 0.4,
 	HitCooldown = 0.5,
@@ -38,7 +39,6 @@ SWEP.Melee = {
 	TestHull = Vector(16, 16, 18),
 	DamageType = bit.bor( DMG_BULLET, DMG_NEVERGIB ),
 	Mask = MASK_SOLID,
-	ForceScale = 300,
 	BackMultiplier = 3
 }
 
@@ -160,7 +160,7 @@ function SWEP:Swing( bStab, iIndex )
 			
 			// Calculate an impulse large enough to push a 75kg man 4 in/sec per point of damage
 			-- FIXME: This is exactly how the CS:S knife calculates force, but the 1/Damage doesn't make much sense
-			info:SetDamageForce( vForward * info:GetBaseDamage() * tMelee.ForceScale * (1 / (flDamage < 1 and 1 or flDamage)) * phys_pushscale:GetFloat() )
+			info:SetDamageForce( vForward * info:GetBaseDamage() * self:GetSpecialKey( "Force", bSecondary ) * (1 / (flDamage < 1 and 1 or flDamage)) * phys_pushscale:GetFloat() )
 		pEntity:DispatchTraceAttack( info, tr, vForward )
 		
 		if ( not tr.HitSky ) then

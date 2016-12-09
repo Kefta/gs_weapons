@@ -11,6 +11,7 @@ SWEP.Activities = {
 	hit_alt = ACT_VM_SECONDARYATTACK
 }
 
+SWEP.Primary.Force = 8
 SWEP.Primary.FireInAir = false
 
 SWEP.Melee = {
@@ -18,7 +19,6 @@ SWEP.Melee = {
 	HullRadius = 40,
 	TestHull = Vector(16, 16, 18),
 	Mask = bit.bor( MASK_SOLID, CONTENTS_HITBOX, CONTENTS_DEBRIS ),
-	ForceScale = 8,
 	Delay = 0.2
 }
 
@@ -163,7 +163,7 @@ function SWEP:Swing( bSecondary, iIndex )
 				
 				local flDamage = self:GetSpecialKey( "Damage", bSecondary )
 				info:SetDamage( flDamage )
-				info:SetDamageForce( vForward * info:GetBaseDamage() * tMelee.ForceScale * (1 / (flDamage < 1 and 1 or flDamage)) * phys_pushscale:GetFloat() )
+				info:SetDamageForce( vForward * info:GetBaseDamage() * self:GetSpecialKey( "Force", bSecondary ) * (1 / (flDamage < 1 and 1 or flDamage)) * phys_pushscale:GetFloat() )
 				info:SetDamageType( self.Melee.DamageType )
 				info:SetDamagePosition( tr.HitPos )
 				info:SetReportedPosition( tr.StartPos )
