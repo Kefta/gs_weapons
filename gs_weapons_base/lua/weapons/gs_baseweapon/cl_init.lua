@@ -112,7 +112,7 @@ SWEP.IronSights.Ang = angle_zero -- Local angular translation of the viewmodel
 SWEP.BipodDeploy.DrawCrosshair = false -- Draw crosshair when the weapon is deployed
 
 --- Holster
-net.Receive("GSWeapons-Holster", function()
+net.Receive("GS-Weapons-Holster", function()
 	local pWeapon = net.ReadEntity()
 	
 	if (pWeapon.SharedHolster and pWeapon.m_bActive) then
@@ -121,7 +121,7 @@ net.Receive("GSWeapons-Holster", function()
 	end
 end)
 
-net.Receive("GSWeapons-Holster animation", function()
+net.Receive("GS-Weapons-Holster animation", function()
 	local pWeapon = net.ReadEntity()
 	
 	if (pWeapon.HolsterAnim and not pWeapon.m_bHolsterAnim and pWeapon.m_bActive) then
@@ -131,7 +131,7 @@ net.Receive("GSWeapons-Holster animation", function()
 end)
 
 if (game.SinglePlayer()) then
-	net.Receive("GSWeapons-OnDrop", function()
+	net.Receive("GS-Weapons-OnDrop", function()
 		local pWeapon = net.ReadEntity()
 		
 		if (pWeapon.m_bActive) then
@@ -139,25 +139,30 @@ if (game.SinglePlayer()) then
 		end
 	end)
 	
-	net.Receive("GSWeapons-Reload", function()
+	net.Receive("GS-Weapons-Reload", function()
 		LocalPlayer():GetActiveWeapon():AddEvent("reload", -1)
 	end)
 	
-	net.Receive("GSWeapons-Finish reload", function()
+	net.Receive("GS-Weapons-Finish reload", function()
 		LocalPlayer():GetActiveWeapon():RemoveEvent("reload", true) -- Remove immediately
 	end)
 	
-	net.Receive("GSWeapons-BipodDeploy", function()
+	net.Receive("GS-Weapons-BipodDeploy", function()
 		local pActiveWeapon = LocalPlayer():GetActiveWeapon()
 		pActiveWeapon.m_flDeployYawStart = net.ReadDouble()
 		pActiveWeapon.m_flDeployYawLeft = net.ReadDouble()
 		pActiveWeapon.m_flDeployYawRight = net.ReadDouble()
 	end)
 	
-	net.Receive("GSWeapons-BipodDeploy update", function()
+	net.Receive("GS-Weapons-BipodDeploy update", function()
 		local pActiveWeapon = LocalPlayer():GetActiveWeapon()
 		pActiveWeapon.m_flDeployYawLeft = net.ReadDouble()
 		pActiveWeapon.m_flDeployYawRight = net.ReadDouble()
+	end)
+	
+	net.Receive("GS-Weapons-Lower", function()
+		local pActiveWeapon = LocalPlayer():GetActiveWeapon()
+		pActiveWeapon:SetPredictedVar("m_bLowered", not pActiveWeapon:GetPredictedVar("m_bLowered", true), true)
 	end)
 end
 
@@ -308,14 +313,14 @@ end
 
 --- Player functions
 -- DTVar exists are varying times based on when the player loads in
-net.Receive("GSWeapons-Player DTVars", function()
-	hook.Add("Think", "GSWeapons-Player DTVars", function()	
+net.Receive("GS-Weapons-Player DTVars", function()
+	hook.Add("Think", "GS-Weapons-Player DTVars", function()	
 		local pPlayer = LocalPlayer()
 		
 		if (pPlayer ~= NULL) then
 			pPlayer:InstallDataTable() -- FIXME
 			code_gs.weapons.SetupPlayerDataTables(pPlayer)
-			hook.Remove("GSWeapons-Player DTVars")
+			hook.Remove("GS-Weapons-Player DTVars")
 		end
 	end)
 end)

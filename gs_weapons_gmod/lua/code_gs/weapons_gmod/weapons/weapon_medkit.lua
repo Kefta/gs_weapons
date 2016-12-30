@@ -65,7 +65,7 @@ function SWEP:CanPrimaryAttack(iIndex)
 end
 
 function SWEP:PrimaryAttack()
-	if (self:CanPrimaryAttack()) then
+	if (self:CanPrimaryAttack(0)) then
 		local pPlayer = self:GetOwner()
 		local pEntity = pPlayer:GetEyeTrace().Entity
 		local iHealth = pEntity:Health()
@@ -74,8 +74,8 @@ function SWEP:PrimaryAttack()
 		pEntity:SetHealth(iHealth + iDeduct)
 		pPlayer:RemoveAmmo(iDeduct, self:GetPrimaryAmmoName())
 		
-		self:PlaySound("heal")
-		self:PlayActivity("heal")
+		self:PlaySound("heal", 0)
+		self:PlayActivity("heal", 0)
 		pPlayer:SetAnimation(PLAYER_ATTACK1)
 		
 		local flNextTime = CurTime() + self:GetSpecialKey("Cooldown", false)
@@ -88,8 +88,8 @@ function SWEP:PrimaryAttack()
 	return false
 end
 
-function SWEP:CanSecondaryAttack(bSecondary, iIndex)
-	if (BaseClass.CanSecondaryAttack(self, bSecondary, iIndex)) then
+function SWEP:CanSecondaryAttack(iIndex)
+	if (BaseClass.CanSecondaryAttack(self, iIndex)) then
 		local pPlayer = self:GetOwner()
 		
 		if (pPlayer:Health() < pPlayer:GetMaxHealth()) then
@@ -103,7 +103,7 @@ function SWEP:CanSecondaryAttack(bSecondary, iIndex)
 end
 
 function SWEP:SecondaryAttack()
-	if (self:CanSecondaryAttack()) then
+	if (self:CanSecondaryAttack(0)) then
 		local pPlayer = self:GetOwner()
 		local iHealth = pPlayer:Health()
 		
@@ -111,8 +111,8 @@ function SWEP:SecondaryAttack()
 		pPlayer:SetHealth(iHealth + iDeduct)
 		pPlayer:RemoveAmmo(iDeduct, self:GetPrimaryAmmoName())
 		
-		self:PlaySound("heal")
-		self:PlayActivity("heal")
+		self:PlaySound("heal", 0)
+		self:PlayActivity("heal", 0)
 		pPlayer:SetAnimation(PLAYER_ATTACK1)
 		
 		local flNextTime = CurTime() + self:GetSpecialKey("Cooldown", true)

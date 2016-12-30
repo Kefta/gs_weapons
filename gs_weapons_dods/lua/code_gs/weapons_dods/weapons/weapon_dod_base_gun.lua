@@ -208,6 +208,6 @@ end
 
 -- DoD:S uses per-frame recoil instead of punching
 --[[if (CLIENT) then FIXME
-	hook.Add("Think", "GSWeapons-DoD recoil", function()
+	hook.Add("Think", "GS-Weapons-DoD recoil", function()
 	end)
 end]]

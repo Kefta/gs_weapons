@@ -2,18 +2,19 @@ AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 include("shared.lua")
 
-util.AddNetworkString("GSWeapons-Holster")
-util.AddNetworkString("GSWeapons-Holster animation")
-util.AddNetworkString("GSWeapons-Player DTVars")
+util.AddNetworkString("GS-Weapons-Holster")
+util.AddNetworkString("GS-Weapons-Holster animation")
+util.AddNetworkString("GS-Weapons-Player DTVars")
 
 local bSinglePlayer = game.SinglePlayer()
 
 if (bSinglePlayer) then
-	util.AddNetworkString("GSWeapons-OnDrop")
-	util.AddNetworkString("GSWeapons-Reload")
-	util.AddNetworkString("GSWeapons-Finish reload")
-	util.AddNetworkString("GSWeapons-BipodDeploy")
-	util.AddNetworkString("GSWeapons-BipodDeploy update")
+	util.AddNetworkString("GS-Weapons-OnDrop")
+	util.AddNetworkString("GS-Weapons-Reload")
+	util.AddNetworkString("GS-Weapons-Finish reload")
+	util.AddNetworkString("GS-Weapons-BipodDeploy")
+	util.AddNetworkString("GS-Weapons-BipodDeploy update")
+	util.AddNetworkString("GS-Weapons-Lower")
 end
 
 --- Weapon behaviour
@@ -127,7 +128,7 @@ function SWEP:OnDrop()
 	self:Holster(NULL)
 	
 	if (bSinglePlayer) then
-		net.Start("GSWeapons-OnDrop")
+		net.Start("GS-Weapons-OnDrop")
 			net.WriteEntity(self)
 		net.Send(Entity(1))
 	end
@@ -146,12 +147,12 @@ function SWEP:GetCapabilities()
 end
 
 --- Player functions
-hook.Add("PlayerInitialSpawn", "GSWeapons-Player DTVars", function(pPlayer)
+hook.Add("PlayerInitialSpawn", "GS-Weapons-Player DTVars", function(pPlayer)
 	timer.Simple(0, function()
 		pPlayer:InstallDataTable()
 		code_gs.weapons.SetupPlayerDataTables(pPlayer)
 		
-		net.Start("GSWeapons-Player DTVars")
+		net.Start("GS-Weapons-Player DTVars")
 		net.Send(pPlayer)
 	end)
 end)

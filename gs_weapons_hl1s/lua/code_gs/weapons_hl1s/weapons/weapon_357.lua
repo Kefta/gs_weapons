@@ -40,8 +40,8 @@ SWEP.Zoom = {
 local sv_cheats = GetConVar("sv_cheats")
 local bMultiPlayer = not game.SinglePlayer()
 
-function SWEP:CanSecondaryAttack(bSecondary, iIndex)
-	return (bMultiPlayer or sv_cheats:GetBool()) and BaseClass.CanSecondaryAttack(self, bSecondary, iIndex)
+function SWEP:CanSecondaryAttack(iIndex)
+	return (bMultiPlayer or sv_cheats:GetBool()) and BaseClass.CanSecondaryAttack(self, iIndex)
 end
 
 function SWEP:SecondaryAttack()

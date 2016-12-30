@@ -2,7 +2,7 @@ include("shared.lua")
 AddCSLuaFile("shared.lua")
 AddCSLuaFile("cl_init.lua")
 
-util.AddNetworkString("GSWeapons-Detonate")
+util.AddNetworkString("GS-Weapons-Detonate")
 
 ENT.CanPickup = true
 
@@ -25,7 +25,7 @@ function ENT:OnTakeDamage(info)
 		self:Detonate()
 		
 		if (code_gs.weapons.DetonationNetworked(self.DetonationType)) then
-			net.Start("GSWeapons-Detonate")
+			net.Start("GS-Weapons-Detonate")
 				net.WriteEntity(self)
 			net.Broadcast()
 		end
@@ -37,7 +37,7 @@ function ENT:StartDetonation(flTime --[[= 2.5]])
 		local bRet = self:Detonate()
 		
 		if (code_gs.weapons.DetonationNetworked(self.DetonationType)) then
-			net.Start("GSWeapons-Detonate")
+			net.Start("GS-Weapons-Detonate")
 				net.WriteEntity(self)
 			net.Broadcast()
 		end

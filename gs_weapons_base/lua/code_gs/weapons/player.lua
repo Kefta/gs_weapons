@@ -1,6 +1,6 @@
 if (SERVER or not game.SinglePlayer()) then
 	-- Handles weapon switching
-	hook.Add("StartCommand", "GSWeapons-Shared SelectWeapon", function(pPlayer, cmd)
+	hook.Add("StartCommand", "GS-Weapons-Shared SelectWeapon", function(pPlayer, cmd)
 		if (pPlayer.m_pNewWeapon) then
 			if (pPlayer.m_pNewWeapon == NULL or pPlayer.m_pNewWeapon == pPlayer:GetActiveWeapon()) then
 				pPlayer.m_pNewWeapon = nil
@@ -11,7 +11,7 @@ if (SERVER or not game.SinglePlayer()) then
 		end
 	end)
 	
-	--[[hook.Add("SetupMove", "GSWeapons-Prone eye offset", function(pPlayer, mv)
+	--[[hook.Add("SetupMove", "GS-Weapons-Prone eye offset", function(pPlayer, mv)
 		local pActiveWeapon = pPlayer:GetActiveWeapon()
 		
 		if (pActiveWeapon.GSWeapon and pActiveWeapon:GetDeployed() ~= 0) then
@@ -21,7 +21,7 @@ if (SERVER or not game.SinglePlayer()) then
 	
 	-- https://github.com/Facepunch/garrysmod-issues/issues/2887
 	-- Scales the player's movement speeds based on their weapon
-	hook.Add("Move", "GSWeapons-Punch decay and move speed", function(pPlayer, mv)
+	hook.Add("Move", "GS-Weapons-Punch decay and move speed", function(pPlayer, mv)
 		local pActiveWeapon = pPlayer:GetActiveWeapon()
 		
 		if (pActiveWeapon.GSWeapon) then
@@ -41,7 +41,7 @@ if (SERVER or not game.SinglePlayer()) then
 		end
 	end)
 	
-	hook.Add("FinishMove", "GSWeapons-Punch decay and deploy pose", function(pPlayer)
+	hook.Add("FinishMove", "GS-Weapons-Punch decay and deploy pose", function(pPlayer)
 		local pActiveWeapon = pPlayer:GetActiveWeapon()
 		local fPunchDecay = pActiveWeapon.GSWeapon and pActiveWeapon.PunchDecayFunction
 		
@@ -57,7 +57,7 @@ if (SERVER or not game.SinglePlayer()) then
 end
 
 if (CLIENT) then
-	hook.Add("CreateMove", "GSWeapons-Deploy limits", function(mv)
+	hook.Add("CreateMove", "GS-Weapons-Deploy limits", function(mv)
 		local pActiveWeapon = LocalPlayer():GetActiveWeapon()
 		
 		if (pActiveWeapon.GSWeapon and pActiveWeapon:GetDeployed() ~= 0) then

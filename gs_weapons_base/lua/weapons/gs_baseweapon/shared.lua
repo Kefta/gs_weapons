@@ -327,6 +327,8 @@ function SWEP:Initialize()
 	self.m_bAutoSwitchFrom = self.AutoSwitchFrom
 	self.m_bInitialized = true
 	self:SetupPredictedVar("m_bHolsterAnim", false)
+	self:SetupPredictedVar("m_bLowered", false)
+	self.m_bUpdateLowerHoldType = false
 	self.m_bUpdateThrowHoldType = false
 	self.m_flDeployYawStart = 0
 	self.m_flDeployYawLeft = 0
@@ -354,7 +356,7 @@ function SWEP:Initialize()
 		self.m_tUseViewModel = {[0] = false, false, false}
 	end
 	
-	self:SetHoldType(self.m_sHoldType)
+	self:ResetHoldType()
 	
 	-- If it was created silenced, make it appear that way
 	self:UpdateVariables()
@@ -609,6 +611,7 @@ function SWEP:SharedDeploy(bDelayed)
 	-- Clientside does not initialize sometimes
 	if (self.m_bInitialized) then
 		self:UpdateVariables()
+		self:ResetHoldType()
 	else
 		self:Initialize()
 	end
@@ -849,15 +852,15 @@ function SWEP:Holster(pSwitchingTo)
 				if (SERVER) then
 					-- Run this clientside to reset the viewmodels and set the variables for a full holster
 					if (bSinglePlayer) then
-						net.Start("GSWeapons-Holster animation")
+						net.Start("GS-Weapons-Holster animation")
 							net.WriteEntity(self)
 							net.WriteEntity(pSwitchingTo)
 						net.Send(pPlayer)
 					else
 						-- Give the client a chance to holster themselves
-						timer.Create("GSWeapons-Holster animation-" .. self:EntIndex(), 0, 1, function()
+						timer.Create("GS-Weapons-Holster animation-" .. self:EntIndex(), 0, 1, function()
 							if (not (self == NULL or pPlayer == NULL) and self:GetOwner() == pPlayer) then
-								net.Start("GSWeapons-Holster animation")
+								net.Start("GS-Weapons-Holster animation")
 									net.WriteEntity(self)
 									net.WriteEntity(pSwitchingTo)
 								net.Send(pPlayer)
@@ -881,14 +884,14 @@ function SWEP:Holster(pSwitchingTo)
 		if (SERVER) then
 			-- Clientside does not run Holster in single-player
 			if (bSinglePlayer) then
-				net.Start("GSWeapons-Holster")
+				net.Start("GS-Weapons-Holster")
 					net.WriteEntity(self)
 					net.WriteEntity(pSwitchingTo)
 				net.Send(pPlayer)
 			else
-				timer.Create("GSWeapons-Holster-" .. self:EntIndex(), 0, 1, function()
+				timer.Create("GS-Weapons-Holster-" .. self:EntIndex(), 0, 1, function()
 					if (not (self == NULL or pPlayer == NULL) and self:GetOwner() == pPlayer) then
-						net.Start("GSWeapons-Holster")
+						net.Start("GS-Weapons-Holster")
 							net.WriteEntity(self)
 							net.WriteEntity(pSwitchingTo)
 						net.Send(pPlayer)
@@ -917,7 +920,7 @@ function SWEP:HolsterAnim(pSwitchingTo, bDelayed)
 		if (IsFirstTimePredicted() or bDelayed) then
 			if (self.HolsterReloadTime ~= -1 and self:EventActive("reload")) then
 				-- If self is NULL in the hook, there's no way to retrieve what EntIndex it had
-				local sName = "GSWeapons-Holster reload-" .. self:EntIndex()
+				local sName = "GS-Weapons-Holster reload-" .. self:EntIndex()
 				local flReloadTime
 				local bDidReload = false
 				
@@ -1054,6 +1057,7 @@ function SWEP:SharedHolster(pSwitchingTo, bDelayed)
 	local bIsValid = pPlayer ~= NULL
 	local bNoAnim = not self.HolsterAnimation
 	self:SetPredictedVar("m_bHolsterAnim", false, bDelayed)
+	self:SetPredictedVar("m_bLowered", false, bDelayed)
 	
 	if (CLIENT) then
 		self:SetPredictedVar("m_bActive", false, bDelayed)
@@ -1080,7 +1084,7 @@ function SWEP:SharedHolster(pSwitchingTo, bDelayed)
 			-- FIXME: Change this to a variable
 			if (bIsValid and self.HolsterReloadTime ~= -1 and self:EventActive("reload")) then
 				-- If self is NULL in the hook, there's no way to retrieve what EntIndex it had
-				local sName = "GSWeapons-Holster reload-" .. self:EntIndex()
+				local sName = "GS-Weapons-Holster reload-" .. self:EntIndex()
 				local flReloadTime
 				local bDidReload = false
 			
@@ -1393,7 +1397,7 @@ function SWEP:Think()
 					self:SetNextReload(0)
 					
 					if (bSinglePlayer) then
-						net.Start("GSWeapons-Finish reload")
+						net.Start("GS-Weapons-Finish reload")
 						net.Send(pPlayer)
 					end
 					
@@ -1475,7 +1479,7 @@ function SWEP:UpdateVariables()
 		
 		if (self.m_bUpdateThrowHoldType and self.Grenade.UpdateHoldType) then
 			self.m_bUpdateThrowHoldType = false
-			self:SetHoldType(self.m_sHoldType)
+			self:ResetHoldType()
 		end
 	elseif (iThrow ~= 0) then
 		if (iThrow == -(iWorldIndex + 1)) then
@@ -1493,8 +1497,15 @@ function SWEP:UpdateVariables()
 		
 		if (self.m_bUpdateThrowHoldType and self.Grenade.UpdateHoldType) then
 			self.m_bUpdateThrowHoldType = false
-			self:SetHoldType(self.m_sHoldType)
+			self:ResetHoldType()
 		end
+	end
+	
+	if (self:GetPredictedVar("m_bLowered", true) and self:GetHoldType() ~= "normal") then
+		self.m_bUpdateLowerHoldType = true
+		self:SetHoldType("normal")
+	elseif (self.m_bUpdateLowerHoldType) then
+		self:ResetHoldType()
 	end
 end
 
@@ -1670,7 +1681,7 @@ function SWEP:CanPrimaryAttack(iIndex)
 				self:SetNextReload(0)
 				
 				if (bSinglePlayer) then
-					net.Start("GSWeapons-Finish reload")
+					net.Start("GS-Weapons-Finish reload")
 					net.Send(pPlayer)
 				end
 				
@@ -1690,7 +1701,7 @@ function SWEP:CanPrimaryAttack(iIndex)
 		self:SetNextReload(0)
 		
 		if (bSinglePlayer) then
-			net.Start("GSWeapons-Finish reload")
+			net.Start("GS-Weapons-Finish reload")
 			net.Send(pPlayer)
 		end
 	end
@@ -1764,7 +1775,7 @@ function SWEP:CanSecondaryAttack(bSecondary, iIndex)
 				self:SetNextReload(0)
 				
 				if (bSinglePlayer) then
-					net.Start("GSWeapons-Finish reload")
+					net.Start("GS-Weapons-Finish reload")
 					net.Send(pPlayer)
 				end
 				
@@ -1782,7 +1793,7 @@ function SWEP:CanSecondaryAttack(bSecondary, iIndex)
 		self:SetNextReload(0)
 		
 		if (bSinglePlayer) then
-			net.Start("GSWeapons-Finish reload")
+			net.Start("GS-Weapons-Finish reload")
 			net.Send(pPlayer)
 		end
 	end
@@ -2623,10 +2634,10 @@ function SWEP:ShouldUndeploy()
 			self.m_flDeployYawRight = flYawLimitRight
 			
 			if (bSinglePlayer) then
-				net.Start("GSWeapons-BipodDeploy")
+				net.Start("GS-Weapons-BipodDeploy")
 					net.WriteDouble(flYawLimitLeft)
 					net.WriteDouble(flYawLimitRight)
-				net.Send(pPlayer)
+				net.Send(self:GetOwner())
 			end
 		end
 		
@@ -2666,7 +2677,7 @@ function SWEP:ToggleDeploy(iIndex)
 			self:SetDeployed((iIndex or 0) + 1)
 			
 			if (bSinglePlayer) then
-				net.Start("GSWeapons-BipodDeploy")
+				net.Start("GS-Weapons-BipodDeploy")
 					net.WriteDouble(flYaw) -- No imprecisions
 					net.WriteDouble(flYawLimitLeft)
 					net.WriteDouble(flYawLimitRight)
@@ -2803,7 +2814,6 @@ end
 function SWEP:CanReload()
 	local flNextReload = self:GetNextReload()
 	
-	-- Do not reload if both clips are already full
 	if (flNextReload == -1 or flNextReload > CurTime()) then
 		return false
 	end
@@ -2817,6 +2827,7 @@ function SWEP:CanReload()
 	// If I don't have any spare ammo, I can't reload
 	local iMaxClip1 = self:GetMaxClip1()
 	
+	-- Do not reload if both clips are already full
 	if (iMaxClip1 == -1 or self:Clip1() == iMaxClip1 or pPlayer:GetAmmoCount(self:GetPrimaryAmmoName()) == 0) then
 		local iMaxClip2 = self:GetMaxClip2()
 		
@@ -3033,7 +3044,7 @@ function SWEP:ReloadClips()
 				self:FinishReload()
 				
 				if (bSinglePlayer) then
-					net.Start("GSWeapons-Finish reload")
+					net.Start("GS-Weapons-Finish reload")
 					net.Send(pPlayer)
 				end
 				
@@ -3116,7 +3127,7 @@ function SWEP:ReloadClips()
 			self:FinishReload()
 			
 			if (bSinglePlayer) then
-				net.Start("GSWeapons-Finish reload")
+				net.Start("GS-Weapons-Finish reload")
 				net.Send(pPlayer)
 			end
 			
@@ -3183,6 +3194,67 @@ function SWEP:AddNWVar(sType, sName, bAddFunctions --[[= true]], DefaultVal --[[
 	
 	if (DefaultVal) then
 		self.dt[sName] = DefaultVal
+	end
+end
+
+-- Currently MUST be called in a predicted context
+function SWEP:ToggleFullyLowered(iIndex --[[= 0]])
+	if (self:GetPredictedVar("m_bLowered")) then
+		self:SetPredictedVar("m_bLowered", false)
+		self:PlaySound("draw", iIndex)
+		
+		local pViewModel = self:GetOwner():GetViewModel(iIndex)
+		
+		if (pViewModel ~= NULL) then
+			pViewModel:SetVisible(true)
+		end
+		
+		local flNextTime = self:PlayActivity("draw", iIndex) and self:SequenceLength(iIndex) or 0
+		
+		self:AddEvent("lower", flNextTime, function()
+			if (SERVER and bSinglePlayer) then
+				net.Start("GS-Weapons-Lower")
+				net.Send(self:GetOwner())
+			end
+			
+			return true
+		end)
+		
+		flNextTime = flNextTime + CurTime()
+		self:SetNextPrimaryFire(flNextTime)
+		self:SetNextSecondaryFire(flNextTime)
+		self:SetNextReload(flNextTime)
+	else
+		if (SERVER and bSinglePlayer) then
+			net.Start("GS-Weapons-Lower")
+			net.Send(self:GetOwner())
+		end
+		
+		self:PlaySound("holster", iIndex)
+		
+		local bRan = false
+		
+		self:AddEvent("lower", self:PlayActivity("holster", iIndex) and self:SequenceLength(iIndex) or 0, function()
+			-- FIXME: Hack to fix hands bug
+			if (bRan) then
+				self:SetPredictedVar("m_bLowered", true)
+				return true
+			end
+			
+			local pViewModel = self:GetOwner():GetViewModel(iIndex)
+			
+			if (pViewModel ~= NULL) then
+				pViewModel:SetVisible(false)
+			end
+			
+			bRan = true
+			
+			return 0.2 -- Magic number
+		end)
+		
+		self:SetNextPrimaryFire(-1)
+		self:SetNextSecondaryFire(-1)
+		self:SetNextReload(-1)
 	end
 end
 
@@ -3698,6 +3770,10 @@ function SWEP:SetWeaponHoldType(sHold)
 	sHold = sHold:lower()
 	self.HoldType = sHold
 	self.m_tActivityTranslate = code_gs.weapons.GetHoldType(sHold)
+end
+
+function SWEP:ResetHoldType()
+	self:SetHoldType(self.m_sHoldType)
 end
 
 function SWEP:FlipsViewModel(iIndex --[[= 0]])

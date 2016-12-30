@@ -80,7 +80,7 @@ end
 if (SERVER or not game.SinglePlayer()) then
 	function SWEP:ItemFrame()
 		if (self.m_bUpdateSwingHoldType and self:CanIdle(0)) then
-			self:SetHoldType(self.m_sHoldType)
+			self:ResetHoldType()
 		end
 	end
 end

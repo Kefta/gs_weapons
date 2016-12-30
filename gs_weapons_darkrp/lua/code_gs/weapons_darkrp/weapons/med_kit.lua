@@ -81,8 +81,8 @@ function SWEP:PrimaryAttack()
 	return false
 end
 
-function SWEP:CanSecondaryAttack(bSecondary, iIndex)
-	if (BaseClass.CanSecondaryAttack(self, bSecondary, iIndex)) then
+function SWEP:CanSecondaryAttack(iIndex)
+	if (BaseClass.CanSecondaryAttack(self, iIndex)) then
 		local pPlayer = self:GetOwner()
 		
 		if (pPlayer:Health() < pPlayer:GetMaxHealth()) then

@@ -32,7 +32,7 @@ if (CLIENT) then
 	SWEP.SelectionIcon = 'i'
 	--SWEP.KillIcon = 'x'
 elseif (bMultiPlayer) then
-	util.AddNetworkString("gs-weapons_hl2mp-weapon_rpg")
+	util.AddNetworkString("GS-Weapons_HL2MP-RPG")
 end
 
 function SWEP:SetupDataTables()
@@ -78,7 +78,7 @@ function SWEP:PrimaryAttack()
 		pMissile:SetAngles(aShoot)
 		pMissile:SetOwner(pPlayer)
 		pMissile:Spawn()
-		pMissile:CallOnRemove("gs-weapons_hl2mp-weapon_rpg", fReload, self, pPlayer)
+		pMissile:CallOnRemove("GS-Weapons_HL2MP-RPG", fReload, self, pPlayer)
 		pMissile:AddEffects(EF_NOSHADOW)
 		pMissile:_SetAbsVelocity(vForward * tMissile.VelMul + tMissile.VelAdd)
 		pMissile:SetSaveValue("m_flDamage", self:GetSpecialKey("Damage", bSecondary))
@@ -91,9 +91,9 @@ function SWEP:PrimaryAttack()
 		end
 		
 		if (bMultiPlayer) then
-			timer.Create("gs-weapons_hl2mp-weapon_rpg", 0, 1, function()
+			timer.Create("GS-Weapons_HL2MP-RPG", 0, 1, function()
 				if (not (pMissile == NULL or self == NULL or pPlayer == NULL) and self:GetOwner() == pPlayer) then
-					net.Start("gs-weapons_hl2mp-weapon_rpg")
+					net.Start("GS-Weapons_HL2MP-RPG")
 						net.WriteEntity(pMissile)
 					net.Send(pPlayer)
 				end
@@ -108,12 +108,12 @@ end
 
 if (CLIENT) then
 	if (bMultiPlayer) then
-		net.Receive("gs-weapons_hl2mp-weapon_rpg", function()
+		net.Receive("GS-Weapons_HL2MP-RPG", function()
 			local pMissile = net.ReadEntity()
 			
 			if (pMissile ~= NULL) then
 				local pPlayer = LocalPlayer()
-				pMissile:CallOnRemove("gs-weapons_hl2mp-weapon_rpg", fReload, pPlayer:GetActiveWeapon(), pPlayer)
+				pMissile:CallOnRemove("GS-Weapons_HL2MP-RPG", fReload, pPlayer:GetActiveWeapon(), pPlayer)
 			end
 		end)
 	end
