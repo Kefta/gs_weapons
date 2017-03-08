@@ -3,6 +3,7 @@ SWEP.Base = "weapon_csbase_pistol"
 SWEP.Spawnable = true
 
 SWEP.ViewModel = "models/weapons/v_pist_p228.mdl"
+SWEP.CModel = "models/weapons/cstrike/c_pist_p228.mdl"
 SWEP.WorldModel = "models/weapons/w_pist_p228.mdl"
 
 SWEP.Sounds = {
@@ -16,6 +17,7 @@ SWEP.Activities = {
 SWEP.Primary.Ammo = "357sig"
 SWEP.Primary.ClipSize = 13
 SWEP.Primary.DefaultClip = 65
+SWEP.Primary.Cooldown = 0.15
 SWEP.Primary.Damage = 40
 SWEP.Primary.RangeModifier = 0.8
 SWEP.Primary.Spread = Vector(0.15, 0.15)

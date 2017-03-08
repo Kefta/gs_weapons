@@ -2,10 +2,11 @@ SWEP.Base = "basehlcombatweapon"
 
 SWEP.Spawnable = true
 SWEP.Slot = 1
+SWEP.SlotPos = 1
 
 SWEP.ViewModel = "models/weapons/v_357.mdl"
+SWEP.CModel = "models/weapons/c_357.mdl"
 SWEP.WorldModel = "models/weapons/w_357.mdl"
-
 SWEP.Weight = 7
 
 SWEP.Sounds = {
@@ -13,21 +14,22 @@ SWEP.Sounds = {
 	shoot = "Weapon_357.Single"
 }
 
+-- https://github.com/Facepunch/garrysmod-issues/issues/2847
+SWEP.EventStyle = {
+	[3015] = "hl2_357"
+}
+
 SWEP.Primary.Ammo = "357"
 SWEP.Primary.ClipSize = 6
 SWEP.Primary.DefaultClip = 12
 SWEP.Primary.Cooldown = 0.75
-SWEP.Primary.FireUnderwater = false
 SWEP.Primary.Spread = vector_origin
+SWEP.Primary.TracerFreq = 0
+SWEP.Primary.FireUnderwater = false
 
 if (CLIENT) then
 	SWEP.KillIcon = '.'
 	SWEP.SelectionIcon = 'e'
-	
-	-- https://github.com/Facepunch/garrysmod-issues/issues/2847
-	SWEP.EventStyle = {
-		[3015] = "hl2_357"
-	}
 end
 
 function SWEP:Punch()

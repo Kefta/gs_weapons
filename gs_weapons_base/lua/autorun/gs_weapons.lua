@@ -1,8 +1,7 @@
 include("code_gs/gs.lua")
-AddCSLuaFile("code_gs/gs.lua")
 
-code_gs.LoadAddon("lib", false) -- Optional
+code_gs.LoadAddon("code_gs/lib", "gslib") -- Optional
 
-if (not code_gs.LoadAddon("weapons", true)) then
-	error("[GS] Weapons failed to load!")
+if (not code_gs.LoadAddon("code_gs/weapons", "gsweapons", true)) then
+	error("[GS] GSWeapons failed to load!")
 end

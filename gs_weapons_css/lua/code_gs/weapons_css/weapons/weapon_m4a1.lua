@@ -3,6 +3,7 @@ SWEP.Base = "weapon_csbase_rifle"
 SWEP.Spawnable = true
 
 SWEP.ViewModel = "models/weapons/v_rif_m4a1.mdl"
+SWEP.CModel = "models/weapons/cstrike/c_rif_m4a1.mdl"
 SWEP.WorldModel = "models/weapons/w_rif_m4a1.mdl"
 SWEP.SilencerModel = "models/weapons/w_rif_m4a1_silencer.mdl"
 
@@ -16,15 +17,20 @@ SWEP.Sounds = {
 SWEP.Primary.Ammo = "556mm"
 SWEP.Primary.ClipSize = 30
 SWEP.Primary.DefaultClip = 120
-SWEP.Primary.Damage = 33
 SWEP.Primary.Cooldown = 0.09
-SWEP.Primary.WalkSpeed = 230/250
+SWEP.Primary.Damage = 33
 SWEP.Primary.RangeModifier = 0.97
-SWEP.Primary.Spread = Vector(0.02, 0.02)
+
+local vSpread = Vector(0.02, 0.02)
+local vSpreadSilenced = Vector(0.025, 0.025)
+SWEP.Primary.Spread = function(self, iIndex)
+	return self:GetSilenced(iIndex) and vSpreadSilenced or vSpread
+end
+
 SWEP.Primary.SpreadAir = Vector(0.4, 0.4)
 SWEP.Primary.SpreadMove = Vector(0.07, 0.07)
 
-SWEP.Secondary.Spread = Vector(0.025, 0.025)
+SWEP.WalkSpeed = 230/250
 
 SWEP.Accuracy = {
 	Divisor = 220,
@@ -79,12 +85,10 @@ if (CLIENT) then
 	SWEP.MuzzleFlashScale = 1.6
 end
 
-function SWEP:SecondaryAttack()
-	if (self:CanSecondaryAttack()) then
-		self:Silence(0)
-		
-		return true
+function SWEP:Attack(bSecondary --[[= false]], iIndex --[[= 0]])
+	if (bSecondary) then
+		self:ToggleSilenced(iIndex)
+	else
+		self:Shoot(false, iIndex)
 	end
-	
-	return false
 end

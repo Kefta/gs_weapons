@@ -8,24 +8,20 @@ SWEP.Weight = 20
 
 SWEP.Sounds = {
 	shoot = "Weapon_MP40.Shoot",
-	--reload = "Weapon_Mp40.WorldReload",
-	hit = "Weapon_Punch.HitPlayer",
-	hitworld = "Weapon_Punch.HitWorld"
+	--reload = "Weapon_MP40.WorldReload"
 }
 
 SWEP.Primary.Ammo = "SubMG"
 SWEP.Primary.ClipSize = 30
 SWEP.Primary.DefaultClip = 30*7 -- FIXME
-SWEP.Primary.Damage = 40
 SWEP.Primary.Cooldown = 0.09
+SWEP.Primary.Damage = 40
 SWEP.Primary.Spread = Vector(0.055, 0.055)
 
-SWEP.Secondary = {
-	Damage = 60,
-	Range = 48,
-	Cooldown = 0.4,
-	InterruptReload = true
-}
+SWEP.Secondary.Cooldown = 0.4
+SWEP.Secondary.Damage = 60
+SWEP.Secondary.Range = 48
+SWEP.Secondary.InterruptReload = true
 
 SWEP.Accuracy = {
 	MovePenalty = Vector(0.1, 0.1)
@@ -40,12 +36,10 @@ if (CLIENT) then
 	SWEP.MuzzleFlashScale = 0.3
 end
 
-function SWEP:SecondaryAttack()
-	if (self:CanSecondaryAttack()) then
-		self:Swing(true, 0)
-		
-		return true
+function SWEP:Attack(bSecondary --[[= false]], iIndex --[[= 0]])
+	if (bSecondary) then
+		self:Swing(true, iIndex)
+	else
+		self:Shoot(false, iIndex)
 	end
-	
-	return false
 end

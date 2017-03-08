@@ -2,27 +2,29 @@ SWEP.Base = "weapon_dod_base"
 
 SWEP.PrintName = "DODBase_Gun"
 
-SWEP.Activities = {
-	shoot_empty = ACT_VM_PRIMARYATTACK_EMPTY
+SWEP.Sounds = {
+	hit = "Weapon_Punch.HitPlayer",
+	hitworld = "Weapon_Punch.HitWorld"
 }
 
 SWEP.Activities = {
+	shoot_empty = ACT_VM_PRIMARYATTACK_EMPTY,
 	hit = ACT_VM_PRIMARYATTACK,
-	hit_alt = ACT_VM_SECONDARYATTACK
+	hit2 = ACT_VM_SECONDARYATTACK
 }
 
 SWEP.Primary.Force = 8
+SWEP.Primary.UnderwaterCooldown = 1
 SWEP.Primary.FireInAir = false
+
+SWEP.Secondary.SmackDelay = 0.2
 
 SWEP.Melee = {
 	DotRange = 0.95,
 	HullRadius = 40,
-	TestHull = Vector(16, 16, 18),
 	Mask = bit.bor(MASK_SOLID, CONTENTS_HITBOX, CONTENTS_DEBRIS),
-	Delay = 0.2
+	TestHull = Vector(16, 16, 18)
 }
-
-SWEP.UnderwaterCooldown = 1
 
 SWEP.Penetration = 6
 
@@ -32,16 +34,15 @@ SWEP.Accuracy = {
 }
 
 local PLAYER = FindMetaTable("Player")
-
-function SWEP:Initialize()
-	self.FireFunction = PLAYER.FireDODBullets or PLAYER.FireCSSBullets
-	
-	BaseClass.Initialize(self)
-end
-
 local phys_pushscale = GetConVar("phys_pushscale")
 
--- Punch!
+function SWEP:Initialize()
+	BaseClass.Initialize(self)
+	
+	self.FireFunction = PLAYER.FireDODBullets or PLAYER.FireCSSBullets -- FIXME
+end
+
+--[[ Punch!
 function SWEP:Swing(bSecondary, iIndex)	
 	local tMelee = self.Melee
 	local pPlayer = self:GetOwner()
@@ -145,7 +146,7 @@ function SWEP:Swing(bSecondary, iIndex)
 				
 				self:PlaySound("hit", iIndex)
 			else
-				code_gs.DevMsg(3, self:GetClass() .. " (weapon_dod_base) Placing decal!")
+				code_gs.DevMsg(2, self:GetClass() .. " (weapon_dod_base) Placing decal!")
 				util.Decal("ManhackCut", tr.HitPos - tr.HitNormal, tr.HitPos + tr.HitNormal, true)
 				
 				self:PlaySound("hitworld", iIndex)
@@ -182,7 +183,7 @@ function SWEP:Swing(bSecondary, iIndex)
 	end
 	
 	local flCurTime = CurTime()
-	self:SetLastShootTime(flCurTime)
+	self:SetLastAttackTime(flCurTime)
 	
 	flCurTime = flCurTime + self:GetSpecialKey("Cooldown", bSecondary)
 	self:SetNextPrimaryFire(flCurTime)
@@ -191,19 +192,19 @@ function SWEP:Swing(bSecondary, iIndex)
 	pPlayer:LagCompensation(false)
 	
 	return bActivity
-end
+end]]
 
-function SWEP:GetSpecialKey(sKey, bSecondary, bNoConVar)
+function SWEP:GetSpecialKey(sKey, bSecondary --[[= false]], iIndex --[[= 0]])
 	if (sKey == "Spread") then
 		local pPlayer = self:GetOwner()
 		local tAccuracy = self.Accuracy
 		
 		if (pPlayer:_GetAbsVelocity():Length2DSqr() > (pPlayer:GetWalkSpeed() * tAccuracy.Speed) ^ 2) then
-			return BaseClass.GetSpecialKey(self, sKey, bSecondary, bNoConVar) + tAccuracy.MovePenalty
+			return BaseClass.GetSpecialKey(self, sKey, bSecondary, iIndex) + tAccuracy.MovePenalty
 		end
 	end
 	
-	return BaseClass.GetSpecialKey(self, sKey, bSecondary, bNoConVar)
+	return BaseClass.GetSpecialKey(self, sKey, bSecondary, iIndex)
 end
 
 -- DoD:S uses per-frame recoil instead of punching

@@ -1,3 +1,7 @@
+-- Burst fire
+toburstfire = "Switched to burst-fire mode"
+fromburstfire = "Switched to semi-automatic"
+
 -- Pistols
 weapon_fiveseven = "ES Five-Seven"
 weapon_p228 = "228 Compact"

@@ -1,32 +1,34 @@
 if (SERVER) then
-	local fSetSkillLevel = game.SetSkillLevel
-
-	function game.SetSkillLevel(iLevel)
-		game.UpdateSkillConVars(iLevel)
-		fSetSkillLevel(iLevel)
-	end
-
 	local tSkillConVars = {}
 
-	function game.RegisterSkillConVar(sConVar, tVals)
-		tSkillConVars[sConVar] = tVals
-	end
-
-	function game.UpdateSkillConVars(iLevel)
+	local function UpdateSkillConVars(iLevel)
 		for sVar, tVal in pairs(tSkillConVars) do
 			local Val = tVal[iLevel]
-			
+
 			while (Val == nil and iLevel ~= 0) do
 				iLevel = iLevel - 1
 				Val = tVal[iLevel]
 			end
-			
-			RunConsoleCommand(sVar, tostring(Val))
+
+			if (Val ~= nil) then
+				RunConsoleCommand(sVar, tostring(Val))
+			end
 		end
 	end
 
+	local fSetSkillLevel = game.SetSkillLevel
+
+	function game.SetSkillLevel(iLevel)
+		UpdateSkillConVars(iLevel)
+		fSetSkillLevel(iLevel)
+	end
+
+	function game.RegisterSkillConVar(sConVar, ...)
+		tSkillConVars[sConVar] = {...}
+	end
+
 	hook.Add("InitPostEntity", "GSLib-Update skill convars", function()
-		game.UpdateSkillConVars(game.GetSkillLevel())
+		UpdateSkillConVars(game.GetSkillLevel())
 	end)
 end
 
@@ -38,9 +40,6 @@ function game.AddCustomDamageType(sName)
 	iCurPower = iCurPower + 1
 end
 
--- Half-Life/Half-Life 2 damage flags
-game.AddCustomDamageType("MISSILEDEFENSE") // The only kind of damage missiles take. (special missile defense)
-
 -- Counter-Strike: Source damage flag
 game.AddCustomDamageType("HEADSHOT")
 
@@ -50,8 +49,10 @@ game.AddCustomDamageType("BOMB")
 
 ---------------------------------------------
 
--- Half-Life damage type
+
+-- Half-Life 2 damage types
 DMG_SNIPER = bit.lshift( DMG_BUCKSHOT, 1 )
+DMG_MISSILEDEFENSE = bit.lshift( DMG_BUCKSHOT, 2 ) // The only kind of damage missiles take. (special missile defense)
 
 -- Ammo flags
 AMMO_FORCE_DROP_IF_CARRIED = 0x1
@@ -66,6 +67,7 @@ AMMO_INTERPRET_PLRDAMAGE_AS_DAMAGE_TO_PLAYER = 0x2
 
 		game.AddAmmoType({
 			name		=	"customammo",
+			displayname	=	"Custom Ammo",
 			dmgtype		=	DMG_BULLET,
 			tracer		=	TRACER_LINE_AND_WHIZ,
 			plydmg		=	20,
@@ -80,36 +82,43 @@ AMMO_INTERPRET_PLRDAMAGE_AS_DAMAGE_TO_PLAYER = 0x2
 
 local AmmoTypes = {}
 local AmmoNames = {}
-local HasBuilt = false
+--local HasBuilt = false
 
 function game.AddAmmoType( ammo )
 	if ( not ammo.name ) then
 		MsgN( "Ammo attempted to be registered with no name!" )
-	elseif ( HasBuilt ) then
-		MsgN( "BuildAmmoTypes already called! Ammo type \"" .. (ammo.name or "No Name") .. "\" will not be registered" )
+	--[[elseif ( HasBuilt ) then
+		MsgN( "BuildAmmoTypes already called! Ammo type \"" .. (ammo.name or "No Name") .. "\" will not be registered" )]]
 	else
 		local name = ammo.name:lower()
 		
 		if ( isstring( ammo.plydmg ) ) then
+			ammo.plydmg_convar = ammo.plydmg
 			ammo.plydmg = GetConVarNumber( ammo.plydmg )
 		end
 		
 		if ( isstring( ammo.npcdmg ) ) then
+			ammo.npcdmg_convar = ammo.npcdmg
 			ammo.npcdmg = GetConVarNumber( ammo.npcdmg )
 		end
 		
 		if ( isstring( ammo.maxcarry ) ) then
+			ammo.maxcarry_convar = ammo.maxcarry
 			ammo.maxcarry = GetConVarNumber( ammo.maxcarry )
+		end
+		
+		if ( CLIENT and ammo.displayname ) then
+			language.Add( ammo.name .. "_ammo", ammo.displayname )
 		end
 		
 		if ( AmmoNames[ name ] ) then
 			MsgN( "Ammo \"" .. name .. "\" registered twice; giving priority to later registration" )
-			ammo.num = AmmoNames[ name ].num or #AmmoTypes + 1
-			AmmoTypes[ ammo.num ] = ammo
+			ammo._id = AmmoNames[ name ]._id or #AmmoTypes + 1
+			AmmoTypes[ ammo._id ] = ammo
 			AmmoNames[ name ] = ammo
 		else
 			local i = #AmmoTypes + 1
-			ammo.num = i
+			ammo._id = i
 			AmmoTypes[ i ] = ammo
 			AmmoNames[ name ] = ammo
 		end
@@ -121,7 +130,7 @@ end
 function game.BuildAmmoTypes()
 	-- Sort the table by name here to assure that the ammo types
 	-- are inserted in the same order on both server and client
-	HasBuilt = true
+	--HasBuilt = true
 	table.SortByMember( AmmoTypes, "name" )
 	
 	return AmmoTypes
@@ -150,15 +159,7 @@ function game.GetAmmoMaxCarry( ammo )
 	local ammotype = AmmoNames[ ammo:lower() ]
 	
 	if ( ammotype ) then
-		if ( ammotype.maxcarry ) then
-			if ( isstring( ammotype.maxcarry ) ) then
-				return GetConVarNumber( ammotype.maxcarry )
-			end
-			
-			return ammotype.maxcarry
-		end
-		
-		return 9999
+		return ammotype.maxcarry_convar and GetConVarNumber( ammotype.maxcarry_convar ) or ammotype.maxcarry or 9999
 	end
 	
 	return 0
@@ -178,15 +179,7 @@ function game.GetAmmoNPCDamage( ammo )
 	local ammotype = AmmoNames[ ammo:lower() ]
 	
 	if ( ammotype ) then
-		if ( ammotype.npcdmg ) then
-			if ( isstring( ammotype.npcdmg ) ) then
-				return GetConVarNumber( ammotype.npcdmg )
-			end
-			
-			return ammotype.npcdmg
-		end
-		
-		return 10
+		return ammotype.npcdmg_convar and GetConVarNumber( ammotype.npcdmg_convar ) or ammotype.npcdmg or 10
 	end
 	
 	return 0
@@ -196,15 +189,7 @@ function game.GetAmmoPlayerDamage( ammo )
 	local ammotype = AmmoNames[ ammo:lower() ]
 	
 	if ( ammotype ) then
-		if ( ammotype.plydmg ) then
-			if ( isstring( ammotype.plydmg ) ) then
-				return GetConVarNumber( ammotype.plydmg )
-			end
-			
-			return ammotype.plydmg
-		end
-		
-		return 10
+		return ammotype.plydmg_convar and GetConVarNumber( ammotype.plydmg_convar ) or ammotype.plydmg or 10
 	end
 	
 	return 0
@@ -216,54 +201,75 @@ function game.GetAmmoTracerType( ammo )
 end
 
 -- For custom ammo keys!
-function game.GetAmmoKey( ammo, sKey, Default --[[= 0]] )
+function game.GetAmmoKey( ammo, key, default )
 	ammo = ammo:lower()
-	return AmmoNames[ ammo ] and AmmoNames[ ammo ][ sKey ] or Default or 0
+	
+	if ( AmmoNames[ ammo ] and AmmoNames[ ammo ][ key ] ~= nil ) then
+		return AmmoNames[ ammo ][ key ]
+	end
+	
+	return default
 end
 
-local function AddDefaulammotypeType( ammo, damagetype, tracer, plydamage, npcdamage, maxcarry, force, flags, minsplash, maxsplash )
-	AmmoNames[ ammo:lower() ] = {
+local function AddDefaulammotypeType( name, damagetype, tracer, plydmg, npcdmg, maxcarry, force, flags, minsplash, maxsplash )
+	local tbl = {
 		dmgtype = damagetype,
 		tracer = tracer,
-		plydmg = plydamage,
-		npcdmg = npcdamage,
-		maxcarry = maxcarry, -- Max carry is overwritten in Garry's Mod to always be 9999
+		maxcarry = maxcarry,
 		force = force,
 		flags = flags,
 		minsplash = minsplash or 4,
 		maxsplash = maxsplash or 8
 	}
+	
+	if ( isstring( plydmg ) ) then
+		tbl.plydmg_convar = plydmg
+	else
+		tbl.plydmg = plydmg
+	end
+	
+	if ( isstring( npcdmg ) ) then
+		tbl.npcdmg_convar = npcdmg
+	else
+		tbl.npcdmg = npcdmg
+	end
+	
+	if ( isstring( maxcarry ) ) then
+		tbl.maxcarry_convar = maxcarry
+	else
+		tbl.maxcarry = maxcarry
+	end
+	
+	AmmoNames[ name:lower() ] = tbl
 end
 
--- This constant is shortened to stick with engine specification
--- flFtPerSec * 12 * 0.002285 * (flGrains / 16) * (1/2.2) * flImpulse
 local function BulletImpulse( grains, ftpersec, impulse )
-	return ftpersec * grains * impulse * 0.00077897727272727
+	return ftpersec * 12 * 0.002285 * (grains / 16) * (1/2.2) * impulse
 end
 
 -- Half-Life 2/Deathmatch/Portal ammo types
-AddDefaulammotypeType("AR2",DMG_BULLET,TRACER_LINE_AND_WHIZ,0,0,60,BulletImpulse(200, 1225, 3.5),0)
-AddDefaulammotypeType("AR2AltFire",DMG_DISSOLVE,TRACER_NONE,0,0,3,0,0)
-AddDefaulammotypeType("Pistol",DMG_BULLET,TRACER_LINE_AND_WHIZ,0,0,150,BulletImpulse(200, 1225, 3.5),0)
-AddDefaulammotypeType("SMG1",DMG_BULLET,TRACER_LINE_AND_WHIZ,0,0,225,BulletImpulse(200, 1225, 3.5),0)
-AddDefaulammotypeType("357",DMG_BULLET,TRACER_LINE_AND_WHIZ,0,0,12,BulletImpulse(800, 5000, 3.5),0)
-AddDefaulammotypeType("XBowBolt",DMG_BULLET,TRACER_LINE,0,0,10,BulletImpulse(800, 8000, 3.5),0)
-AddDefaulammotypeType("Buckshot",bit.bor(DMG_BULLET,DMG_BUCKSHOT),TRACER_LINE,0,0,30,BulletImpulse(400, 1200, 3.5),0)
-AddDefaulammotypeType("RPG_Round",DMG_BURN,TRACER_NONE,0,0,3,0,0)
-AddDefaulammotypeType("SMG1_Grenade",DMG_BURN,TRACER_NONE,0,0,3,0,0)
-AddDefaulammotypeType("Grenade",DMG_BURN,TRACER_NONE,0,0,5,0,0)
+AddDefaulammotypeType("AR2",DMG_BULLET,TRACER_LINE_AND_WHIZ,"sk_plr_dmg_ar2","sk_npc_dmg_ar2","sk_max_ar2",BulletImpulse(200,1225,3.5),0)
+AddDefaulammotypeType("AR2shoot2",DMG_DISSOLVE,TRACER_NONE,0,0,"sk_max_ar2_shoot2",0,0)
+AddDefaulammotypeType("Pistol",DMG_BULLET,TRACER_LINE_AND_WHIZ,"sk_plr_dmg_pistol","sk_npc_dmg_pistol","sk_max_pistol",BulletImpulse(200,1225,3.5),0)
+AddDefaulammotypeType("SMG1",DMG_BULLET,TRACER_LINE_AND_WHIZ,"sk_plr_dmg_smg1","sk_npc_dmg_smg1","sk_max_smg1",BulletImpulse(200,1225,3.5),0)
+AddDefaulammotypeType("357",DMG_BULLET,TRACER_LINE_AND_WHIZ,"sk_plr_dmg_357","sk_npc_dmg_357","sk_max_357",BulletImpulse(800,5000,3.5),0)
+AddDefaulammotypeType("XBowBolt",DMG_BULLET,TRACER_LINE,"sk_plr_dmg_crossbow","sk_npc_dmg_crossbow","sk_max_crossbow",BulletImpulse(800,8000,3.5),0)
+AddDefaulammotypeType("Buckshot",bit.bor(DMG_BULLET,DMG_BUCKSHOT),TRACER_LINE,"sk_plr_dmg_buckshot","sk_npc_dmg_buckshot","sk_max_buckshot",BulletImpulse(400,1200,3.5),0)
+AddDefaulammotypeType("RPG_Round",DMG_BURN,TRACER_NONE,"sk_plr_dmg_rpg_round","sk_npc_dmg_rpg_round","sk_max_rpg_round",0,0)
+AddDefaulammotypeType("SMG1_Grenade",DMG_BURN,TRACER_NONE,"sk_plr_dmg_smg1_grenade","sk_npc_dmg_smg1_grenade","sk_max_smg1_grenade",0,0)
+AddDefaulammotypeType("Grenade",DMG_BURN,TRACER_NONE,"sk_plr_dmg_grenade","sk_npc_dmg_grenade","sk_max_grenade",0,0)
 AddDefaulammotypeType("slam",DMG_BURN,TRACER_NONE,0,0,5,0,0)
 
 -- Half-Life 2/Portal ammo types
-AddDefaulammotypeType("AlyxGun",DMG_BULLET,TRACER_LINE,0,0,0,BulletImpulse(200, 1225, 3.5), 0)
-AddDefaulammotypeType("SniperRound",bit.bor(DMG_BULLET,DMG_SNIPER),TRACER_NONE,0,0,0,BulletImpulse(650, 6000, 3.5), 0)
-AddDefaulammotypeType("SniperPenetratedRound", bit.bor(DMG_BULLET,DMG_SNIPER), TRACER_NONE,0, 0, 0, BulletImpulse(150, 6000, 3.5), 0)
-AddDefaulammotypeType("Thumper",DMG_SONIC,TRACER_NONE,10, 10, 2, 0, 0)
-AddDefaulammotypeType("Gravity",DMG_CLUB,TRACER_NONE,0,0, 8, 0, 0)
-AddDefaulammotypeType("Battery",DMG_CLUB,TRACER_NONE,0, 0, 0, 0, 0)
-AddDefaulammotypeType("GaussEnergy",DMG_SHOCK,TRACER_NONE,15,15, 0, BulletImpulse(650, 8000, 3.5), 0) // hit like a 10kg weight at 400 in/s
-AddDefaulammotypeType("CombineCannon",DMG_BULLET,TRACER_LINE,0, 0, 0, 1.5 * 750 * 12, 0) // hit like a 1.5kg weight at 750 ft/s
-AddDefaulammotypeType("AirboatGun",DMG_AIRBOAT,TRACER_LINE,0,0,0,BulletImpulse(10, 600, 3.5), 0)
+AddDefaulammotypeType("AlyxGun",DMG_BULLET,TRACER_LINE,"sk_plr_dmg_alyxgun","sk_npc_dmg_alyxgun","sk_max_alyxgun",BulletImpulse(200,1225,3.5),0)
+AddDefaulammotypeType("SniperRound",bit.bor(DMG_BULLET,DMG_SNIPER),TRACER_NONE,"sk_plr_dmg_sniper_round","sk_npc_dmg_sniper_round","sk_max_sniper_round",BulletImpulse(650,6000,3.5),0)
+AddDefaulammotypeType("SniperPenetratedRound",bit.bor(DMG_BULLET,DMG_SNIPER),TRACER_NONE,"sk_dmg_sniper_penetrate_plr","sk_dmg_sniper_penetrate_npc","sk_max_sniper_round",BulletImpulse(150,6000,3.5),0)
+AddDefaulammotypeType("Thumper",DMG_SONIC,TRACER_NONE,10,10,2,0,0)
+AddDefaulammotypeType("Gravity",DMG_CLUB,TRACER_NONE,0,0,8,0,0)
+AddDefaulammotypeType("Battery",DMG_CLUB,TRACER_NONE,0,0,0,0,0)
+AddDefaulammotypeType("GaussEnergy",DMG_SHOCK,TRACER_NONE,"sk_jeep_gauss_damage","sk_jeep_gauss_damage","sk_max_gauss_round",BulletImpulse(650,8000,3.5),0) // hit like a 10kg weight at 750 ft/s
+AddDefaulammotypeType("CombineCannon",DMG_BULLET,TRACER_LINE,"sk_npc_dmg_gunship_to_plr","sk_npc_dmg_gunship",0,1.5*750*12,0) // hit like a 1.5kg weight at 750 ft/s
+AddDefaulammotypeType("AirboatGun",DMG_AIRBOAT,TRACER_LINE,"sk_plr_dmg_airboat","sk_npc_dmg_airboat",0,BulletImpulse(10,600,3.5),0)
 
 //=====================================================================
 // STRIDER MINIGUN DAMAGE - Pull up a chair and I'll tell you a tale.
@@ -302,16 +308,17 @@ AddDefaulammotypeType("AirboatGun",DMG_AIRBOAT,TRACER_LINE,0,0,0,BulletImpulse(1
 // now that the AmmoDef code is behaving correctly.
 //
 //=====================================================================
-AddDefaulammotypeType("StriderMinigun",DMG_BULLET,TRACER_LINE,5, 15,15, 1 * 750 * 12, AMMO_FORCE_DROP_IF_CARRIED) // hit like a 1kg weight at 750 ft/s
-AddDefaulammotypeType("HelicopterGun",DMG_BULLET,TRACER_LINE_AND_WHIZ,3, 6,0,BulletImpulse(400, 1225, 3.5), bit.bor(AMMO_FORCE_DROP_IF_CARRIED,AMMO_INTERPRET_PLRDAMAGE_AS_DAMAGE_TO_PLAYER))
+--AddDefaulammotypeType("StriderMinigun",DMG_BULLET,TRACER_LINE,5,5,15,1*750*12,AMMO_FORCE_DROP_IF_CARRIED) // hit like a 1kg weight at 750 ft/s
+AddDefaulammotypeType("StriderMinigun",DMG_BULLET,TRACER_LINE,5,15,15,1*750*12,AMMO_FORCE_DROP_IF_CARRIED) // hit like a 1kg weight at 750 ft/s
+AddDefaulammotypeType("HelicopterGun",DMG_BULLET,TRACER_LINE_AND_WHIZ,"sk_npc_dmg_helicopter_to_plr","sk_npc_dmg_helicopter","sk_max_smg1",BulletImpulse(400,1225,3.5),bit.bor(AMMO_FORCE_DROP_IF_CARRIED,AMMO_INTERPRET_PLRDAMAGE_AS_DAMAGE_TO_PLAYER))
 
 -- Half-Life 1 ammo types
-AddDefaulammotypeType("9mmRound",bit.bor(DMG_BULLET,DMG_NEVERGIB),TRACER_LINE, 0,0,0,BulletImpulse(500, 1325, 3), 0)
-AddDefaulammotypeType("MP5_Grenade",bit.bor(DMG_BURN,DMG_BLAST),TRACER_NONE, 0,0,0,0, 0)
-AddDefaulammotypeType("Hornet",DMG_BULLET,TRACER_NONE, 0,0,0,BulletImpulse(100, 1200, 3), 0)
+AddDefaulammotypeType("9mmRound",bit.bor(DMG_BULLET,DMG_NEVERGIB),TRACER_LINE,0,0,0,BulletImpulse(500,1325,3),0)
+AddDefaulammotypeType("MP5_Grenade",bit.bor(DMG_BURN,DMG_BLAST),TRACER_NONE,0,0,0,0,0)
+AddDefaulammotypeType("Hornet",DMG_BULLET,TRACER_NONE,0,0,0,BulletImpulse(100,1200,3),0)
 
 -- One more Half-Life 2 ammo type
-AddDefaulammotypeType("StriderMinigunDirect",DMG_BULLET,TRACER_LINE,2, 2, 15, 1 * 750 * 12, AMMO_FORCE_DROP_IF_CARRIED) // hit like a 1kg weight at 750 ft/s
+AddDefaulammotypeType("StriderMinigunDirect",DMG_BULLET,TRACER_LINE,2,2,15,1*750*12,AMMO_FORCE_DROP_IF_CARRIED) // hit like a 1kg weight at 750 ft/s
 
 -- Half-Life 2: Episodic ammo type
-AddDefaulammotypeType("CombineHeavyCannon",DMG_BULLET,TRACER_LINE,40,40, 0, 10 * 750 * 12, AMMO_FORCE_DROP_IF_CARRIED) // hit like a 10 kg weight at 750 ft/s
+AddDefaulammotypeType("CombineHeavyCannon",DMG_BULLET,TRACER_LINE,40,40,0,10*750*12,AMMO_FORCE_DROP_IF_CARRIED) // hit like a 10kg weight at 750 ft/s

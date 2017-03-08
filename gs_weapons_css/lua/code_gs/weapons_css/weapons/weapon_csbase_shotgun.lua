@@ -14,16 +14,16 @@ SWEP.Primary.RangeModifier = 0.7
 
 SWEP.SingleReload = {
 	Enable = true,
-	QueuedFire = false,
+	FireStall = true,
 	InitialRound = false
 }
 
 SWEP.PunchRand = {
-	Alias = "Shotgun",
-	GroundMin = 0,
-	GroundMax = 0,
-	AirMin = 0,
-	AirMax = 0
+	Alias = "Shotgun", -- CRC string
+	GroundMin = 0, -- Min random pitch on ground
+	GroundMax = 0, -- Max random pitch on ground
+	AirMin = 0, -- Min random pitch in air
+	AirMax = 0 -- Max random pitch in air
 }
 
 function SWEP:Punch()

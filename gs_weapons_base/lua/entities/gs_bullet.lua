@@ -26,7 +26,7 @@ end
 function ENT:SetupBullet(bullet)
 	local pPlayer = self:GetOwner()
 	local vSrc = bullet.Src
-	local bIsValid = pPlayer ~= NULL
+	local bIsValid = pPlayer:IsValid()
 	
 	if (not (bIsValid or vSrc)) then
 		self:Remove()
@@ -122,15 +122,15 @@ function ENT:Touch(pEntity)
 	
 	local iActualDamageType = iActualDamage >= (bullet.GibDamage or 16) and bit.bor(iAmmoDamageType, DMG_ALWAYSGIB) or iAmmoDamageType
 	local pWeapon = bullet.Weapon
-	local pAttacker = bullet.Attacker and bullet.Attacker ~= NULL and bullet.Attacker or bIsValidOwner and pPlayer or self
+	local pAttacker = bullet.Attacker and bullet.Attacker:IsValid() and bullet.Attacker or bIsValidOwner and pPlayer or self
 	local vShotDir = self:_GetAbsVelocity()
 	vShotDir:Normalize()
 	
 	local info = DamageInfo()
 		local pPlayer = self:GetOwner()
-		local bIsValidOwner = pPlayer ~= NULL
+		local bIsValidOwner = pPlayer:IsValid()
 		info:SetAttacker(pAttacker)
-		info:SetInflictor(bullet.Inflictor and bullet.Inflictor ~= NULL and bullet.Inflictor or pWeapon or bIsValidOwner and pPlayer or self)
+		info:SetInflictor(bullet.Inflictor and bullet.Inflictor:IsValid() and bullet.Inflictor or pWeapon or bIsValidOwner and pPlayer or self)
 		info:SetDamage(iActualDamage)
 		info:SetDamageType(iActualDamageType)
 		info:SetDamagePosition(tr.HitPos)

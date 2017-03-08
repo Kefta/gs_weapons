@@ -1,3 +1,7 @@
+-- Burst fire
+toburstfire = "Se ha cambiado al modo ráfaga"
+fromburstfire = "Se ha cambiado al modo semiautomático"
+
 -- Pistols
 weapon_fiveseven = "ES Five-Seven"
 weapon_p228 = "228 Compact"

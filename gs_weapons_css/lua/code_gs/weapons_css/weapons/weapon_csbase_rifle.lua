@@ -6,25 +6,35 @@ SWEP.Slot = 2
 SWEP.HoldType = "ar2"
 SWEP.Weight = 25
 
-SWEP.Primary.Range = 8192
-SWEP.Primary.SpreadAir = vector_origin
-SWEP.Primary.SpreadMove = vector_origin
+SWEP.EventStyle = {
+	-- CS:S muzzle flash
+	[5001] = "css_x",
+	[5011] = "css_x",
+	[5021] = "css_x",
+	[5031] = "css_x"
+}
 
-SWEP.Secondary.SpreadAir = -1
-SWEP.Secondary.SpreadMove = -1
+SWEP.Primary.Range = 8192
+SWEP.Primary.SpreadAir = vector_origin -- Spread in the air
+SWEP.Primary.SpreadMove = vector_origin -- Spread while moving
+SWEP.Primary.SpreadAdditive = vector_origin -- Spread amount to add
+
+SWEP.Secondary.SpreadAir = SWEP.Primary.SpreadAir
+SWEP.Secondary.SpreadMove = SWEP.Primary.SpreadMove
+SWEP.Secondary.SpreadAdditive = SWEP.Primary.SpreadAdditive
 
 SWEP.Penetration = 2
 
 SWEP.Accuracy = {
-	Base = 0.2,
-	Divisor = 0, -- 0 = off
-	Offset = 0,
-	Max = 0,
-	Quadratic = false,
-	Speed = 140/250,
-	Additive = vector_origin
+	Base = 0.2, -- Initial inaccuracy
+	Divisor = 0, -- Accuracy function divisor. Setting to 0 will disable all accuracy modifications
+	Offset = 0, -- Additive to divided accuracy value
+	Max = 0, -- Worst inaccuracy
+	Quadratic = false, -- Shots fired takes a quadratic influence on the accuracy instead of cubic
+	Speed = 140/250 -- Speed for SpreadMove to take effect
 }
 
+-- Weapon punch values
 SWEP.Kick = {
 	Move = {
 		UpBase = 0,
@@ -65,50 +75,36 @@ SWEP.Kick = {
 	Speed = 5/250
 }
 
-if (CLIENT) then
-	SWEP.EventStyle = {
-		-- CS:S muzzle flash
-		[5001] = "css_x",
-		[5011] = "css_x",
-		[5021] = "css_x",
-		[5031] = "css_x"
-	}
-end
+code_gs.weapons.PredictedAccessorFunc(SWEP, false, "Float", "Accuracy", 0, true)
 
 function SWEP:Initialize()
 	BaseClass.Initialize(self)
-	self.m_flAccuracy = self.Accuracy.Base
-end
-
-function SWEP:SharedDeploy(bDelayed)
-	BaseClass.SharedDeploy(self, bDelayed)
 	
-	self.m_flAccuracy = self.Accuracy.Base
+	for i = 0, self.ViewModelCount - 1 do
+		self:SetAccuracy(self.Accuracy.Base, iIndex)
+	end
 end
 
-function SWEP:FinishReload()
-	self.m_flAccuracy = self.Accuracy.Base
+function SWEP:SharedHolster()
+	for i = 0, self.ViewModelCount - 1 do
+		self:SetAccuracy(self.Accuracy.Base, iIndex)
+	end
 end
 
-function SWEP:Shoot(bSecondary, iIndex, iClipDeduction)
-	BaseClass.Shoot(self, bSecondary, iIndex, iClipDeduction)
+function SWEP:Shoot(bSecondary --[[= false]], iIndex --[[= 0]])
+	BaseClass.Shoot(self, bSecondary, iIndex)
+	
 	local tAccuracy = self.Accuracy
 	
 	// These modifications feed back into flSpread eventually.
 	if (tAccuracy.Divisor ~= 0) then
-		local pPlayer = self:GetOwner()
-		local flAccuracy = self:GetShotsFired() ^ (tAccuracy.Quadratic and 2 or 3) / tAccuracy.Divisor + tAccuracy.Offset
-		
-		if (flAccuracy > tAccuracy.Max) then
-			self.m_flAccuracy = tAccuracy.Max
-		else
-			self.m_flAccuracy = flAccuracy
-		end
+		local flAccuracy = self:GetShotsFired(iIndex) ^ (tAccuracy.Quadratic and 2 or 3) / tAccuracy.Divisor + tAccuracy.Offset
+		self:SetAccuracy(flAccuracy > tAccuracy.Max and tAccuracy.Max or flAccuracy, iIndex)
 	end
 end
 
 // GOOSEMAN : Kick the view..
-function SWEP:Punch()
+function SWEP:Punch(bSecondary --[[= false]], iIndex --[[= 0]])
 	local pPlayer = self:GetOwner()
 	local tKick = self.Kick
 	
@@ -124,7 +120,7 @@ function SWEP:Punch()
 		tKick = tKick.Base
 	end
 	
-	local iShotsFired = self:GetShotsFired()
+	local iShotsFired = self:GetShotsFired(iIndex)
 	local aPunch = pPlayer:GetViewPunchAngles()
 	
 	aPunch[1] = aPunch[1] - (tKick.UpBase + iShotsFired * tKick.UpModifier)
@@ -134,7 +130,7 @@ function SWEP:Punch()
 		aPunch[1] = flUpMin
 	end
 	
-	local bDirection = pPlayer.dt.PunchDirection
+	local bDirection = code_gs.weapons.GetNWVar(pPlayer, "Bool", "PunchDirection")
 	
 	if (bDirection) then
 		aPunch[2] = aPunch[2] + (tKick.LateralBase + iShotsFired * tKick.LateralModifier)
@@ -153,27 +149,38 @@ function SWEP:Punch()
 	end
 	
 	if (code_gs.random:SharedRandomInt(pPlayer, "KickBack", 0, tKick.DirectionChange) == 0) then
-		pPlayer.dt.PunchDirection = not bDirection
+		code_gs.weapons.SetNWVar(pPlayer, "Bool", "PunchDirection", not bDirection)
 	end
 	
 	pPlayer:SetViewPunchAngles(aPunch)
 end
 
-function SWEP:GetSpecialKey(sKey, bSecondary, bNoConVar)
+function SWEP:FinishReload(iIndex --[[= 0]])
+	self:SetAccuracy(self.Accuracy.Base, iIndex)
+end
+
+function SWEP:GetSpecialKey(sKey, bSecondary --[[= false]], iIndex --[[= 0]])
 	if (sKey == "Spread") then
 		local pPlayer = self:GetOwner()
+		local bAdd = false
 		
 		-- We're jumping; takes accuracy priority
 		if (not pPlayer:OnGround()) then
-			return self.Accuracy.Additive + BaseClass.GetSpecialKey(self, "SpreadAir", bSecondary, bNoConVar) * self.m_flAccuracy
+			sKey = "SpreadAir"
+			bAdd = true
+		elseif (pPlayer:_GetAbsVelocity():Length2DSqr() > (pPlayer:GetWalkSpeed() * self.Accuracy.Speed) ^ 2) then
+			sKey = "SpreadMove"
+			bAdd = true
 		end
 		
-		if (pPlayer:_GetAbsVelocity():Length2DSqr() > (pPlayer:GetWalkSpeed() * self.Accuracy.Speed) ^ 2) then
-			return self.Accuracy.Additive + BaseClass.GetSpecialKey(self, "SpreadMove", bSecondary, bNoConVar) * self.m_flAccuracy
+		local vSpread = BaseClass.GetSpecialKey(self, sKey, bSecondary, iIndex) * self:GetAccuracy(iIndex)
+		
+		if (bAdd) then
+			vSpread:Add(BaseClass.GetSpecialKey(self, "SpreadAdditive", bSecondary, iIndex))
 		end
 		
-		return BaseClass.GetSpecialKey(self, sKey, bSecondary, bNoConVar) * self.m_flAccuracy
+		return vSpread
 	end
 	
-	return BaseClass.GetSpecialKey(self, sKey, bSecondary, bNoConVar)
+	return BaseClass.GetSpecialKey(self, sKey, bSecondary, iIndex)
 end

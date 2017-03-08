@@ -3,22 +3,23 @@ SWEP.Base = "weapon_csbase_shotgun"
 SWEP.Spawnable = true
 
 SWEP.ViewModel = "models/weapons/v_shot_m3super90.mdl"
+SWEP.CModel = "models/weapons/cstrike/c_shot_m3super90.mdl"
 SWEP.WorldModel = "models/weapons/w_shot_m3super90.mdl"
 
 SWEP.Sounds = {
 	shoot = "Weapon_M3.Single"
 }
 
-SWEP.EmptyCooldown = 0.2
-
 SWEP.Primary.Ammo = "Buckshot_CSS"
 SWEP.Primary.ClipSize = 8
 SWEP.Primary.DefaultClip = 40
-SWEP.Primary.Bullets = 9
-SWEP.Primary.Damage = 26
 SWEP.Primary.Cooldown = 0.875 -- The C++ file hardcodes this to 0.875 regardless of script value
-SWEP.Primary.WalkSpeed = 220/250
+SWEP.Primary.Damage = 26
+SWEP.Primary.EmptyCooldown = 0.2
+SWEP.Primary.Bullets = 9
 SWEP.Primary.Spread = Vector(0.0675, 0.0675)
+
+SWEP.WalkSpeed = 220/250
 
 SWEP.PunchRand = {
 	Name = "M3",

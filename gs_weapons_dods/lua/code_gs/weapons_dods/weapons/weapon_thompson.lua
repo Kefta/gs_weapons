@@ -8,24 +8,20 @@ SWEP.Weight = 20
 
 SWEP.Sounds = {
 	shoot = "Weapon_Thompson.Shoot",
-	--reload = "Weapon_Thompson.WorldReload",
-	hit = "Weapon_Punch.HitPlayer",
-	hitworld = "Weapon_Punch.HitWorld"
+	--reload = "Weapon_Thompson.WorldReload"
 }
 
 SWEP.Primary.Ammo = "SubMG"
 SWEP.Primary.ClipSize = 30
 SWEP.Primary.DefaultClip = 30*7 -- FIXME
-SWEP.Primary.Damage = 40
 SWEP.Primary.Cooldown = 0.085
+SWEP.Primary.Damage = 40
 SWEP.Primary.Spread = Vector(0.055, 0.055)
 
-SWEP.Secondary = {
-	Damage = 60,
-	Range = 48,
-	Cooldown = 0.4,
-	InterruptReload = true
-}
+SWEP.Secondary.Cooldown = 0.4
+SWEP.Secondary.Damage = 60
+SWEP.Secondary.Range = 48
+SWEP.Secondary.InterruptReload = true
 
 SWEP.Accuracy = {
 	MovePenalty = Vector(0.1, 0.1)
@@ -40,19 +36,19 @@ if (CLIENT) then
 	SWEP.MuzzleFlashScale = 0.3
 end
 
-function SWEP:SecondaryAttack()
-	if (self:CanSecondaryAttack()) then
-		self:Swing(true, 0)
-		
-		return true
+function SWEP:Attack(bSecondary --[[= false]], iIndex --[[= 0]])
+	if (bSecondary) then
+		self:Swing(true, iIndex)
+	else
+		self:Shoot(false, iIndex)
 	end
-	
-	return false
 end
 
 -- Ally gun
-function SWEP:GetViewModelSkin(iIndex)
-	if (iIndex == 0) then
+function SWEP:GetViewModelSkin(iIndex --[[= 0]])
+	if (iIndex == nil or iIndex == 0) then
 		return 1
 	end
+	
+	return 0
 end

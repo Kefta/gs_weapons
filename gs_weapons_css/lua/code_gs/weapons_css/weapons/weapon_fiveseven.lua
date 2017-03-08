@@ -3,14 +3,15 @@ SWEP.Base = "weapon_csbase_pistol"
 SWEP.Spawnable = true
 
 SWEP.ViewModel = "models/weapons/v_pist_fiveseven.mdl"
+SWEP.CModel = "models/weapons/cstrike/c_pist_fiveseven.mdl"
 SWEP.WorldModel = "models/weapons/w_pist_fiveseven.mdl"
-
-SWEP.Activities = {
-	shoot_empty = ACT_INVALID -- Animation is broken
-}
 
 SWEP.Sounds = {
 	shoot = "Weapon_FiveSeven.Single"
+}
+
+SWEP.Activities = {
+	shoot_empty = ACT_INVALID -- Animation is broken
 }
 
 SWEP.Primary.Ammo = "57mm"

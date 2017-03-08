@@ -1,4 +1,4 @@
-if (code_gs.AddonLoaded("lib")) then return end
+if (code_gs.AddonLoaded("gslib")) then return end
 
 SNDLVL_NONE = 0
 SNDLVL_20dB = 20 // rustling leaves
@@ -64,6 +64,11 @@ local WEAPON = FindMetaTable("Weapon")
 local ANGLE = FindMetaTable("Angle")
 local VECTOR = FindMetaTable("Vector")
 local PHYSOBJ = FindMetaTable("PhysObj")
+local CONVAR = FindMetaTable("ConVar")
+
+function isconvar(Val)
+	return Val == CONVAR
+end
 
 -- Equivalent of CBasePlayer::EyeVectors() before AngleVecotrs
 function PLAYER:ActualEyeAngles()
@@ -75,7 +80,7 @@ function PLAYER:ActualEyeAngles()
 	
 	// Cache or retrieve our calculated position in the vehicle
 	-- https://github.com/Facepunch/garrysmod-requests/issues/782
-	local iFrameCount = FrameNumber and FrameNumber() or CurTime()
+	local iFrameCount = FrameNumber and FrameNumber() or UnPredictedCurTime()
 
 	// If we've calculated the view this frame, then there's no need to recalculate it
 	if (self.m_iVehicleViewSavedFrame ~= iFrameCount) then
@@ -106,6 +111,8 @@ function PLAYER:GetNextBestWeapon(bIgnoreCategory, bCritical)
 	-- Why use a gamerules function for this when we can just do it here?
 	-- This is a mix of the multiplay/singleplay algorithms
 	local pCurrent = self:GetActiveWeapon()
+	local bIsValid = pCurrent:IsValid()
+	local iCurWeight = bIsValid and pCurrent:GetWeight()
 	local pBestWep
 	local pFallbackWep
 	
@@ -114,21 +121,23 @@ function PLAYER:GetNextBestWeapon(bIgnoreCategory, bCritical)
 		// If we have an active weapon and this weapon doesn't allow autoswitching away
 		// from another weapon, skip it.
 		if (pCheck:AllowsAutoSwitchTo() and pCheck ~= pCurrent) then
-			if (pCheck:HasAmmo()) then
-				local iWeight = pCheck:GetWeight()
-		
-				if (not bIgnoreCategory and iWeight == pCurrent:GetWeight()) then
+			if (pCheck:HasAmmo()) then				
+				if (not bIgnoreCategory) then
 					return pCheck -- We found a perfect match
 				end
-		
-				if (not pBestWep or iWeight > pBestWep:GetWeight()) then
+				
+				local iWeight = pCheck:GetWeight()
+				
+				if (bIsValid and iWeight == iCurWeight) then
+					return pCheck
+				end
+				
+				if (pBestWep == nil or iWeight > pBestWep:GetWeight()) then
 					pBestWep = pCheck
 				end
-			else
-				-- If it's an emergency, have a backup regardless of ammo
-				if (bCritical and not pFallbackWep) then
-					pFallbackWep = pCheck
-				end
+			-- If it's an emergency, have a backup regardless of ammo
+			elseif (bCritical and not pFallbackWep) then
+				pFallbackWep = pCheck
 			end
 		end
 	end
@@ -150,9 +159,9 @@ FIRE_BULLETS_ALLOW_WATER_SURFACE_IMPACTS = 0x4 // If the shot hits water surface
 
 local ai_debug_shoot_positions = GetConVar("ai_debug_shoot_positions")
 local phys_pushscale = GetConVar("phys_pushscale")
-local sv_showimpacts = CreateConVar("sv_showimpacts", "0", FCVAR_REPLICATED, "Shows client (red) and server (blue) bullet impact point (1=both, 2=client-only, 3=server-only)")
-local sv_showpenetration = CreateConVar("sv_showpenetration", "0", FCVAR_REPLICATED, "Shows penetration trace (if applicable) when the weapon fires")
-local sv_showplayerhitboxes = CreateConVar("sv_showplayerhitboxes", "0", FCVAR_REPLICATED, "Show lag compensated hitboxes for the specified player index whenever a player fires.")
+local sv_showimpacts = CreateConVar("gs_weapons_showimpacts", "0", FCVAR_REPLICATED, "Shows client (red) and server (blue) bullet impact point (1=both, 2=client-only, 3=server-only)")
+local sv_showpenetration = CreateConVar("gs_weapons_showpenetration", "0", FCVAR_REPLICATED, "Shows penetration trace (if applicable) when the weapon fires")
+local sv_showplayerhitboxes = CreateConVar("gs_weapons_showplayerhitboxes", "0", FCVAR_REPLICATED, "Show lag compensated hitboxes for the specified player index whenever a player fires.")
 
 local vDefaultMax = Vector(3, 3, 3)
 local vDefaultMin = -vDefaultMax
@@ -175,7 +184,7 @@ function PLAYER:FireLuaBullets(bullets)
 	local sAmmoType
 	local iAmmoType
 	
-	if (not bullets.AmmoType) then
+	if (bullets.AmmoType == nil) then
 		sAmmoType = ""
 		iAmmoType = -1
 	elseif (isstring(bullets.AmmoType)) then
@@ -183,10 +192,10 @@ function PLAYER:FireLuaBullets(bullets)
 		iAmmoType = game.GetAmmoID(sAmmoType)
 	else
 		iAmmoType = bullets.AmmoType
-		sAmmoType = game.GetAmmoName(iAmmoType)
+		sAmmoType = game.GetAmmoName(iAmmoType) or ""
 	end
 	
-	local pAttacker = bullets.Attacker and bullets.Attacker ~= NULL and bullets.Attacker or self
+	local pAttacker = bullets.Attacker and bullets.Attacker:IsValid() and bullets.Attacker or self
 	local fCallback = bullets.Callback
 	local iDamage = bullets.Damage or 1
 	local vDir = bullets.Dir:GetNormal() or self:GetAimVector()
@@ -194,7 +203,7 @@ function PLAYER:FireLuaBullets(bullets)
 	local Filter = bullets.Filter or self
 	local iFlags = bullets.Flags or 0
 	local flForce = bullets.Force or 1
-	local pInflictor = bullets.Inflictor and bullets.Inflictor ~= NULL and bullets.Inflictor or bWeaponInvalid and self or pWeapon
+	local pInflictor = bullets.Inflictor and bullets.Inflictor:IsValid() and bullets.Inflictor or bWeaponInvalid and self or pWeapon
 	local iMask = bullets.Mask or MASK_SHOT
 	local iNPCDamage = bullets.NPCDamage or 0
 	local iNum = bullets.Num or 1
@@ -281,7 +290,7 @@ function PLAYER:FireLuaBullets(bullets)
 	if (iHitNum > 0) then
 		local pLagPlayer = Player(iHitNum)
 		
-		if (pLagPlayer ~= NULL) then
+		if (pLagPlayer:IsValid()) then
 			pLagPlayer:DrawHitBoxes(DEBUG_LENGTH)
 		end
 	end
@@ -570,17 +579,6 @@ function PLAYER:FireLuaBullets(bullets)
 	self:LagCompensation(false)
 end
 
-function PLAYER:FireEntityBullets(tBullets, sClass)
-	if (SERVER) then
-		local pBullet = ents.Create(sClass or "gs_bullet")
-		
-		if (pBullet ~= NULL) then
-			pBullet:SetupBullet(tBullets)
-			pBullet:Spawn()
-		end
-	end
-end
-
 local tMaterialParameters = {
 	[MAT_METAL] = {
 		Penetration = 0.5,
@@ -630,7 +628,7 @@ local tDoublePenetration = {
 local MASK_HITBOX = bit.bor(MASK_SOLID, CONTENTS_DEBRIS, CONTENTS_HITBOX)
 
 function PLAYER:FireCSSBullets(bullets)
-	if (hook.Run("EntityFireCSSBullets", self, bullets) == false) then
+	if (hook.Run("EntityFireBullets", self, bullets) == false) then
 		return
 	end
 	
@@ -643,7 +641,7 @@ function PLAYER:FireCSSBullets(bullets)
 	local sAmmoType
 	local iAmmoType
 	
-	if (not bullets.AmmoType) then
+	if (bullets.AmmoType == nil) then
 		sAmmoType = ""
 		iAmmoType = -1
 	elseif (isstring(bullets.AmmoType)) then
@@ -651,10 +649,10 @@ function PLAYER:FireCSSBullets(bullets)
 		iAmmoType = game.GetAmmoID(sAmmoType)
 	else
 		iAmmoType = bullets.AmmoType
-		sAmmoType = game.GetAmmoName(iAmmoType)
+		sAmmoType = game.GetAmmoName(iAmmoType) or ""
 	end
 	
-	local pAttacker = bullets.Attacker and bullets.Attacker ~= NULL and bullets.Attacker or self
+	local pAttacker = bullets.Attacker and bullets.Attacker:IsValid() and bullets.Attacker or self
 	local fCallback = bullets.Callback
 	local iDamage = bullets.Damage or 1
 	local flDistance = bullets.Distance or MAX_TRACE_LENGTH
@@ -685,7 +683,7 @@ function PLAYER:FireCSSBullets(bullets)
 	local iFlags = bullets.Flags or 0
 	local flForce = bullets.Force or 1
 	--local flHitboxTolerance = bullets.HitboxTolerance or 40
-	local pInflictor = bullets.Inflictor and bullets.Inflictor ~= NULL and bullets.Inflictor or bWeaponInvalid and self or pWeapon
+	local pInflictor = bullets.Inflictor and bullets.Inflictor:IsValid() and bullets.Inflictor or bWeaponInvalid and self or pWeapon
 	local iMask = bullets.Mask or MASK_HITBOX
 	local iNum = bullets.Num or 1
 	local iPenetration = bullets.Penetration or 0
@@ -714,7 +712,7 @@ function PLAYER:FireCSSBullets(bullets)
 	local bShowPenetration = sv_showpenetration:GetBool()
 	local bStartedInWater = bit.band(util.PointContents(vSrc), MASK_WATER) ~= 0
 	local bFirstTimePredicted = IsFirstTimePredicted()
-	local vShootRight, vShootUp, flSpreadBias
+	local vShootRight, vShootUp, flSpreadBias, tEnts, iEntsLen
 	
 	// Wrap it for network traffic so it's the same between client and server
 	local iSeed = self:GetMD5Seed() % 0x100
@@ -734,7 +732,7 @@ function PLAYER:FireCSSBullets(bullets)
 	if (iHitNum > 0) then
 		local pLagPlayer = Player(iHitNum)
 		
-		if (pLagPlayer ~= NULL) then
+		if (pLagPlayer:IsValid()) then
 			pLagPlayer:DrawHitBoxes(DEBUG_LENGTH)
 		end
 	end
@@ -801,7 +799,6 @@ function PLAYER:FireCSSBullets(bullets)
 					if (bit.band(util.PointContents(trSplash.HitPos), CONTENTS_SLIME) ~= 0) then
 						data:SetFlags(FX_WATER_IN_SLIME)
 					end
-					
 				util.Effect("gunshotsplash", data)
 			end
 			
@@ -815,7 +812,7 @@ function PLAYER:FireCSSBullets(bullets)
 			end
 			
 			/************* MATERIAL DETECTION ***********/
-			-- FIXME: Change this to use SurfaceProps if we can load our own version
+			-- https://github.com/Facepunch/garrysmod-requests/issues/923
 			local iEnterMaterial = tr.MatType
 			
 			-- https://github.com/Facepunch/garrysmod-requests/issues/787
@@ -917,15 +914,19 @@ function PLAYER:FireCSSBullets(bullets)
 					debugoverlay.Line(vPenetrationEnd, vHitPos, DEBUG_LENGTH, color_altdebug)
 				end
 			else
-				-- FIXME: Cache this!
-				local tEnts = ents.GetAll()
-				local iLen = #tEnts
+				if (not tEnts) then
+					tEnts = ents.GetAll()
+					iEntsLen = #tEnts
+				end
+				
+				local bReplace = false
 				
 				-- Trace for only the entity we hit
-				for i = iLen, 1, -1 do
+				for i = iEntsLen, 1, -1 do
 					if (tEnts[i] == pEntity) then
-						tEnts[i] = tEnts[iLen]
-						tEnts[iLen] = nil
+						tEnts[i] = tEnts[iEntsLen]
+						tEnts[iEntsLen] = nil
+						bReplace = true
 						
 						break
 					end
@@ -939,6 +940,11 @@ function PLAYER:FireCSSBullets(bullets)
 					ignoreworld = true,
 					output = tr
 				})
+				
+				-- Should never be false
+				if (bReplace) then
+					tEnts[iEntsLen] = pEntity
+				end
 				
 				if (bShowPenetration) then
 					debugoverlay.Line(vEnd, vHitPos, DEBUG_LENGTH, color_altdebug)
@@ -1052,7 +1058,7 @@ end
 
 -- FireCSSBullets without penetration
 function PLAYER:FireSDKBullets(bullets)
-	if (hook.Run("EntityFireSDKBullets", self, bullets) == false) then
+	if (hook.Run("EntityFireBullets", self, bullets) == false) then
 		return
 	end
 	
@@ -1064,7 +1070,7 @@ function PLAYER:FireSDKBullets(bullets)
 	local sAmmoType
 	local iAmmoType
 	
-	if (not bullets.AmmoType) then
+	if (bullets.AmmoType == nil) then
 		sAmmoType = ""
 		iAmmoType = -1
 	elseif (isstring(bullets.AmmoType)) then
@@ -1072,17 +1078,17 @@ function PLAYER:FireSDKBullets(bullets)
 		iAmmoType = game.GetAmmoID(sAmmoType)
 	else
 		iAmmoType = bullets.AmmoType
-		sAmmoType = game.GetAmmoName(iAmmoType)
+		sAmmoType = game.GetAmmoName(iAmmoType) or ""
 	end
 	
-	local pAttacker = bullets.Attacker and bullets.Attacker ~= NULL and bullets.Attacker or self
+	local pAttacker = bullets.Attacker and bullets.Attacker:IsValid() and bullets.Attacker or self
 	local fCallback = bullets.Callback
 	local iDamage = bullets.Damage or 1
 	local flDistance = bullets.Distance or 8000
 	local Filter = bullets.Filter or self
 	local iFlags = bullets.Flags or 0
 	local flForce = bullets.Force or 1
-	local pInflictor = bullets.Inflictor and bullets.Inflictor ~= NULL and bullets.Inflictor or bWeaponInvalid and self or pWeapon
+	local pInflictor = bullets.Inflictor and bullets.Inflictor:IsValid() and bullets.Inflictor or bWeaponInvalid and self or pWeapon
 	local iMask = bullets.Mask or MASK_HITBOX
 	local iNum = bullets.Num or 1
 	local flRangeModifier = bullets.RangeModifier or 0.85
@@ -1127,7 +1133,7 @@ function PLAYER:FireSDKBullets(bullets)
 	if (iHitNum > 0) then
 		local pLagPlayer = Player(iHitNum)
 		
-		if (pLagPlayer ~= NULL) then
+		if (pLagPlayer:IsValid()) then
 			pLagPlayer:DrawHitBoxes(DEBUG_LENGTH)
 		end
 	end
@@ -1274,9 +1280,10 @@ function PLAYER:FireSDKBullets(bullets)
 	
 	self:LagCompensation(false)
 end
-
+-- FIXME: Change all these to be cached based on command number
+-- Add a SetPredictedSeed
 function PLAYER:GetMD5Seed()
-	local iFrameCount = CurTime()
+	local iFrameCount = FrameNumber and FrameNumber() or UnPredictedCurTime()
 	
 	if (self.m_iMD5SeedSavedFrame ~= iFrameCount) then
 		self.m_iMD5SeedSavedFrame = iFrameCount
@@ -1285,6 +1292,8 @@ function PLAYER:GetMD5Seed()
 	
 	return self.m_iMD5Seed
 end
+
+ENTITY.LocalEyeAngles = ENTITY.EyeAngles
 
 function AngleRand(flMin, flMax)	
 	return Angle(math.Rand(flMin or -90, flMax or 90),
@@ -1295,12 +1304,12 @@ end
 function ANGLE:ClipPunchAngleOffset(aPunch, aClip)
 	//Clip each component
 	local aFinal = self + aPunch
-	local fp = aFinal.p
-	local fy = aFinal.y
-	local fr = aFinal.r
-	local cp = aClip.p
-	local cy = aClip.y
-	local cr = aClip.r
+	local fp = aFinal[1]
+	local fy = aFinal[2]
+	local fr = aFinal[3]
+	local cp = aClip[1]
+	local cy = aClip[2]
+	local cr = aClip[3]
 	
 	if (fp > cp) then
 		fp = cp
@@ -1308,7 +1317,7 @@ function ANGLE:ClipPunchAngleOffset(aPunch, aClip)
 		fp = -cp
 	end
 	
-	self.p = fp - aPunch.p
+	self[1] = fp - aPunch[1]
 	
 	if (fy > cy) then
 		fy = cy
@@ -1316,7 +1325,7 @@ function ANGLE:ClipPunchAngleOffset(aPunch, aClip)
 		fy = -cy
 	end
 	
-	self.y = fy - aPunch.y
+	self[2] = fy - aPunch[2]
 	
 	if (fr > cr) then
 		fr = cr
@@ -1324,11 +1333,11 @@ function ANGLE:ClipPunchAngleOffset(aPunch, aClip)
 		fr = -cr
 	end
 	
-	self.r = fr - aPunch.r
+	self[3] = fr - aPunch[3]
 end
 
 function ANGLE:NormalizeInPlace()
-	if (self == angle_zero) then
+	if (self:IsZero()) then
 		return 0
 	end
 	
@@ -1341,6 +1350,12 @@ function ANGLE:NormalizeInPlace()
 	self[3] = z / flRadius
 	
 	return flRadius
+end
+
+function ANGLE:Mul(flMultiplier)
+	self[1] = self[1] * flMultiplier
+	self[2] = self[2] * flMultiplier
+	self[3] = self[3] * flMultiplier
 end
 
 vector_normal = Vector(0, 0, 1)
@@ -1628,7 +1643,7 @@ function ENTITY:PhysicsPushEntity(vPush)
 	
 	local pEntity = tr.Entity
 	
-	if (tr.Entity ~= NULL) then
+	if (tr.Entity:IsValid()) then
 		// If either of the entities is flagged to be deleted, 
 		//  don't call the touch functions
 		if (not (self:IsFlagSet(FL_KILLME) or pEntity:IsFlagSet(FL_KILLME))) then
@@ -1676,12 +1691,14 @@ if (SERVER) then
 		return util.GetExplosionDamageAdjustment(vSrc, self:BodyTarget(vSrc), self)
 	end
 	
-	function ENTITY:PhysicsCheckSweep(vAbsStart, vAbsDelta)
-		local iMask = MASK_SOLID -- FIXME: Support custom ent masks
+	function ENTITY:PhysicsCheckSweep(vAbsStart, vAbsDelta, iMask --[[= MASK_SOLID]])
+		if (not iMask) then
+			iMask = MASK_SOLID
+		end
 		
 		// Set collision type
 		if (not self:IsSolid() or self:SolidFlagSet(FSOLID_VOLUME_CONTENTS)) then
-			if (self:GetMoveParent() ~= NULL) then
+			if (self:GetMoveParent():IsValid()) then
 				return util.ClearTrace()
 			end
 			
@@ -1716,7 +1733,7 @@ if (SERVER) then
 			// m_vVelocity is only networked for the player, which is not manual mode
 			local pMoveParent = self:GetMoveParent()
 			
-			if (pMoveParent ~= NULL) then
+			if (pMoveParent:IsValid()) then
 				// First subtract out the parent's abs velocity to get a relative
 				// velocity measured in world space
 				// Transform relative velocity into parent space
@@ -2117,13 +2134,15 @@ else
 		
 		local pParent = self:GetParent()
 		
-		if (pParent ~= NULL) then
+		if (pParent:IsValid()) then
 			pParent:SetDormant(bDormant) -- Recursion
 		end
 	end
 
-	function ENTITY:PhysicsCheckSweep(vAbsStart, vAbsDelta)
-		local iMask = MASK_SOLID -- FIXME: Support custom ent masks
+	function ENTITY:PhysicsCheckSweep(vAbsStart, vAbsDelta, iMask --[[= MASK_SOLID]])
+		if (not iMask) then
+			iMask = MASK_SOLID
+		end
 		
 		// Set collision type
 		if (not self:IsSolid() or self:SolidFlagSet(FSOLID_VOLUME_CONTENTS)) then
@@ -2147,22 +2166,13 @@ else
 	function ENTITY:_SetAbsVelocity(vAbsVelocity)
 		-- No equivalent; do nothing
 	end
-	
-	function WEAPON:SetDormant(bDormant)
-		// If I'm going from active to dormant and I'm carried by another player, holster me.
-		if (bDormant and not self:IsDormant() and not self:IsCarriedByLocalPlayer()) then
-			self:Holster(NULL)
-		end
-		
-		ENTITY.SetDormant(self, bDormant) -- Weapon metatable baseclass
-	end
 end
 
 if (not code_gs.random) then
-	local Ret = code_gs.LoadAddon("minstd", false)
+	local Ret = code_gs.LoadAddon("code_gs/minstd", "minstd")
 	
 	if (not Ret) then
-		error("[GS] minstd random failed to load!")
+		error("[GS] MINSTD failed to load!")
 	end
 	
 	code_gs.random = unpack(Ret)
@@ -2323,6 +2333,10 @@ function math.MD5Random(nSeed)
 	end
 	
 	return a
+end
+
+function math.GrainFeetForce(flGrains, flFtPerSec, flImpulse)
+	return flFtPerSec * flGrains * 0.00077760497667185 * (flImpulse or 1)
 end
 
 --- Lua functions
@@ -2682,7 +2696,7 @@ end
 function WEAPON:IsActiveWeapon()
 	local pPlayer = self:GetOwner()
 	
-	return pPlayer ~= NULL and pPlayer:GetActiveWeapon() == self
+	return pPlayer:IsValid() and pPlayer:GetActiveWeapon() == self
 end
 
 function WEAPON:IsViewModelSequenceFinished(iIndex)
@@ -2707,52 +2721,4 @@ function WEAPON:IsViewModelSequenceFinished(iIndex)
 	
 	-- https://github.com/Facepunch/garrysmod-requests/issues/704
 	return false
-end
-
-function WEAPON:IsVisible(iIndex)
-	local pPlayer = self:GetOwner()
-	
-	if (pPlayer == NULL) then 
-		return false 
-	end
-	
-	local vm = pPlayer:GetViewModel(iIndex)
-	
-	return vm ~= NULL and vm:IsVisible()
-end
-
--- https://github.com/Facepunch/garrysmod-issues/issues/2856
-function WEAPON:SequenceEnd(iIndex)
-	local pPlayer = self:GetOwner()
-	
-	if (pPlayer ~= NULL) then
-		local pViewModel = pPlayer:GetViewModel(iIndex)
-		
-		if (pViewModel ~= NULL) then
-			return (1 - pViewModel:GetCycle()) * pViewModel:SequenceDuration()
-		end
-	end
-	
-	return 0
-end
-
--- Add multiple viewmodel support to SequenceDuration
--- https://github.com/Facepunch/garrysmod-issues/issues/2783
-function WEAPON:SequenceLength(iIndex, iSequence)
-	local pPlayer = self:GetOwner()
-	
-	if (pPlayer ~= NULL) then
-		local pViewModel = pPlayer:GetViewModel(iIndex)
-		
-		if (pViewModel ~= NULL) then
-			-- Workaround for "CBaseAnimating::SequenceDuration(0) NULL pstudiohdr on predicted_viewmodel!"
-			if (iSequence) then
-				return pViewModel:SequenceDuration(iSequence)
-			else
-				return pViewModel:SequenceDuration() / pViewModel:GetPlaybackRate()
-			end
-		end
-	end
-	
-	return 0
 end

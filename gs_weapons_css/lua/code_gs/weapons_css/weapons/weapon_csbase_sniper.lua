@@ -11,54 +11,52 @@ SWEP.Sounds = {
 }
 
 SWEP.Primary.ClipSize = 10
-SWEP.Primary.Automatic = false
 SWEP.Primary.Range = 8192
-SWEP.Primary.SpreadAir = vector_origin
-SWEP.Primary.SpreadSprint = vector_origin
-SWEP.Primary.SpreadMove = vector_origin
-SWEP.Primary.SpreadCrouch = vector_origin
-SWEP.Primary.SpreadAdditive = vector_origin
+SWEP.Primary.SpreadAir = vector_origin -- Spread in the air
+SWEP.Primary.SpreadSprint = vector_origin -- Spread while sprinting
+SWEP.Primary.SpreadMove = vector_origin -- Spread while moving
+SWEP.Primary.SpreadCrouch = vector_origin -- Spread while crouching
+SWEP.Primary.SpreadAdditive = vector_origin -- Spread amount to add
+SWEP.Primary.Automatic = false
 
-SWEP.Secondary.SpreadAir = -1
-SWEP.Secondary.SpreadSprint = -1
-SWEP.Secondary.SpreadMove = -1
-SWEP.Secondary.SpreadCrouch = -1
-SWEP.Secondary.SpreadAdditive = vector_origin
+SWEP.Secondary.SpreadAir = SWEP.Primary.SpreadAir
+SWEP.Secondary.SpreadSprint = SWEP.Primary.SpreadSprint
+SWEP.Secondary.SpreadMove = SWEP.Primary.SpreadMove
+SWEP.Secondary.SpreadCrouch = SWEP.Primary.SpreadCrouch
+SWEP.Secondary.SpreadAdditive = SWEP.Primary.SpreadAdditive
 
 SWEP.Zoom = {
+	Cooldown = 0.3,
 	FOV = {
 		40
 	},
+	Levels = 2,
 	Times = {
 		0.15
 	},
-	Levels = 2, -- Number of zoom levels
-	Cooldown = 0.3, -- Cooldown between zooming
-	UnzoomOnFire = true,
-	HideViewModel = true
+	UnzoomOnFire = true
 }
 
 SWEP.Penetration = 3
 
 SWEP.Accuracy = {
-	Sprint = 0,
-	Speed = 0
+	Sprint = 0, -- Speed for SpreadSprint to take affect
+	Speed = 0 -- Speed for SpreadMove to take affect
 }
 
-SWEP.PunchIntensity = 2
+SWEP.PunchIntensity = 2 -- Magnitude of pitch in punch
 
 if (CLIENT) then
+	SWEP.Zoom.HideViewModel = true
 	SWEP.Zoom.DrawOverlay = true
 end
 
-function SWEP:SecondaryAttack()
-	if (self:CanSecondaryAttack()) then
-		self:AdvanceZoom(0)
-		
-		return true
+function SWEP:Attack(bSecondary --[[= false]], iIndex --[[= 0]])
+	if (bSecondary) then
+		self:AdvanceZoom(iIndex)
+	else
+		self:Shoot(false, iIndex)
 	end
-	
-	return false
 end
 
 function SWEP:Punch()
@@ -68,31 +66,27 @@ function SWEP:Punch()
 	pPlayer:SetViewPunchAngles(aPunch)
 end
 
-function SWEP:GetSpecialKey(sKey, bSecondary, bNoConVar)
+function SWEP:GetSpecialKey(sKey, bSecondary --[[= false]], iIndex --[[= 0]])
 	if (sKey == "Spread") then
 		local pPlayer = self:GetOwner()
 		
 		if (not pPlayer:OnGround()) then
-			return BaseClass.GetSpecialKey(self, "SpreadAir", bSecondary, bNoConVar) + BaseClass.GetSpecialKey(self, "SpreadAdditive", bSecondary, bNoConVar)
+			sKey = "SpreadAir"
+		else
+			local flLength = pPlayer:_GetAbsVelocity():Length2DSqr()
+			local flWalkSpeed = pPlayer:GetWalkSpeed()
+			
+			if (flLength > (flWalkSpeed * self.Accuracy.Sprint) ^ 2) then
+				sKey = "SpreadSprint"
+			elseif (flLength > (flWalkSpeed * self.Accuracy.Speed) ^ 2) then
+				sKey = "SpreadMove"
+			elseif (pPlayer:Crouching()) then
+				sKey = "SpreadCrouch"
+			end
 		end
 		
-		local flLength = pPlayer:_GetAbsVelocity():Length2DSqr()
-		local flWalkSpeed = pPlayer:GetWalkSpeed()
-		
-		if (flLength > (flWalkSpeed * self.Accuracy.Sprint) ^ 2) then
-			return BaseClass.GetSpecialKey(self, "SpreadSprint", bSecondary, bNoConVar) + BaseClass.GetSpecialKey(self, "SpreadAdditive", bSecondary, bNoConVar)
-		end
-		
-		if (flLength > (flWalkSpeed * self.Accuracy.Speed) ^ 2) then
-			return BaseClass.GetSpecialKey(self, "SpreadMove", bSecondary, bNoConVar) + BaseClass.GetSpecialKey(self, "SpreadAdditive", bSecondary, bNoConVar)
-		end
-		
-		if (pPlayer:Crouching()) then
-			return BaseClass.GetSpecialKey(self, "SpreadCrouch", bSecondary, bNoConVar) + BaseClass.GetSpecialKey(self, "SpreadAdditive", bSecondary, bNoConVar)
-		end
-		
-		return BaseClass.GetSpecialKey(self, sKey, bSecondary, bNoConVar) + BaseClass.GetSpecialKey(self, "SpreadAdditive", bSecondary, bNoConVar)
+		return BaseClass.GetSpecialKey(self, sKey, bSecondary, iIndex) + BaseClass.GetSpecialKey(self, "SpreadAdditive", bSecondary, iIndex)
 	end
 	
-	return BaseClass.GetSpecialKey(self, sKey, bSecondary, bNoConVar)
+	return BaseClass.GetSpecialKey(self, sKey, bSecondary, iIndex)
 end

@@ -3,25 +3,33 @@ SWEP.Base = "weapon_csbase_pistol"
 SWEP.Spawnable = true
 
 SWEP.ViewModel = "models/weapons/v_pist_elite.mdl"
+SWEP.CModel = "models/weapons/cstrike/c_pist_elite.mdl"
 SWEP.WorldModel = "models/weapons/w_pist_elite.mdl"
 SWEP.DroppedModel = "models/weapons/w_pist_elite_dropped.mdl"
 -- Single version: "models/weapons/w_pist_elite_single.mdl"
 SWEP.HoldType = "duel"
 
-SWEP.Activities = {
-	shoot_empty_left = ACT_VM_DRYFIRE_LEFT,
-	idle_empty_left = ACT_VM_IDLE_EMPTY_LEFT
-}
-
 SWEP.Sounds = {
 	shoot = "Weapon_Elite.Single"
+}
+
+SWEP.StrictSuffixes = {
+	empty_left = function(self, iIndex) return self:GetClip(false, iIndex) == 1 end
+}
+
+SWEP.Activities = {
+	shoot = function(self, iIndex)
+		return self:GetClip(false, iIndex) % 2 == 0 and ACT_VM_SECONDARYATTACK or ACT_VM_PRIMARYATTACK
+	end,
+	shoot_empty_left = ACT_VM_DRYFIRE_LEFT,
+	idle_empty_left = ACT_VM_IDLE_EMPTY_LEFT
 }
 
 SWEP.Primary.Ammo = "9mm"
 SWEP.Primary.ClipSize = 30
 SWEP.Primary.DefaultClip = 150
-SWEP.Primary.Damage = 45
 SWEP.Primary.Cooldown = 0.12
+SWEP.Primary.Damage = 45
 SWEP.Primary.RangeModifier = 0.75
 SWEP.Primary.Spread = Vector(0.1, 0.1)
 SWEP.Primary.SpreadAir = Vector(1.3, 1.3)
@@ -45,25 +53,9 @@ if (CLIENT) then
 end
 
 -- Right and left pistols
-function SWEP:PlayActivity(Activity, iIndex --[[= 0]], flRate --[[= 1]], bStrictPrefix --[[= false]], bStrictSuffix --[[= false]])
-	if (iIndex == 0 and Activity == "shoot") then
-		local iClip = self:GetShootClip(self:SpecialActive())
-		
-		return BaseClass.PlayActivity(self, iClip ~= 0 and iClip % 2 == 0 and "altfire" or Activity, iIndex, flRate)
-	end
-	
-	return BaseClass.PlayActivity(self, Activity, iIndex, flRate, bStrictPrefix, bStrictSuffix)
-end
-
-function SWEP:GetActivitySuffix(sActivity, iIndex)
-	if (iIndex == 0 and self:GetShootClip(self:SpecialActive()) == 1) then
-		return "empty_left"
-	end
-	
-	return BaseClass.GetActivitySuffix(self, sActivity, iIndex)
-end
-
+-- FIXME: Test
+-- FIXME: Empty firing isn't working
 function SWEP:GetMuzzleAttachment(iEvent --[[= 5001]])
-	return self:GetShootClip(self:SpecialActive()) % 2 == 0 and BaseClass.GetMuzzleAttachment(self, iEvent) or BaseClass.GetMuzzleAttachment(self, iEvent) + 1
+	return self:GetClip(false, iIndex) % 2 == 0 and ((iEvent or 5001) - 4991) / 10 or ((iEvent or 5001) - 4991) / 10 + 1
 end
 	

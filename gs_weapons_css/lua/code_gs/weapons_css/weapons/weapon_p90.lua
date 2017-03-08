@@ -3,6 +3,7 @@ SWEP.Base = "weapon_csbase_smg"
 SWEP.Spawnable = true
 
 SWEP.ViewModel = "models/weapons/v_smg_p90.mdl"
+SWEP.CModel = "models/weapons/cstrike/c_smg_p90.mdl"
 SWEP.WorldModel = "models/weapons/w_smg_p90.mdl"
 SWEP.Weight = 26
 
@@ -10,16 +11,25 @@ SWEP.Sounds = {
 	shoot = "Weapon_P90.Single"
 }
 
+SWEP.EventStyle = {
+	-- CS:S muzzle flash
+	[5001] = "css_x",
+	[5011] = "css_x",
+	[5021] = "css_x",
+	[5031] = "css_x"
+}
+
 SWEP.Primary.Ammo = "57mm"
 SWEP.Primary.ClipSize = 50
 SWEP.Primary.DefaultClip = 150
 SWEP.Primary.Cooldown = 0.07
 SWEP.Primary.Damage = 26
-SWEP.Primary.WalkSpeed = 245/250
 SWEP.Primary.RangeModifier = 0.84
 SWEP.Primary.Spread = Vector(0.045, 0.045)
 SWEP.Primary.SpreadAir = Vector(0.3, 0.3)
 SWEP.Primary.SpreadMove = Vector(0.115, 0.115)
+
+SWEP.WalkSpeed = 245/250
 
 SWEP.Accuracy = {
 	Divisor = 175,
@@ -76,12 +86,4 @@ if (CLIENT) then
 	}
 	
 	SWEP.MuzzleFlashScale = 1.2
-	
-	SWEP.EventStyle = {
-		-- CS:S muzzle flash
-		[5001] = "css_x",
-		[5011] = "css_x",
-		[5021] = "css_x",
-		[5031] = "css_x"
-	}
 end

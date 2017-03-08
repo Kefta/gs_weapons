@@ -3,17 +3,30 @@ SWEP.Base = "weapon_csbase_smg"
 SWEP.Spawnable = true
 
 SWEP.ViewModel = "models/weapons/v_smg_tmp.mdl"
+SWEP.CModel = "models/weapons/cstrike/c_smg_tmp.mdl"
 SWEP.WorldModel = "models/weapons/w_smg_tmp.mdl"
 
 SWEP.Sounds = {
 	shoot = "Weapon_TMP.Single"
 }
 
+-- No muzzle flash
+SWEP.EventStyle = {
+	[5001] = "",
+	[5003] = "",
+	[5011] = "",
+	[5013] = "",
+	[5021] = "",
+	[5023] = "",
+	[5031] = "",
+	[5033] = ""
+}
+
 SWEP.Primary.Ammo = "45acp"
 SWEP.Primary.ClipSize = 30
 SWEP.Primary.DefaultClip = 150
-SWEP.Primary.Damage = 26
 SWEP.Primary.Cooldown = 0.07
+SWEP.Primary.Damage = 26
 SWEP.Primary.RangeModifier = 0.84
 SWEP.Primary.Spread = Vector(0.03, 0.03)
 SWEP.Primary.SpreadAir = Vector(0.25, 0.25)
@@ -73,19 +86,8 @@ if (CLIENT) then
 	}
 	
 	SWEP.MuzzleFlashScale = 0.8
-	
-	-- No muzzle flash
-	SWEP.EventStyle = {
-		[5001] = "",
-		[5003] = "",
-		[5011] = "",
-		[5013] = "",
-		[5021] = "",
-		[5023] = "",
-		[5031] = "",
-		[5033] = ""
-	}
 end
 
 function SWEP:DoMuzzleFlash()
+	return true
 end

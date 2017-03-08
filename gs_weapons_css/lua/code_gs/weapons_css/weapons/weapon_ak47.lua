@@ -3,6 +3,7 @@ SWEP.Base = "weapon_csbase_rifle"
 SWEP.Spawnable = true
 
 SWEP.ViewModel = "models/weapons/v_rif_ak47.mdl"
+SWEP.CModel = "models/weapons/cstrike/c_rif_ak47.mdl"
 SWEP.WorldModel = "models/weapons/w_rif_ak47.mdl"
 
 SWEP.Sounds = {
@@ -12,12 +13,13 @@ SWEP.Sounds = {
 SWEP.Primary.Ammo = "762mm"
 SWEP.Primary.ClipSize = 30
 SWEP.Primary.DefaultClip = 120
-SWEP.Primary.Damage = 36
 SWEP.Primary.Cooldown = 0.1
-SWEP.Primary.WalkSpeed = 221/250
+SWEP.Primary.Damage = 36
 SWEP.Primary.Spread = Vector(0.0275, 0.0275)
 SWEP.Primary.SpreadAir = Vector(0.4, 0.4)
 SWEP.Primary.SpreadMove = Vector(0.07, 0.07)
+
+SWEP.WalkSpeed = 221/250
 
 SWEP.Accuracy = {
 	Divisor = 200,

@@ -3,6 +3,7 @@ SWEP.Base = "weapon_csbase_autosniper"
 SWEP.Spawnable = true
 
 SWEP.ViewModel = "models/weapons/v_snip_sg550.mdl"
+SWEP.CModel = "models/weapons/cstrike/c_snip_sg550.mdl"
 SWEP.WorldModel = "models/weapons/w_snip_sg550.mdl"
 
 SWEP.Sounds = {

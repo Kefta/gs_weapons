@@ -8,39 +8,30 @@ SWEP.WorldModel = "models/w_9mmAR.mdl"
 SWEP.HoldType = "smg"
 SWEP.Weight = 15
 
-SWEP.Activities = {
-	priamry = {
-		ACT_VM_PRIMARYATTACK,
-		idle = {10, 15} -- FIXME: Not working
-	},
-	altfire = {
-		ACT_VM_SECONDARYATTACK,
-		idle = 5
-	},
-	idle = {
-		ACT_VM_IDLE,
-		idle = {3, 5}
-	}
-}
-
 SWEP.Sounds = {
 	shoot = "Weapon_MP5.Single",
-	altfire = "Weapon_MP5.Double"
+	shoot2 = "Weapon_MP5.Double"
 }
 
 SWEP.Primary.Ammo = "9mmRound"
 SWEP.Primary.ClipSize = 50
 SWEP.Primary.DefaultClip = 75
 SWEP.Primary.Cooldown = 0.1
+SWEP.Primary.EmptyCooldown = 0.15
 SWEP.Primary.Spread = game.SinglePlayer() and VECTOR_CONE_3DEGREES or VECTOR_CONE_6DEGREES
+
+SWEP.Primary.PunchAngle = function(self, iIndex)
+	local tPunch = self.PunchRand
+	
+	return Angle(code_gs.random:SharedRandomFloat(self:GetOwner(), self:GetClass() .. "-Punch" .. iIndex, tPunch.Min, tPunch.Max), 0, 0)
+end
 
 SWEP.Secondary.Ammo = "MP5_Grenade"
 SWEP.Secondary.DefaultClip = 2
 SWEP.Secondary.Cooldown = 1
-SWEP.Secondary.PunchAngle = Angle(-10, 0, 0)
+SWEP.Secondary.EmptyCooldown = 0.15
 SWEP.Secondary.Force = 800
-
-SWEP.EmptyCooldown = 0.15
+SWEP.Secondary.PunchAngle = Angle(-10, 0, 0)
 
 SWEP.GrenadeClass = "grenade_mp5"
 
@@ -56,71 +47,28 @@ function SWEP:Precache()
 	util.PrecacheModel("models/grenade.mdl")
 end
 
-function SWEP:PrimaryAttack()
-	if (self:CanPrimaryAttack(0)) then
-		self:Shoot(false, 0)
-		
-		return true
-	end
-	
-	return false
-end
-
-function SWEP:SecondaryAttack()
-	if (self:CanSecondaryAttack(0)) then
-		self:DoMuzzleFlash()
-		self:Punch(true)
-		
-		local pPlayer = self:GetOwner()
-		pPlayer:SetAnimation(PLAYER_ATTACK1)
-		pPlayer:RemoveAmmo(1, self:GetSecondaryAmmoName())
-		self:PlaySound("altfire")
-		self:PlayActivity("altfire")
-		
-		local flNextTime = CurTime() + self:GetSpecialKey("Cooldown", true)
-		self:SetNextPrimaryFire(flNextTime)
-		self:SetNextSecondaryFire(flNextTime)
-		self:SetNextReload(flNextTime)
-		
-		if (SERVER) then
-			local pGrenade = ents.Create(self.GrenadeClass)
-			pGrenade:SetPos(self:GetShootSrc())
-			local vThrow = self:GetShootAngles():Forward() * 800 -- FIXME: Force
-			pGrenade:SetAngles(vThrow:Angle())
-			pGrenade:_SetAbsVelocity(vThrow)
-			pGrenade:SetOwner(pPlayer)
-			
-			-- Don't need to set the seed here since it's serverside only
-			pGrenade:SetLocalAngularVelocity(Angle(code_gs.random:RandomFloat(-100, -500), 0, 0))
-			pGrenade:Spawn()
-			pGrenade:SetMoveType(MOVETYPE_FLYGRAVITY)
-		end
+function SWEP:Attack(bSecondary --[[= false]], iIndex --[[= 0]])
+	if (bSecondary) then
+		self:Launch(true, iIndex)
+	else
+		self:Shoot(false, iIndex)
 	end
 end
 
-function SWEP:GetShootAmmoName(bSecondary)
-	return bSecondary and self:GetSecondaryAmmoName() or self:GetPrimaryAmmoName()
+function SWEP:Shoot(bSecondary --[[= false]], iIndex --[[= 0]])
+	BaseClass.Shoot(self, bSecondary, iIndex)
+	
+	self:SetNextAttack(0, true, iIndex) -- Don't penalise secondary time
 end
 
-function SWEP:Launch(bSecondary, iIndex)
-	self:DoMuzzleFlash(bSecondary)
-	self:Punch(bSecondary)
-	
+function SWEP:Launch(bSecondary --[[= false]], iIndex --[[= 0]])
 	local pPlayer = self:GetOwner()
-	pPlayer:SetAnimation(PLAYER_ATTACK1)
-	pPlayer:RemoveAmmo(self:GetSpecialKey("Deduction", bSecondary), self:GetShootAmmoName(bSecondary))
-	self:PlaySound("altfire")
-	self:PlayActivity("altfire")
-	
-	local flNextTime = CurTime() + self:GetSpecialKey("Cooldown", true)
-	self:SetNextPrimaryFire(flNextTime)
-	self:SetNextSecondaryFire(flNextTime)
-	self:SetNextReload(flNextTime)
 	
 	if (SERVER) then
 		local pGrenade = ents.Create(self.GrenadeClass)
-		pGrenade:SetPos(self:GetShootSrc(bSecondary))
-		local vThrow = self:GetShootDir(bSecondary) * self:GetSpecialKey("Force", bSecondary)
+		pGrenade:SetPos(self:GetShootSrc(iIndex))
+		
+		local vThrow = self:GetShootDir(iIndex) * self:GetSpecialKey("Force", bSecondary, iIndex)
 		pGrenade:SetAngles(vThrow:Angle())
 		pGrenade:_SetAbsVelocity(vThrow)
 		pGrenade:SetOwner(pPlayer)
@@ -130,20 +78,50 @@ function SWEP:Launch(bSecondary, iIndex)
 		pGrenade:Spawn()
 		pGrenade:SetMoveType(MOVETYPE_FLYGRAVITY)
 	end
-end
-
-function SWEP:Shoot(bSecondary --[[= false]], iIndex --[[= 0]])
-	BaseClass.Shoot(self, bSecondary, iIndex)
 	
-	self:SetNextSecondaryFire(0) -- Don't penalise secondary time
-end
-
-function SWEP:GetSpecialKey(sKey, bSecondary, bNoConVar)
-	if (not bSecondary and sKey == "PunchAngle") then
-		local tBounds = self.PunchRand
-		
-		return Angle(code_gs.random:RandomFloat(tBounds.Min, tBounds.Max), 0, 0)
+	pPlayer:RemoveAmmo(self:GetSpecialKey("Deduction", bSecondary, iIndex), self:GetAmmoType(bSecondary, iIndex))
+	
+	local bActivity = self:PlayActivity("shoot2", iIndex) ~= -1
+	
+	if (not self:DoMuzzleFlash(iIndex)) then
+		pPlayer:MuzzleFlash()
 	end
 	
-	return BaseClass.GetSpecialKey(self, sKey, bSecondary, bNoConVar)
+	self:Punch(bSecondary, iIndex)
+	pPlayer:SetAnimation(PLAYER_ATTACK1)
+	
+	self:PlaySound("shoot2", iIndex)
+	
+	local flNextTime = CurTime() + self:GetSpecialKey("Cooldown", bSecondary, iIndex)
+	self:SetNextAttack(flNextTime, false, iIndex)
+	self:SetNextAttack(flNextTime, true, iIndex)
+	self:SetNextReload(flNextTime, iIndex)
+	
+	return self:PlayActivity("shoot2", iIndex) ~= -1
+end
+
+function SWEP:GetAmmoType(bSecondary --[[= false]], iIndex --[[= 0]])
+	return (iIndex == nil or iIndex == 0) and (bSecondary and self:GetSecondaryAmmoType() or self:GetPrimaryAmmoType()) or -1
+end
+
+function SWEP:GetDefaultClip(bSecondary --[[= false]], iIndex --[[= 0]])
+	return (iIndex == nil or iIndex == 0) and (bSecondary and self:GetDefaultClip2() or self:GetDefaultClip1()) or -1
+end
+
+function SWEP:GetMaxClip(bSecondary --[[= false]], iIndex --[[= 0]])
+	return (iIndex == nil or iIndex == 0) and (bSecondary and self:GetMaxClip2() or self:GetMaxClip1()) or -1
+end
+
+function SWEP:GetClip(bSecondary --[[= false]], iIndex --[[= 0]])
+	return (iIndex == nil or iIndex == 0) and (bSecondary and self:Clip2() or self:Clip1()) or -1
+end
+
+function SWEP:SetClip(iAmmo, bSecondary --[[= false]], iIndex --[[= 0]])
+	if (iIndex == nil or iIndex == 0) then
+		if (bSecondary) then
+			self:SetClip2(iAmmo)
+		else
+			self:SetClip1(iAmmo)
+		end
+	end
 end

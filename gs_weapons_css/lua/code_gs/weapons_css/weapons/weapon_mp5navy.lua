@@ -3,6 +3,7 @@ SWEP.Base = "weapon_csbase_smg"
 SWEP.Spawnable = true
 
 SWEP.ViewModel = "models/weapons/v_smg_mp5.mdl"
+SWEP.CModel = "models/weapons/cstrike/c_smg_mp5.mdl"
 SWEP.WorldModel = "models/weapons/w_smg_mp5.mdl"
 
 SWEP.Sounds = {

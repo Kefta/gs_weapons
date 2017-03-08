@@ -3,6 +3,8 @@
 -- Also remove the NWVar if possible
 
 --ENT.Base = "gs_baseentity" -- This is NOT the superclass. Let base_anim/base_entity handle it's default implementation
+ENT.NoTranslateBase = false -- Don't translate the base string when loading weapons with RegisterEntitiesFromFolder
+
 ENT.PrintName = "GSBase" -- Display name
 ENT.Author = "code_gs" -- Displayed on entity selection panel
 ENT.Spawnable = false -- Displays the entity in the spawn menu. This must be defined in every entity!
@@ -65,14 +67,22 @@ function ENT:Precache()
 		if (k ~= "BaseClass") then -- Stupid pseudo-inheritance
 			-- Register sound table
 			if (istable(s)) then
-				if (not s.name) then
-					s.name = sClass .. "." .. k
+				if (s.sound) then
+					if (not s.name) then
+						s.name = sClass .. "." .. k
+					end
+					
+					sound.Add(s)
+					self.Sounds[k] = s.name
+					tEnt.Sounds[k] = s.name
+					util.PrecacheSound(s.name)
+				else
+					sound.Add({
+						name = sClass .. "." .. k,
+						channel = CHAN_ITEM,
+						sound = s
+					})
 				end
-				
-				sound.Add(s)
-				self.Sounds[k] = s.name
-				tEnt.Sounds[k] = s.name
-				util.PrecacheSound(s.name)
 			-- Create a new sound table from a file
 			elseif (string.IsSoundFile(s)) then
 				local sName = sClass .. "." .. k
@@ -108,8 +118,10 @@ function ENT:Think()
 		self:Initialize()
 	end
 	
-	-- We remove events one Think after they mark themselves as complete to maintain clientside prediction
-	if (IsFirstTimePredicted()) then
+	local bFirstTimePredicted = IsFirstTimePredicted()
+	
+	-- Events are removed one Think after they mark themselves as complete to maintain clientside prediction
+	if (bFirstTimePredicted) then
 		for key, _ in pairs(self.m_tRemovalQueue) do
 			self.m_tRemovalQueue[key] = nil
 			self.m_tEvents[key] = nil
@@ -124,22 +136,28 @@ function ENT:Think()
 	local flCurTime = CurTime()
 	
 	for key, tbl in pairs(self.m_tEvents) do
-		if (tbl[2] <= flCurTime) then
-			local RetVal = tbl[3]()
-			
-			if (RetVal == true) then
-				self.m_tEvents[key] = nil
+		-- Only start running on the first prediction time
+		if (bFirstTimePredicted) then
+			self.m_tEvents[key][4] = true
+		elseif (not self.m_tEvents[key][4]) then
+			continue
+		end
+		
+		-- -1 is an event that counts as active but never ran
+		if (tbl[1] ~= -1) then
+			if (tbl[2] <= flCurTime) then
+				local RetVal = tbl[3]()
 				
-				if (isnumber(key)) then
-					self.m_tEventHoles[key] = true
+				if (RetVal == true) then
+					self.m_tRemovalQueue[key] = true
+				else
+					-- Update interval
+					if (isnumber(RetVal)) then
+						tbl[1] = RetVal
+					end
+					
+					tbl[2] = flCurTime + tbl[1]
 				end
-			else
-				-- Update interval
-				if (isnumber(RetVal)) then
-					tbl[1] = RetVal
-				end
-				
-				tbl[2] = flCurTime + tbl[1]
 			end
 		end
 	end
@@ -155,24 +173,40 @@ end
 function ENT:ItemFrame()
 end
 
-function ENT:AddEvent(sName, iTime, fCall)
-	-- Do not add to the event table multiple times
-	if (IsFirstTimePredicted()) then
-		if (fCall) then
-			self.m_tEvents[sName] = {iTime, CurTime() + iTime, fCall}
+function ENT:AddEvent(sName, iTime, fCall, bNoPrediction)
+	local bAddedByName = isstring(sName)
+	
+	if (IsFirstTimePredicted() or (bAddedByName and bNoPrediction or fCall == true)) then
+		if (bAddedByName) then -- Added by name
+			sName = sName:lower()
+			self.m_tEvents[sName] = {iTime, CurTime() + iTime, fCall, false}
 			self.m_tRemovalQueue[sName] = nil -- Fixes edge case of event being added upon removal
 		else
-			self.m_tEvents[next(self.m_tEventHoles) or #self.m_tEvents] = {sName, CurTime() + sName, iTime}
+			local iPos = next(self.m_tEventHoles)
+			
+			if (iPos) then
+				self.m_tEvents[iPos] = {sName, CurTime() + sName, iTime, false}
+				self.m_tEventHoles[iPos] = nil
+			else
+				-- No holes, we can safely use the count operation
+				self.m_tEvents[#self.m_tEvents] = {sName, CurTime() + sName, iTime, false}
+			end
 		end
 	end
 end
 
-function ENT:EventActive(sName)
-	return self.m_tEvents[sName] ~= nil
+function ENT:EventActive(sName, bNoPrediction)
+	sName = sName:lower()
+	
+	return self.m_tEvents[sName] ~= nil and (bNoPrediction or IsFirstTimePredicted() or self.m_tEvents[sName][4])
 end
 
-function ENT:RemoveEvent(sName)
-	self.m_tEvents[sName] = nil
+function ENT:RemoveEvent(sName, bNoPrediction)
+	if (bNoPrediction) then
+		self.m_tEvents[sName:lower()] = nil
+	else
+		self.m_tRemovalQueue[sName:lower()] = true
+	end
 end
 
 function ENT:AddNWVar(sType, sName, bAddFunctions --[[= true]], DefaultVal --[[= nil]])

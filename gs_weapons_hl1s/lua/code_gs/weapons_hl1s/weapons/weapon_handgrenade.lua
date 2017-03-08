@@ -6,11 +6,10 @@ SWEP.HoldType = "grenade"
 SWEP.Weight = 2
 
 SWEP.Activities = {
-	idle = {
-		ACT_VM_IDLE,
-		idle = {10, 15}
-	},
-	idle_alt = ACT_VM_FIDGET,
+	idle = function(self, iIndex)
+		return code_gs.random:SharedRandomFloat(self:GetOwner(), self:GetClass() .. "-Activity" .. iIndex .. "-idle", 0, 1) > 0.75
+			and ACT_VM_FIDGET or ACT_VM_IDLE
+	end,
 	pullback = ACT_VM_PRIMARYATTACK,
 	throw = ACT_INVALID, -- Disable default throw anim
 	throw1 = ACT_HANDGRENADE_THROW1,
@@ -23,56 +22,27 @@ SWEP.Primary.Automatic = false
 
 if (SERVER) then
 	SWEP.Grenade = {
-		--Delay = 0.5,
 		Class = "grenade_hand",
-		Timer = 1.5,
 		Damage = 150,
 		Radius = 375,
-		Angle = Angle(0, 0, 60),
-		Gravity = 400,
-		Friction = 0.8
+		Timer = 1.5
 	}
 end
 
-function SWEP:PrimaryAttack()
-	if (self:CanPrimaryAttack(0)) then
-		self:Throw(GRENADE_THROW, 0)
-		
-		return true
+function SWEP:Attack(bSecondary --[[= false]], iIndex --[[= 0]])
+	if (not bSecondary) then
+		self:Throw(code_gs.weapons.GRENADE_THROW, iIndex)
 	end
-	
-	return false
 end
-
-function SWEP:GetActivitySuffix(sActivity, iIndex)
-	local sSuffix = BaseClass.GetActivitySuffix(self, sActivity, iIndex)
-	
-	if (sActivity == "idle") then
-		if (self.m_tDryFire[iIndex] and sSuffix == "empty") then
-			return sSuffix
-		end
-		
-		code_gs.random:SetSeed(pPlayer:GetMD5Seed() % 0x100)
-		
-		if (code_gs.random:RandomFloat(0, 1) > 0.75) then
-			return "alt"
-		end
-	end
-	
-	return sSuffix
-end
-
-local flThrowUp = 8/9
-local flThrowDown = 10/9
 
 function SWEP:EmitGrenade()
 	local pPlayer = self:GetOwner()
 	local aThrow = pPlayer:EyeAngles()
 	
 	// player is pitching up
-	aThrow.p = aThrow.p > 180 and -15 - (360 - aThrow.p) * flThrowUp
+	aThrow.p = aThrow.p > 180 and -15 - (360 - aThrow.p) * 8/9
 		// player is pitching down
-		or -15 + aThrow.p * flThrowDown
+		or -15 + aThrow.p * 10/9
 	
 	local flVel = (90 - aThrow.p) * 4
 	
@@ -89,7 +59,7 @@ function SWEP:EmitGrenade()
 	
 	if (SERVER) then
 		--[[local vForward = aThrow:Forward()
-		-- Fix
+		-- Fixme
 		local pGrenade = ents.Create(self.Entity)
 		pGrenade:SetPos(pPlayer:EyePos() + vForward * 16)
 		pGrenade:_SetAbsVelocity(vForward * (flVel > 500 and 500 or flVel) + pPlayer:_GetAbsVelocity())

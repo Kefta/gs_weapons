@@ -73,7 +73,7 @@ end
 	// only do damage if we're moving fairly fast
 	-- DAMAGE_NO = 0
 	if ((pOther:GetInternalVariable("m_takedamage") ~= 0) and (self.m_flNextAttack < CurTime() and iLen > 100)) then
-		if (self:GetOwner() ~= NULL) then -- Fix; should we use this behaviour or fix it to always do damage
+		if (self:GetOwner():IsValid()) then -- Fix; should we use this behaviour or fix it to always do damage
 			local info = DamageInfo()
 			info:SetInflictor(self)
 			info:SetAttacker(self:GetOwner())

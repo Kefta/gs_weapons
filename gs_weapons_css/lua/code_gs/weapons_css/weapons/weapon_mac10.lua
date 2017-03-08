@@ -3,6 +3,7 @@ SWEP.Base = "weapon_csbase_smg"
 SWEP.Spawnable = true
 
 SWEP.ViewModel = "models/weapons/v_smg_mac10.mdl"
+SWEP.CModel = "models/weapons/cstrike/c_smg_mac10.mdl"
 SWEP.WorldModel = "models/weapons/w_smg_mac10.mdl"
 
 SWEP.Sounds = {
@@ -12,8 +13,8 @@ SWEP.Sounds = {
 SWEP.Primary.Ammo = "45acp"
 SWEP.Primary.ClipSize = 30
 SWEP.Primary.DefaultClip = 130
-SWEP.Primary.Damage = 29
 SWEP.Primary.Cooldown = 0.075
+SWEP.Primary.Damage = 29
 SWEP.Primary.RangeModifier = 0.82
 SWEP.Primary.Spread = Vector(0.03, 0.03)
 SWEP.Primary.SpreadAir = Vector(0.375, 0.375)

@@ -3,8 +3,8 @@ SWEP.Base = "weapon_dod_base_bipod"
 SWEP.Spawnable = true
 
 SWEP.Sounds = {
-	shoot = "Weapon_30cal.Shoot",
-	reload = "Weapon_30cal.WorldReload"
+	reload = "Weapon_30cal.WorldReload",
+	shoot = "Weapon_30cal.Shoot"
 }
 
 SWEP.ViewModel = "models/weapons/v_30cal.mdl"
@@ -16,18 +16,18 @@ SWEP.Weight = 20
 SWEP.Primary.Ammo = "30cal"
 SWEP.Primary.ClipSize = 150
 SWEP.Primary.DefaultClip = 300
-SWEP.Primary.Damage = 85
 SWEP.Primary.Cooldown = 0.1
-SWEP.Primary.Spread = Vector(0.2, 0.2)
+SWEP.Primary.Damage = 85
 
-SWEP.Secondary.Spread = Vector(0.01, 0.01)
+local vSpread = Vector(0.2, 0.2)
+local vDeploySpread = Vector(0.01, 0.01)
+SWEP.Primary.Spread = function(self)
+	return self:GetBipodDeployed() and vDeploySpread or vSpread
+end
 
 SWEP.Accuracy = {
 	MovePenalty = Vector(0.1, 0.1)
 }
-
---SWEP.Penetration = 1
--- Recoil = 20
 
 if (CLIENT) then
 	SWEP.ViewModelFOV = 45

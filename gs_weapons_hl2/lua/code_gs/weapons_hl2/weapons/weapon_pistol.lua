@@ -1,3 +1,5 @@
+do return true end
+
 SWEP.Base = "basehlcombatweapon"
 
 SWEP.Spawnable = true
@@ -61,8 +63,8 @@ end
 
 local bSinglePlayer = game.SinglePlayer()
 
-function SWEP:SharedDeploy(bDelayed)
-	BaseClass.SharedDeploy(self, bDelayed)
+function SWEP:SharedDeploy(bDelayed, bNoPrediction)
+	BaseClass.SharedDeploy(self, bDelayed, bNoPrediction)
 	
 	if (not bDelayed and (not bSinglePlayer or SERVER)) then
 		self.dt.DryFired = false

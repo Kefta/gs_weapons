@@ -1,9 +1,9 @@
+do return true end
+
 SWEP.Base = "weapon_dod_base"
 
-SWEP.Primary = {
-	Damage = 60,
-	Cooldown = 0.4
-}
+SWEP.Primary.Damage = 60
+SWEP.Primary.Cooldown = 0.4
 
 SWEP.Melee = {
 	DotRange = 0.95,
@@ -82,7 +82,7 @@ function SWEP:Swing(bSecondary, iIndex)
 	end
 	
 	local flCurTime = CurTime()
-	self:SetLastShootTime(flCurTime)
+	self:SetLastAttackTime(flCurTime)
 	
 	flCurTime = flCurTime + self:GetSpecialKey("Cooldown", bSecondary)
 	self:SetNextPrimaryFire(flCurTime)
@@ -146,7 +146,7 @@ function SWEP:Smack(tr, vForward, bDelayed, bSecondary, iIndex)
 		
 		self:PlaySound("hit", iIndex)
 	else
-		code_gs.DevMsg(3, self:GetClass() .. " (weapon_dod_base) Placing decal!")
+		code_gs.DevMsg(2, self:GetClass() .. " (weapon_dod_base) Placing decal!")
 		util.Decal("ManhackCut", tr.HitPos - tr.HitNormal, tr.HitPos + tr.HitNormal, true)
 		
 		self:PlaySound("hitworld", iIndex)
@@ -240,7 +240,7 @@ function SWEP:Swing(bSecondary, iIndex)
 	
 	// Setup out next attack times
 	local flCurTime = CurTime()
-	self:SetLastShootTime(flCurTime)
+	self:SetLastAttackTime(flCurTime)
 	self:SetNextPrimaryFire(flCurTime + self:GetSpecialKey("Cooldown", bSecondary))
 	self:SetNextSecondaryFire(flCurTime + (bActivity and self:SequenceLength(iIndex) or 0))
 	

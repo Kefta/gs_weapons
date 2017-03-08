@@ -3,6 +3,7 @@ SWEP.Base = "weapon_csbase_rifle"
 SWEP.Spawnable = true
 
 SWEP.ViewModel = "models/weapons/v_rif_famas.mdl"
+SWEP.CModel = "models/weapons/cstrike/c_rif_famas.mdl"
 SWEP.WorldModel = "models/weapons/w_rif_famas.mdl"
 SWEP.Weight = 75
 
@@ -13,18 +14,27 @@ SWEP.Sounds = {
 SWEP.Primary.Ammo = "556mm"
 SWEP.Primary.ClipSize = 25
 SWEP.Primary.DefaultClip = 115
+
+SWEP.Primary.Cooldown = function(self, iIndex)
+	return 0.09 * (self:GetBurst(iIndex) and 35/9 or 1)
+end
+
 SWEP.Primary.Damage = 30
-SWEP.Primary.Cooldown = 0.09
-SWEP.Primary.WalkSpeed = 220/250
-SWEP.Primary.FireUnderwater = false
 SWEP.Primary.RangeModifier = 0.96
 SWEP.Primary.Spread = Vector(0.02, 0.02)
 SWEP.Primary.SpreadAir = Vector(0.3, 0.3)
 SWEP.Primary.SpreadMove = Vector(0.07, 0.07)
-SWEP.Primary.SpreadAdditive = Vector(0.01, 0.01)
+SWEP.Primary.SpreadAdditive = Vector(0.03, 0.03)
 
-SWEP.Secondary.Cooldown = 0.35
-SWEP.Secondary.SpreadAdditive = vector_origin
+-- Extra spread if burst is disabled
+local vSpreadExtraAdditive = Vector(0.01, 0.01)
+SWEP.Primary.SpreadExtraAdditive = function(self, iIndex)
+	return self:GetBurst(iIndex) and vector_origin or vSpreadExtraAdditive
+end
+
+SWEP.Primary.FireUnderwater = false
+
+SWEP.Secondary.SpreadAdditive = SWEP.Primary.SpreadAdditive
 
 SWEP.Burst = {
 	Times = {
@@ -32,6 +42,8 @@ SWEP.Burst = {
 		0.1
 	}
 }
+
+SWEP.WalkSpeed = 220/250
 
 SWEP.Accuracy = {
 	Divisor = 215,
@@ -83,25 +95,22 @@ if (CLIENT) then
 	SWEP.KillIcon = 't'
 	SWEP.SelectionIcon = 't'
 	
-	SWEP.MuzzleFlashScale = 1.3
-	
 	SWEP.ViewModelFlip = false
+	SWEP.MuzzleFlashScale = 1.3
 end
 
-function SWEP:SecondaryAttack()
-	if (self:CanSecondaryAttack(0)) then
-		self:ToggleBurst(0)
-		
-		return true
+function SWEP:Attack(bSecondary --[[= false]], iIndex --[[= 0]])
+	if (bSecondary) then
+		self:ToggleBurst(iIndex)
+	else
+		self:Shoot(false, iIndex)
 	end
-	
-	return false
 end
 
-function SWEP:GetSpecialKey(sKey, bSecondary, bNoConVar)
+function SWEP:GetSpecialKey(sKey, bSecondary --[[= false]], iIndex --[[= 0]])
 	if (sKey == "Spread") then
-		return BaseClass.GetSpecialKey(self, sKey, bSecondary, bNoConVar) + BaseClass.GetSpecialKey(self, "SpreadAdditive", bSecondary, bNoConVar)
+		return BaseClass.GetSpecialKey(self, sKey, bSecondary, iIndex) + BaseClass.GetSpecialKey(self, "SpreadExtraAdditive", bSecondary, iIndex)
 	end
 	
-	return BaseClass.GetSpecialKey(self, sKey, bSecondary, bNoConVar)
+	return BaseClass.GetSpecialKey(self, sKey, bSecondary, iIndex)
 end

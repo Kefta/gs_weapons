@@ -3,6 +3,7 @@ SWEP.Base = "weapon_csbase_rifle"
 SWEP.Spawnable = true
 
 SWEP.ViewModel = "models/weapons/v_rif_aug.mdl"
+SWEP.CModel = "models/weapons/cstrike/c_rif_aug.mdl"
 SWEP.WorldModel = "models/weapons/w_rif_aug.mdl"
 
 SWEP.Sounds = {
@@ -12,15 +13,18 @@ SWEP.Sounds = {
 SWEP.Primary.Ammo = "762mm"
 SWEP.Primary.ClipSize = 30
 SWEP.Primary.DefaultClip = 120
+
+SWEP.Primary.Cooldown = function(self)
+	return 0.09 * (self:GetZoomLevel() == 0 and 1 or 1.5)
+end
+
 SWEP.Primary.Damage = 32
-SWEP.Primary.Cooldown = 0.09
-SWEP.Primary.WalkSpeed = 221/250
 SWEP.Primary.RangeModifier = 0.96
 SWEP.Primary.Spread = Vector(0.02, 0.02)
 SWEP.Primary.SpreadAir = Vector(0.4, 0.4)
 SWEP.Primary.SpreadMove = Vector(0.07, 0.07)
 
-SWEP.Secondary.Cooldown = 0.135
+SWEP.WalkSpeed = 221/250
 
 SWEP.Accuracy = {
 	Divisor = 215,
@@ -79,12 +83,10 @@ if (CLIENT) then
 	SWEP.MuzzleFlashScale = 1.3
 end
 
-function SWEP:SecondaryAttack()
-	if (self:CanSecondaryAttack()) then
-		self:AdvanceZoom(0)
-		
-		return true
+function SWEP:Attack(bSecondary --[[= false]], iIndex --[[= 0]])
+	if (bSecondary) then
+		self:AdvanceZoom(iIndex)
+	else
+		self:Shoot(false, iIndex)
 	end
-	
-	return false
 end

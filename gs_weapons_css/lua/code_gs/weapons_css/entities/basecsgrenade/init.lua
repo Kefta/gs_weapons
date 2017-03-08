@@ -43,7 +43,7 @@ function ENT:Touch(pEnt)
 	// Assume all surfaces have the same elasticity
 	// Don't bounce off of players with perfect elasticity
 	local pEntity = tr.Entity
-	local bValid = pEntity ~= NULL
+	local bValid = pEntity:IsValid()
 	local vAbsVelocity
 	
 	// if its breakable glass and we kill it, don't bounce.

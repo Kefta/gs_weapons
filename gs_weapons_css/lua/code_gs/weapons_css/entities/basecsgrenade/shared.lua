@@ -1,4 +1,5 @@
 ENT.Base = "gs_basegrenade"
+ENT.NoTranslateBase = true
 
 ENT.PrintName = "CSBase_Grenade"
 

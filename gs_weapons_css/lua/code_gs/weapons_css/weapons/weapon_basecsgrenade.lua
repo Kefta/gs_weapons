@@ -6,12 +6,12 @@ SWEP.Slot = 4
 SWEP.HoldType = "grenade"
 SWEP.Weight = 2
 
-SWEP.Activities = {
-	pullback = ACT_VM_PULLPIN
-}
-
 SWEP.Sounds = {
 	shoot = "Radio.FireInTheHole"
+}
+
+SWEP.Activities = {
+	pullback = ACT_VM_PULLPIN
 }
 
 SWEP.Primary.DefaultClip = 1
@@ -24,29 +24,36 @@ SWEP.Grenade = {
 SWEP.RemoveOnEmpty = true
 
 if (SERVER) then
+	SWEP.Grenade.Class = "basecsgrenade"
 	SWEP.Grenade.Damage = 100
 	SWEP.Grenade.Radius = 100
-	SWEP.Grenade.Class = "basecsgrenade"
 	SWEP.Grenade.Timer = 1.5
-	
-	local flThrowDown = 10/9
-	local flThrowUp = -8/9
+end
+
+function SWEP:Attack(bSecondary --[[= false]], iIndex --[[= 0]])
+	if (not bSecondary) then
+		self:Throw(code_gs.weapons.GRENADE_THROW, iIndex)
+	end
+end
+
+if (SERVER) then
 	local vHullMax = Vector(2, 2, 2)
 	local vHullMin = -vHullMax
+	local vRand = Vector(600, 0, 0)
 
 	function SWEP:EmitGrenade()
 		local tGrenade = self.Grenade
 		local pGrenade = ents.Create(tGrenade.Class)
 		
-		if (pGrenade ~= NULL) then
+		if (pGrenade:IsValid()) then
 			local pPlayer = self:GetOwner()
-			local aThrow = pPlayer:EyeAngles() -- FIXME: LocalEyeAngles
-			aThrow.p = aThrow.p < 90 and -10 + aThrow.p * flThrowDown
-				or -10 + (360.0 - aThrow.p) * flThrowUp
+			local aThrow = pPlayer:LocalEyeAngles()
+			aThrow.p = aThrow.p < 90 and -10 + aThrow.p * 10/9
+				or -10 + (360.0 - aThrow.p) * -8/9
 			
 			local flVel = (90 - aThrow.p) * 6
 			local vForward = aThrow:Forward()
-			local vSrc = pPlayer:GetPos() + pPlayer:GetViewOffset()
+			local vSrc = pPlayer:GetPos() + pPlayer:GetViewOffset() -- FIXME
 			
 			pGrenade:SetPos(util.TraceHull({
 					start = vSrc,
@@ -58,23 +65,17 @@ if (SERVER) then
 				}).HitPos)
 			pGrenade:SetOwner(pPlayer)
 			pGrenade:_SetAbsVelocity(vForward * (flVel > 750 and 750 or flVel) + pPlayer:_GetAbsVelocity())
-			pGrenade:ApplyLocalAngularVelocityImpulse(Vector(600, code_gs.random:RandomInt(-1200, 1200), 0))
+			
+			vRand[2] = code_gs.random:RandomInt(-1200, 1200)
+			pGrenade:ApplyLocalAngularVelocityImpulse(vRand)
+			
 			pGrenade:Spawn()
-			pGrenade:SetDamage(tGrenade.Damage)
-			pGrenade:SetDamageRadius(tGrenade.Radius)
-			pGrenade:StartDetonation(tGrenade.Timer)
+			-- FIXME
+			--pGrenade:SetDamage(tGrenade.Damage)
+			--pGrenade:SetDamageRadius(tGrenade.Radius)
+			--pGrenade:StartDetonation(tGrenade.Timer)
 		end
 		
 		return pGrenade
 	end
-end
-
-function SWEP:PrimaryAttack()
-	if (self:CanPrimaryAttack()) then
-		self:Throw(code_gs.weapons.GRENADE_THROW, 0)
-		
-		return true
-	end
-	
-	return false
 end

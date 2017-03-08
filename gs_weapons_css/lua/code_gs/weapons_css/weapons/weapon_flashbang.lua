@@ -3,6 +3,7 @@ SWEP.Base = "weapon_basecsgrenade"
 SWEP.Spawnable = true
 
 SWEP.ViewModel = "models/weapons/v_eq_flashbang.mdl"
+SWEP.CModel = "models/weapons/cstrike/c_eq_flashbang.mdl"
 SWEP.WorldModel = "models/weapons/w_eq_flashbang.mdl"
 SWEP.Weight = 1
 

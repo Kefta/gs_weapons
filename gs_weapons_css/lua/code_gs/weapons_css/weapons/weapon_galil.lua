@@ -3,6 +3,7 @@ SWEP.Base = "weapon_csbase_rifle"
 SWEP.Spawnable = true
 
 SWEP.ViewModel = "models/weapons/v_rif_galil.mdl"
+SWEP.CModel = "models/weapons/cstrike/c_rif_galil.mdl"
 SWEP.WorldModel = "models/weapons/w_rif_galil.mdl"
 
 SWEP.Sounds = {
@@ -12,13 +13,14 @@ SWEP.Sounds = {
 SWEP.Primary.Ammo = "556mm"
 SWEP.Primary.ClipSize = 35
 SWEP.Primary.DefaultClip = 125
-SWEP.Primary.Damage = 30
 SWEP.Primary.Cooldown = 0.09
-SWEP.Primary.WalkSpeed = 215/250
-SWEP.Primary.FireUnderwater = false
+SWEP.Primary.Damage = 30
 SWEP.Primary.Spread = Vector(0.0375, 0.0375)
 SWEP.Primary.SpreadAir = Vector(0.3, 0.3)
 SWEP.Primary.SpreadMove = Vector(0.07, 0.07)
+SWEP.Primary.FireUnderwater = false
+
+SWEP.WalkSpeed = 215/250
 
 SWEP.Accuracy = {
 	Divisor = 200,
@@ -70,7 +72,6 @@ if (CLIENT) then
 	SWEP.KillIcon = 'v'
 	SWEP.SelectionIcon = 'v'
 	
-	SWEP.MuzzleFlashScale = 1.6
-	
 	SWEP.ViewModelFlip = false
+	SWEP.MuzzleFlashScale = 1.6
 end
